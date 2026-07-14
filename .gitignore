@@ -1,0 +1,31 @@
+# 数据（禁止提交真实征信/业务数据）
+data/
+*.csv
+*.parquet
+*.xlsx
+*.xls
+*.json.gz
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+
+# 实验产出
+experiments/models/
+experiments/cache/
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
+# Jupyter
+.ipynb_checkpoints/
+
+# 本地 Claude 配置
+CLAUDE.local.md
