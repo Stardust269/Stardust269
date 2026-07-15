@@ -7,7 +7,7 @@
 --   只读（你自己的样本表）：
 --     lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623
 --   只写（下面 Step1~6 全部为你个人新建表，前缀 jcr_，与同事 yye_ 表无关）：
---     lj_iceberg.ai_decision_dev.jcr_credit_*  共 6 张
+--     lj_iceberg.ai_decision_dev.jcr_credit_*  共 7 张（含标签表）
 --
 -- 特征大类：
 --   A. 循环贷额度及额度利用率（剔除马消 T10156530H0001）
@@ -16,6 +16,20 @@
 --   D. 资质：房贷/公积金贷款（最近一份）
 --   E. 信用卡额度/账户数/余额/利用率（信贷交易信息概要，最近一份）
 --   F. 工作单位类型（个人职业信息 org_type，最近一份）
+--
+-- 【标签构建 / 日期口径】详见 notion_schema/项目说明_标签构建.md
+--   训练 cohort ：2025-08 / 09 / 10，样本日=月内额度利用率最低日
+--   标签观察窗  ：样本日后 0~60 日，征信余额是否增加
+--   测试打分日  ：2025-11-01
+-- =============================================================================
+
+-- ===================== 日期与标签参数（2025） =====================
+-- zx_dt_start         = '20240801'   征信分区起点（样本日前推1年特征）
+-- zx_dt_end           = '20260101'   征信分区终点（10月样本+60天 & 11.1测试）
+-- train_sample_months = 202508, 202509, 202510
+-- test_predict_date   = '2025-11-01'
+-- label_fwd_days      = 60
+-- min_crdt_lim_yx     = 20000
 -- =============================================================================
 
 -- ===================== 个人表名参数（按需修改后缀日期） =====================
@@ -28,6 +42,7 @@
 --   jcr_credit_report_ext_20260623
 --   jcr_credit_report_with_sample_20260623
 --   jcr_credit_feature_20260623          <-- 最终特征宽表
+--   jcr_credit_feature_label_20260623    <-- 特征+标签+数据集划分
 
 -- Step 0（可选，一次性）：若你还没有自己的样本表，可从同事表复制到你名下。
 -- 执行一次后请注释掉，避免反复依赖同事表。
@@ -65,14 +80,14 @@ select
 from (
     select id_unqf, id_unqp, account_no, close_date, balance, dt
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform
-    where dt >= '20241001' and dt < '20260201'
+    where dt >= '20240801' and dt < '20260101'
       and (close_date is null or cast(close_date as string) = '')
 ) t1
 inner join (
     select id_unqf, id_unqp, account_no, account_id, account_type,
            org_manage_type, org_manage_code, credit_grant_amount, dt
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info
-    where dt >= '20241001' and dt < '20260201'
+    where dt >= '20240801' and dt < '20260101'
       and account_type in ('R1', 'R2', 'R3')
       and org_manage_code <> 'T10156530H0001'
 ) t2
@@ -85,7 +100,7 @@ left join (
                order by coalesce(info_dt, settle_date) desc, month desc
            ) as rn
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform
-    where dt >= '20241001' and dt < '20260201'
+    where dt >= '20240801' and dt < '20260101'
 ) t3
   on t1.id_unqf = t3.id_unqf and t1.id_unqp = t3.id_unqp
  and t1.account_no = t3.account_no and t1.dt = t3.dt and t3.rn = 1
@@ -177,7 +192,7 @@ from (
     select id_unqp, id_unqf, dt,
            concat(substr(dt, 1, 4), '-', substr(dt, 5, 2), '-', substr(dt, 7, 2)) as days_dt_zx
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary
-    where dt >= '20241001' and dt < '20260201'
+    where dt >= '20240801' and dt < '20260101'
 ) spine
 left join lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary q
   on spine.id_unqf = q.id_unqf and spine.id_unqp = q.id_unqp and spine.dt = q.dt
@@ -188,7 +203,7 @@ left join (
            max(cast(nullif(first_business_month, '') as int)) as pd_max_overdue_months,
            max(cast(nullif(amt_pdtotal, '') as decimal(18, 2))) as pd_max_overdue_amt
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary
-    where dt >= '20241001' and dt < '20260201'
+    where dt >= '20240801' and dt < '20260101'
     group by id_unqp, id_unqf, dt
 ) pd
   on spine.id_unqf = pd.id_unqf and spine.id_unqp = pd.id_unqp and spine.dt = pd.dt
@@ -199,7 +214,7 @@ left join (
            max(case when cre_tran_pro_type in ('11', '12') then 1 else 0 end) as has_house_loan_flg,
            max(case when cre_tran_pro_type = '13' then 1 else 0 end) as has_gjj_loan_flg
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail
-    where dt >= '20241001' and dt < '20260201'
+    where dt >= '20240801' and dt < '20260101'
     group by id_unqp, id_unqf, dt
 ) tip
   on spine.id_unqf = tip.id_unqf and spine.id_unqp = tip.id_unqp and spine.dt = tip.dt
@@ -208,14 +223,14 @@ left join (
            max(case when busi_type = '13' or busi_type like '%公积金%' then 1 else 0 end) as has_gjj_loan_flg,
            max(case when busi_type in ('11', '12') or busi_type like '%住房%' then 1 else 0 end) as has_house_loan_flg
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info
-    where dt >= '20241001' and dt < '20260201'
+    where dt >= '20240801' and dt < '20260101'
     group by id_unqp, id_unqf, dt
 ) bi
   on spine.id_unqf = bi.id_unqf and spine.id_unqp = bi.id_unqp and spine.dt = bi.dt
 left join (
     select id_unqp, id_unqf, dt, 1 as has_gjj_record_flg
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record
-    where dt >= '20241001' and dt < '20260201'
+    where dt >= '20240801' and dt < '20260101'
     group by id_unqp, id_unqf, dt
 ) phf
   on spine.id_unqf = phf.id_unqf and spine.id_unqp = phf.id_unqp and spine.dt = phf.dt
@@ -228,7 +243,7 @@ left join (
                    order by update_date desc nulls last, time_inst desc
                ) as rn
         from lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info
-        where dt >= '20241001' and dt < '20260201'
+        where dt >= '20240801' and dt < '20260101'
     ) x
     where rn = 1
 ) job
@@ -236,6 +251,8 @@ left join (
 ;
 
 -- Step 5: 样本关联（报告主键统一后再挂循环贷/扩展/账单日特征）
+-- 训练 cohort：样本表 dt 落在 202508/202509/202510（2025年8~10月）
+-- 征信关联窗：days_dt_1 前推365天 ~ 后推60天（标签观察窗）
 create table if not exists lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623 as
 select
     s.uuid, s.user_id, s.pril_bal, s.crdt_lim_yx, s.pril_bal_rate,
@@ -418,3 +435,70 @@ group by
     with_0_30, with_31_60, with_61_90, with_91_120,
     with_0_30_5103, with_31_60_5103, with_61_90_5103, with_91_120_5103
 ;
+
+-- Step 7: 标签 + 数据集划分（训练/验证/测试）
+-- 正样本 label=1：样本日后60天内征信余额增加（fwd_max_balance > fwd_first_balance）
+-- 负样本 label=0：未增加
+-- 训练 cohort：2025-08/09/10；测试打分：2025-11-01（仅特征，label 可为空）
+create table if not exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623 as
+select
+    f.*,
+    substr(f.dt, 1, 6) as sample_month,
+    l.fwd_first_balance,
+    l.fwd_max_balance,
+    case
+        when l.fwd_max_balance > l.fwd_first_balance then 1
+        when l.fwd_max_balance is not null then 0
+        else null
+    end as label,
+    case
+        when f.days_dt = '2025-11-01' then 'test'
+        when substr(f.dt, 1, 6) in ('202508', '202509', '202510')
+             and pmod(hash(f.uuid), 10) < 8 then 'train'
+        when substr(f.dt, 1, 6) in ('202508', '202509', '202510') then 'val'
+        else 'other'
+    end as dataset_split
+from lj_iceberg.ai_decision_dev.jcr_credit_feature_20260623 f
+left join (
+    select
+        uuid,
+        max(if(fwd_rn = 1, bal_sum, null)) as fwd_first_balance,
+        max(if(flg_fwd_60d = 1, bal_sum, null)) as fwd_max_balance
+    from (
+        select
+            uuid,
+            bal_sum,
+            flg_fwd_60d,
+            row_number() over (partition by uuid order by dt_zx asc) as fwd_rn
+        from lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623
+        where flg_fwd_60d = 1
+          and bal_sum is not null
+    ) t
+    group by uuid
+) l
+  on f.uuid = l.uuid
+where f.crdt_lim_yx >= 20000
+  and (
+        substr(f.dt, 1, 6) in ('202508', '202509', '202510')
+        or f.days_dt = '2025-11-01'
+      )
+;
+
+-- Step 8: 标签分布核验（2025年10月示例，可按 sample_month 调整）
+-- select
+--     sample_month,
+--     label,
+--     dataset_split,
+--     count(1) as num,
+--     round(count(1) * 100.0 / sum(count(1)) over (partition by sample_month), 2) as pct
+-- from lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623
+-- where sample_month = '202510'
+--   and no_balance_flg_90 = 1
+--   and had_0_30_zx = 1
+--   and had_31_60_zx = 1
+--   and had_61_90_zx = 1
+--   and with_0_30 + with_31_60 + with_61_90 = 0
+--   and label is not null
+-- group by sample_month, label, dataset_split
+-- order by label, dataset_split
+-- ;
