@@ -1,6 +1,14 @@
 -- =============================================================================
 -- 二代征信特征加工 SQL（按 Notion《需要加工的数据》最新版）
 --
+-- 【权限与读写说明】
+--   只读（征信公共源表，不会改写任何人数据）：
+--     lj_iceberg.pboccr2d.*  共 9 张
+--   只读（你自己的样本表）：
+--     lj_iceberg.ai_decision_dev.zyy_pril_bal_info_20260623
+--   只写（下面 Step1~6 全部为你个人新建表，前缀 zyy_，与同事 yye_ 表无关）：
+--     lj_iceberg.ai_decision_dev.zyy_credit_*  共 6 张
+--
 -- 特征大类：
 --   A. 循环贷额度及额度利用率（剔除马消 T10156530H0001）
 --   B. 征信查询次数（查询记录概要 + 近一年多份报告均值）
@@ -10,10 +18,26 @@
 --   F. 工作单位类型（个人职业信息 org_type，最近一份）
 -- =============================================================================
 
+-- ===================== 个人表名参数（按需修改后缀日期） =====================
+-- 样本表（须由你自己维护，本脚本只读、不写）
+--   lj_iceberg.ai_decision_dev.zyy_pril_bal_info_20260623
+-- 产出表（本脚本创建，全是新表）：
+--   zyy_credit_account_base_20260623
+--   zyy_credit_report_agg_20260623
+--   zyy_credit_billday_agg_20260623
+--   zyy_credit_report_ext_20260623
+--   zyy_credit_report_with_sample_20260623
+--   zyy_credit_feature_20260623          <-- 最终特征宽表
+
+-- Step 0（可选，一次性）：若你还没有自己的样本表，可从同事表复制到你名下。
+-- 执行一次后请注释掉，避免反复依赖同事表。
+-- create table if not exists lj_iceberg.ai_decision_dev.zyy_pril_bal_info_20260623 as
+-- select * from lj_iceberg.ai_decision_dev.yye_pril_bal_info_20260623_2;
+
 -- Step 1: 循环贷账户级明细（R1/R2/R3，剔除马消）
 -- 关联键说明：生产表 latest_perform 实际字段为 account_no（与你原 SQL 一致），
 -- 非 Notion 文档中的 account_id。
-create table if not exists lj_iceberg.ai_decision_dev.yye_credit_account_base_20260623 as
+create table if not exists lj_iceberg.ai_decision_dev.zyy_credit_account_base_20260623 as
 select
     t1.id_unqf,
     t1.id_unqp,
@@ -68,7 +92,7 @@ left join (
 ;
 
 -- Step 2: 循环贷报告级聚合
-create table if not exists lj_iceberg.ai_decision_dev.yye_credit_report_agg_20260623 as
+create table if not exists lj_iceberg.ai_decision_dev.zyy_credit_report_agg_20260623 as
 select
     id_unqp, id_unqf, dt, days_dt_zx,
     sum(is_pos_bal_acct) as pos_bal_acct_cnt,
@@ -85,12 +109,12 @@ select
               / sum(if(is_pos_bal_acct = 1, credit_grant_amount, 0))
          else null end as util_sum,
     count(distinct if(is_pos_bal_acct = 1 and bill_day is not null, bill_day, null)) as bill_day_cnt
-from lj_iceberg.ai_decision_dev.yye_credit_account_base_20260623
+from lj_iceberg.ai_decision_dev.zyy_credit_account_base_20260623
 group by id_unqp, id_unqf, dt, days_dt_zx
 ;
 
 -- Step 3: 账单日压力
-create table if not exists lj_iceberg.ai_decision_dev.yye_credit_billday_agg_20260623 as
+create table if not exists lj_iceberg.ai_decision_dev.zyy_credit_billday_agg_20260623 as
 select id_unqp, id_unqf, dt, days_dt_zx,
        max(acct_cnt_same_billday) as same_billday_acct_cnt_max,
        max(bal_sum_same_billday) as same_billday_bal_sum_max
@@ -98,7 +122,7 @@ from (
     select id_unqp, id_unqf, dt, days_dt_zx, bill_day,
            sum(is_pos_bal_acct) as acct_cnt_same_billday,
            sum(if(is_pos_bal_acct = 1, balance, 0)) as bal_sum_same_billday
-    from lj_iceberg.ai_decision_dev.yye_credit_account_base_20260623
+    from lj_iceberg.ai_decision_dev.zyy_credit_account_base_20260623
     where is_pos_bal_acct = 1 and bill_day is not null
     group by id_unqp, id_unqf, dt, days_dt_zx, bill_day
 ) t
@@ -106,7 +130,7 @@ group by id_unqp, id_unqf, dt, days_dt_zx
 ;
 
 -- Step 4: 报告级扩展特征（查询/逾期/信用卡/资质/职业）
-create table if not exists lj_iceberg.ai_decision_dev.yye_credit_report_ext_20260623 as
+create table if not exists lj_iceberg.ai_decision_dev.zyy_credit_report_ext_20260623 as
 select
     spine.id_unqp,
     spine.id_unqf,
@@ -212,7 +236,7 @@ left join (
 ;
 
 -- Step 5: 样本关联（报告主键统一后再挂循环贷/扩展/账单日特征）
-create table if not exists lj_iceberg.ai_decision_dev.yye_credit_report_with_sample_20260623 as
+create table if not exists lj_iceberg.ai_decision_dev.zyy_credit_report_with_sample_20260623 as
 select
     s.uuid, s.user_id, s.pril_bal, s.crdt_lim_yx, s.pril_bal_rate,
     s.dt, s.days_dt, s.no_balance_flg_30, s.no_balance_flg_60, s.no_balance_flg_90,
@@ -255,21 +279,21 @@ from (
            had_0_30_zx, had_31_60_zx, had_61_90_zx, had_91_120_zx,
            with_0_30, with_31_60, with_61_90, with_91_120,
            with_0_30_5103, with_31_60_5103, with_61_90_5103, with_91_120_5103
-    from lj_iceberg.ai_decision_dev.yye_pril_bal_info_20260623_2
+    from lj_iceberg.ai_decision_dev.zyy_pril_bal_info_20260623
 ) s
 left join (
     select id_unqp, id_unqf, dt, days_dt_zx
-    from lj_iceberg.ai_decision_dev.yye_credit_report_ext_20260623
+    from lj_iceberg.ai_decision_dev.zyy_credit_report_ext_20260623
     union
     select id_unqp, id_unqf, dt, days_dt_zx
-    from lj_iceberg.ai_decision_dev.yye_credit_report_agg_20260623
+    from lj_iceberg.ai_decision_dev.zyy_credit_report_agg_20260623
 ) rep
   on s.uuid = rep.id_unqp
-left join lj_iceberg.ai_decision_dev.yye_credit_report_agg_20260623 r
+left join lj_iceberg.ai_decision_dev.zyy_credit_report_agg_20260623 r
   on rep.id_unqp = r.id_unqp and rep.id_unqf = r.id_unqf and rep.dt = r.dt
-left join lj_iceberg.ai_decision_dev.yye_credit_report_ext_20260623 e
+left join lj_iceberg.ai_decision_dev.zyy_credit_report_ext_20260623 e
   on rep.id_unqp = e.id_unqp and rep.id_unqf = e.id_unqf and rep.dt = e.dt
-left join lj_iceberg.ai_decision_dev.yye_credit_billday_agg_20260623 b
+left join lj_iceberg.ai_decision_dev.zyy_credit_billday_agg_20260623 b
   on rep.id_unqp = b.id_unqp and rep.id_unqf = b.id_unqf and rep.dt = b.dt
 where rep.days_dt_zx is null
    or (
@@ -279,7 +303,7 @@ where rep.days_dt_zx is null
 ;
 
 -- Step 6: 最终特征宽表
-create table if not exists lj_iceberg.ai_decision_dev.yye_credit_feature_20260623 as
+create table if not exists lj_iceberg.ai_decision_dev.zyy_credit_feature_20260623 as
 select
     uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt,
     no_balance_flg_30, no_balance_flg_60, no_balance_flg_90, days_dt_1,
@@ -386,7 +410,7 @@ select
     sum(flg_win_6m) as zx_report_cnt_6m,
     sum(flg_win_1y) as zx_report_cnt_1y,
     sum(flg_fwd_60d) as zx_report_cnt_fwd_60d
-from lj_iceberg.ai_decision_dev.yye_credit_report_with_sample_20260623
+from lj_iceberg.ai_decision_dev.zyy_credit_report_with_sample_20260623
 group by
     uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt,
     no_balance_flg_30, no_balance_flg_60, no_balance_flg_90, days_dt_1,
