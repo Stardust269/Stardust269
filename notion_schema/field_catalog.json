@@ -1,0 +1,2930 @@
+[
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "就业状态",
+    "field_code": "job_state",
+    "field_type": "varchar(8)",
+    "field_desc": "就业状态"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "工作单位名称",
+    "field_code": "company_name",
+    "field_type": "varchar(128)",
+    "field_desc": "工作单位名称"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "单位性质",
+    "field_code": "org_type",
+    "field_type": "varchar(32)",
+    "field_desc": "单位性质"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "单位地址",
+    "field_code": "company_address",
+    "field_type": "varchar(128)",
+    "field_desc": "单位地址"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "单位地址经度",
+    "field_code": "company_address_lng",
+    "field_type": "varchar(32)",
+    "field_desc": "单位地址经度"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "单位地址维度",
+    "field_code": "company_address_ltt",
+    "field_type": "varchar(32)",
+    "field_desc": "单位地址维度"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "单位电话",
+    "field_code": "telephone",
+    "field_type": "varchar(32)",
+    "field_desc": "单位电话"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "职业",
+    "field_code": "vocation",
+    "field_type": "varchar(32)",
+    "field_desc": "职业"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "行业",
+    "field_code": "industry",
+    "field_type": "varchar(32)",
+    "field_desc": "行业"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "职务",
+    "field_code": "job_type",
+    "field_type": "varchar(16)",
+    "field_desc": "职务"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "职称",
+    "field_code": "job_title_type",
+    "field_type": "varchar(16)",
+    "field_desc": "职称"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "计入本单位年份",
+    "field_code": "join_year",
+    "field_type": "shortint",
+    "field_desc": "计入本单位年份"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "信息更新日期",
+    "field_code": "update_date",
+    "field_type": "date",
+    "field_desc": "信息更新日期"
+  },
+  {
+    "page": "个人职业信息（lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datatime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "个人风险评分(lj_iceberg.dsst.pboc2_gaa02_person_risk_score)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_person_risk_score",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "个人风险评分(lj_iceberg.dsst.pboc2_gaa02_person_risk_score)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_person_risk_score",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "个人风险评分(lj_iceberg.dsst.pboc2_gaa02_person_risk_score)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_person_risk_score",
+    "field_name": "个人得分(score)",
+    "field_code": "score",
+    "field_type": "int",
+    "field_desc": "个人得分"
+  },
+  {
+    "page": "个人风险评分(lj_iceberg.dsst.pboc2_gaa02_person_risk_score)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_person_risk_score",
+    "field_name": "得分相对位置",
+    "field_code": "position_num",
+    "field_type": "int",
+    "field_desc": "得分相对位置"
+  },
+  {
+    "page": "个人风险评分(lj_iceberg.dsst.pboc2_gaa02_person_risk_score)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_person_risk_score",
+    "field_name": "分数说明1",
+    "field_code": "score_affect",
+    "field_type": "varchar(8)",
+    "field_desc": "分数说明1"
+  },
+  {
+    "page": "个人风险评分(lj_iceberg.dsst.pboc2_gaa02_person_risk_score)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_person_risk_score",
+    "field_name": "分数说明2",
+    "field_code": "score_affect2",
+    "field_type": "varchar(8)",
+    "field_desc": "分数说明2"
+  },
+  {
+    "page": "个人风险评分(lj_iceberg.dsst.pboc2_gaa02_person_risk_score)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_person_risk_score",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datatime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "低保救助记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "低保救助记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "低保救助记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record",
+    "field_name": "编号",
+    "field_code": "no_serial",
+    "field_type": "int",
+    "field_desc": "编号"
+  },
+  {
+    "page": "低保救助记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record",
+    "field_name": "人员类别",
+    "field_code": "person_type",
+    "field_type": "varchar(16)",
+    "field_desc": "人员类别"
+  },
+  {
+    "page": "低保救助记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record",
+    "field_name": "所在地",
+    "field_code": "location",
+    "field_type": "varchar(16)",
+    "field_desc": "所在地"
+  },
+  {
+    "page": "低保救助记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record",
+    "field_name": "工作单位",
+    "field_code": "company",
+    "field_type": "varchar(16)",
+    "field_desc": "工作单位"
+  },
+  {
+    "page": "低保救助记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record",
+    "field_name": "家庭月收入",
+    "field_code": "month_income",
+    "field_type": "int",
+    "field_desc": "家庭月收入"
+  },
+  {
+    "page": "低保救助记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record",
+    "field_name": "申请日期",
+    "field_code": "apply_date",
+    "field_type": "date",
+    "field_desc": "申请日期"
+  },
+  {
+    "page": "低保救助记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record",
+    "field_name": "批准日期",
+    "field_code": "approval_date",
+    "field_type": "date",
+    "field_desc": "批准日期"
+  },
+  {
+    "page": "低保救助记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record",
+    "field_name": "信息更新日期",
+    "field_code": "info_date",
+    "field_type": "date",
+    "field_desc": "信息更新日期"
+  },
+  {
+    "page": "低保救助记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record）",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pbs_record",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "住房公积金参缴记录（lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "住房公积金参缴记录（lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "住房公积金参缴记录（lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record",
+    "field_name": "住房公积金参缴地",
+    "field_code": "addh_reg",
+    "field_type": "varchar(50)",
+    "field_desc": "住房公积金参缴地"
+  },
+  {
+    "page": "住房公积金参缴记录（lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record",
+    "field_name": "住房公积金参缴日期",
+    "field_code": "timeh_hf",
+    "field_type": "date",
+    "field_desc": "住房公积金参缴日期"
+  },
+  {
+    "page": "住房公积金参缴记录（lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record",
+    "field_name": "住房公积金初缴月份",
+    "field_code": "timeh_fstp",
+    "field_type": "varchar(8)",
+    "field_desc": "住房公积金初缴月份"
+  },
+  {
+    "page": "住房公积金参缴记录（lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record",
+    "field_name": "住房公积金缴至月份",
+    "field_code": "timeh_lstp",
+    "field_type": "varchar(8)",
+    "field_desc": "住房公积金缴至月份"
+  },
+  {
+    "page": "住房公积金参缴记录（lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record",
+    "field_name": "住房公积金缴费状态",
+    "field_code": "timeh_sts",
+    "field_type": "varchar(20)",
+    "field_desc": "住房公积金缴费状态"
+  },
+  {
+    "page": "住房公积金参缴记录（lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record",
+    "field_name": "住房公积金月缴存额",
+    "field_code": "amth_mp",
+    "field_type": "int",
+    "field_desc": "住房公积金月缴存额"
+  },
+  {
+    "page": "住房公积金参缴记录（lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record",
+    "field_name": "住房公积金个人缴存比例",
+    "field_code": "pcth_indp",
+    "field_type": "int",
+    "field_desc": "住房公积金个人缴存比例"
+  },
+  {
+    "page": "住房公积金参缴记录（lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record",
+    "field_name": "住房公积金单位缴存比例",
+    "field_code": "pcth_emp",
+    "field_type": "int",
+    "field_desc": "住房公积金单位缴存比例"
+  },
+  {
+    "page": "住房公积金参缴记录（lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record",
+    "field_name": "住房公积金缴费单位",
+    "field_code": "orgh",
+    "field_type": "varchar(100)",
+    "field_desc": "住房公积金缴费单位"
+  },
+  {
+    "page": "住房公积金参缴记录（lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record",
+    "field_name": "住房公积金信息更新日期",
+    "field_code": "timeh_upd",
+    "field_type": "date",
+    "field_desc": "住房公积金信息更新日期"
+  },
+  {
+    "page": "住房公积金参缴记录（lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record",
+    "field_name": "系统插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "系统插入时间"
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "账户数合计",
+    "field_code": "account_num",
+    "field_type": "short(8)",
+    "field_desc": "账户数合计"
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "业务类型数量",
+    "field_code": "business_type_num",
+    "field_type": "short(8)",
+    "field_desc": "业务类型数量"
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "被追偿账余额合计",
+    "field_code": "recovery_balance",
+    "field_type": "int",
+    "field_desc": "被追偿账余额合计"
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "被追偿业务类型数量",
+    "field_code": "recovery_business_type_num",
+    "field_type": "short(8)",
+    "field_desc": "被追偿业务类型数量"
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "呆账账户数",
+    "field_code": "bad_debt_account_num",
+    "field_type": "short(8)",
+    "field_desc": "呆账账户数"
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "呆账余额",
+    "field_code": "bad_debt_balance",
+    "field_type": "int",
+    "field_desc": "呆账余额"
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "非循环贷账户汇总信息段-管理机构数",
+    "field_code": "ncl_org_num",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "非循环贷账户汇总信息段-账户数",
+    "field_code": "ncl_account_num",
+    "field_type": "short(8)",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "非循环贷账户汇总信息段-授信总额",
+    "field_code": "ncl_credit_amount",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "非循环贷账户汇总信息段-余额",
+    "field_code": "ncl_balance",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "非循环贷账户汇总信息段-最近六个月平均应还款",
+    "field_code": "ncl_avg6m_repayment",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "循环贷账户汇总信息段-管理机构数",
+    "field_code": "cl_org_num",
+    "field_type": "short(8)",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "循环贷账户汇总信息段-账户数",
+    "field_code": "cl_account_num",
+    "field_type": "short(8)",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "循环贷账户汇总信息段-授信总额",
+    "field_code": "cl_credit_amount",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "循环贷账户汇总信息段-余额",
+    "field_code": "cl_balance",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "循环贷账户汇总信息段-最近六个月平均应还款",
+    "field_code": "cl_avg6m_repayment",
+    "field_type": "int",
+    "field_desc": "账户数"
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "循环额度下分账户汇总信息段-管理机构数",
+    "field_code": "clsa_org_num",
+    "field_type": "short(8)",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "循环额度下分账户汇总信息段-账户数",
+    "field_code": "clsa_account_num",
+    "field_type": "short(8)",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "循环额度下分账户汇总信息段-授信总额",
+    "field_code": "clsa_credit_amount",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "循环额度下分账户汇总信息段-余额",
+    "field_code": "clsa_balance",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "循环额度下分账户汇总信息段-最近六个月平均应还款",
+    "field_code": "clsa_avg6m_repayment",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "贷记卡账户汇总--账户数",
+    "field_code": "credit_account_num",
+    "field_type": "short(8)",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "贷记卡账户汇总--发卡机构数",
+    "field_code": "credit_org_num",
+    "field_type": "short(8)",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "贷记卡账户汇总--授信总额",
+    "field_code": "credit_amount",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "贷记卡账户汇总--单家机构最高授信额",
+    "field_code": "credit_amount_sigle_max",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "贷记卡账户汇总--单家机构最低授信额",
+    "field_code": "credit_amount_sigle_min",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "贷记卡账户汇总--已用额度/透支额度",
+    "field_code": "credit_used_amount",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "贷记卡账户汇总--最近6个月平均使用额度/透支额度",
+    "field_code": "credit_used_amount_avg6m",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "准贷记卡账户汇总--账户数",
+    "field_code": "scredit_account_num",
+    "field_type": "short(8)",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "准贷记卡账户汇总--发卡机构数",
+    "field_code": "scredit_org_num",
+    "field_type": "short(8)",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "准贷记卡账户汇总--授信总额",
+    "field_code": "scredit_amount",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "准贷记卡账户汇总--单家机构最高授信额",
+    "field_code": "scredit_amount_sigle_max",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "准贷记卡账户汇总--单家机构最低授信额",
+    "field_code": "scredit_amount_sigle_min",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "准贷记卡账户汇总--已用额度/透支额度",
+    "field_code": "scredit_used_amount",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "准贷记卡账户汇总--最近6个月平均使用额度/透支额度",
+    "field_code": "scredit_used_amount_avg6m",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "相关还款责任个数",
+    "field_code": "duty_num_repayment",
+    "field_type": "short(8)",
+    "field_desc": "相关还款责任个数"
+  },
+  {
+    "page": "信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "信贷交易信息概要--信贷交易提示信息段明细(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "信贷交易信息概要--信贷交易提示信息段明细(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "信贷交易信息概要--信贷交易提示信息段明细(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail",
+    "field_name": "业务类型",
+    "field_code": "cre_tran_pro_type",
+    "field_type": "varchar(16)",
+    "field_desc": "业务类型"
+  },
+  {
+    "page": "信贷交易信息概要--信贷交易提示信息段明细(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail",
+    "field_name": "业务大类",
+    "field_code": "cre_tran_pro_cate_code",
+    "field_type": "varchar(16)",
+    "field_desc": "业务大类"
+  },
+  {
+    "page": "信贷交易信息概要--信贷交易提示信息段明细(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail",
+    "field_name": "账户数",
+    "field_code": "account_num",
+    "field_type": "int",
+    "field_desc": "账户数"
+  },
+  {
+    "page": "信贷交易信息概要--信贷交易提示信息段明细(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail",
+    "field_name": "首笔业务发放月份",
+    "field_code": "first_business_month",
+    "field_type": "varchar(16)",
+    "field_desc": "首笔业务发放月份"
+  },
+  {
+    "page": "信贷交易信息概要--信贷交易提示信息段明细(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "信贷交易信息概要--逾期 透支信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "信贷交易信息概要--逾期 透支信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "信贷交易信息概要--逾期 透支信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary",
+    "field_name": "业务类型",
+    "field_code": "cre_tran_pro_type",
+    "field_type": "varchar(16)",
+    "field_desc": "业务类型"
+  },
+  {
+    "page": "信贷交易信息概要--逾期 透支信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary",
+    "field_name": "账户数",
+    "field_code": "account_num",
+    "field_type": "int",
+    "field_desc": "账户数"
+  },
+  {
+    "page": "信贷交易信息概要--逾期 透支信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary",
+    "field_name": "逾期月份数",
+    "field_code": "num_month",
+    "field_type": "int",
+    "field_desc": "总共逾期的次数"
+  },
+  {
+    "page": "信贷交易信息概要--逾期 透支信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary",
+    "field_name": "单月最高逾期/透支金额",
+    "field_code": "amt_pdtotal",
+    "field_type": "long",
+    "field_desc": "单月最高逾期/透支金额"
+  },
+  {
+    "page": "信贷交易信息概要--逾期 透支信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary",
+    "field_name": "最长逾期/透支月数",
+    "field_code": "first_business_month",
+    "field_type": "varchar(16)",
+    "field_desc": "首笔业务发放月份"
+  },
+  {
+    "page": "信贷交易信息概要--逾期 透支信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "信贷交易信息概要-相关还款责任信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "信贷交易信息概要-相关还款责任信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "信贷交易信息概要-相关还款责任信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail",
+    "field_name": "借款人身份类别",
+    "field_code": "ptype",
+    "field_type": "varchar(8)",
+    "field_desc": "借款人身份类别"
+  },
+  {
+    "page": "信贷交易信息概要-相关还款责任信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail",
+    "field_name": "还款责任类型",
+    "field_code": "loan_repay_liability_type",
+    "field_type": "varchar(8)",
+    "field_desc": "担保责任;其他相关还款责任"
+  },
+  {
+    "page": "信贷交易信息概要-相关还款责任信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail",
+    "field_name": "账户数",
+    "field_code": "acount_num",
+    "field_type": "int",
+    "field_desc": "账户数"
+  },
+  {
+    "page": "信贷交易信息概要-相关还款责任信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail",
+    "field_name": "还款责任金额",
+    "field_code": "debt_duty_amount",
+    "field_type": "int",
+    "field_desc": "还款责任金额"
+  },
+  {
+    "page": "信贷交易信息概要-相关还款责任信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail",
+    "field_name": "余额",
+    "field_code": "balance",
+    "field_type": "int",
+    "field_desc": "余额"
+  },
+  {
+    "page": "信贷交易信息概要-相关还款责任信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summar_dept_duty_detail",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datatime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "信贷交易信息概要-被追偿信息汇总明细(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_recovery_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_recovery_detail",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "信贷交易信息概要-被追偿信息汇总明细(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_recovery_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_recovery_detail",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "信贷交易信息概要-被追偿信息汇总明细(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_recovery_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_recovery_detail",
+    "field_name": "被追偿业务类型",
+    "field_code": "cre_tran_pro_type",
+    "field_type": "varchar(16)",
+    "field_desc": "被追偿业务类型"
+  },
+  {
+    "page": "信贷交易信息概要-被追偿信息汇总明细(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_recovery_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_recovery_detail",
+    "field_name": "账户数",
+    "field_code": "account_num",
+    "field_type": "int",
+    "field_desc": "账户数"
+  },
+  {
+    "page": "信贷交易信息概要-被追偿信息汇总明细(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_recovery_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_recovery_detail",
+    "field_name": "余额",
+    "field_code": "balance",
+    "field_type": "int",
+    "field_desc": "被追偿余额"
+  },
+  {
+    "page": "信贷交易信息概要-被追偿信息汇总明细(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_recovery_detail)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_recovery_detail",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "账户编号",
+    "field_code": "account_no",
+    "field_type": "varchar(32)",
+    "field_desc": "账户编号"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "授权协议编号",
+    "field_code": "credit_serial_no",
+    "field_type": "varchar(32)",
+    "field_desc": "征信系统分配给该协议在本报告中的唯一编号"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "账户类型",
+    "field_code": "account_type",
+    "field_type": "varchar(16)",
+    "field_desc": "账户类型（枚举）"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "业务管理机构类型",
+    "field_code": "org_manage_type",
+    "field_type": "varchar(16)",
+    "field_desc": "业务管理机构类型(枚举)"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "业务管理机构代码",
+    "field_code": "org_manage_code",
+    "field_type": "varchar(32)",
+    "field_desc": "业务管理机构代码 数据提供机构内部具体负责借款人账户管理、信息核 实和相关异议处理的网点 /分支机构在征信系统中的 唯一编码。"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "账户标识",
+    "field_code": "account_id",
+    "field_type": "varchar(60)",
+    "field_desc": "账户标识在征信系统全局范围内用于唯一识别一个借贷账户的标识码"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "开立日期",
+    "field_code": "open_date",
+    "field_type": "date",
+    "field_desc": "开立日期"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "到期日期",
+    "field_code": "end_date",
+    "field_type": "date",
+    "field_desc": "到期日期"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "借款金额",
+    "field_code": "loan_amount",
+    "field_type": "int(15)",
+    "field_desc": "借款金额"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "币种",
+    "field_code": "currency_type",
+    "field_type": "varchar(16)",
+    "field_desc": "币种(枚举)"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "业务种类",
+    "field_code": "busi_type",
+    "field_type": "varchar(32)",
+    "field_desc": "业务种类(枚举)"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "担保方式",
+    "field_code": "assure_type",
+    "field_type": "varchar(16)",
+    "field_desc": "担保方式(枚举)"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "还款期数",
+    "field_code": "payment_payment",
+    "field_type": "short(3)",
+    "field_desc": "还款期数"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "还款频率",
+    "field_code": "payment_frequency",
+    "field_type": "varchar(16)",
+    "field_desc": "还款频率"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "还款方式",
+    "field_code": "payment_type",
+    "field_type": "varchar(16)",
+    "field_desc": "还款方式(枚举)"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "共同借款标识",
+    "field_code": "loan_together_state",
+    "field_type": "varchar(16)",
+    "field_desc": "共同借款状态(枚举)"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "账户授信额度",
+    "field_code": "credit_grant_amount",
+    "field_type": "int(15)",
+    "field_desc": "账户授信额度"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "共享授信额度",
+    "field_code": "share_credit_amount",
+    "field_type": "int(15)",
+    "field_desc": "共享授信额度"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "贷款发放形式",
+    "field_code": "loan_give_type",
+    "field_type": "varchar(16)",
+    "field_desc": "贷款发放形式(枚举)"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "债权转移时的还款状态",
+    "field_code": "payment_state_transfer",
+    "field_type": "varchar(16)",
+    "field_desc": "债权转移时的还款状态(枚举)"
+  },
+  {
+    "page": "借贷账户--基本信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datatime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "借贷账户--大额专项分期信息(lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "借贷账户--大额专项分期信息(lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "借贷账户--大额专项分期信息(lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage",
+    "field_name": "账户标识",
+    "field_code": "account_no",
+    "field_type": "varchar(60)",
+    "field_desc": "账户标识"
+  },
+  {
+    "page": "借贷账户--大额专项分期信息(lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage",
+    "field_name": "大额专项分期额度",
+    "field_code": "amount",
+    "field_type": "int(15)",
+    "field_desc": "该账户下大额专项分期的额度"
+  },
+  {
+    "page": "借贷账户--大额专项分期信息(lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage",
+    "field_name": "分期额度生效日期",
+    "field_code": "effect_date",
+    "field_type": "date",
+    "field_desc": "该账户下大额专项分期的额度生效日"
+  },
+  {
+    "page": "借贷账户--大额专项分期信息(lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage",
+    "field_name": "分期额度到期日期",
+    "field_code": "expire_date",
+    "field_type": "date",
+    "field_desc": "大额专项分期的额度有效截止日"
+  },
+  {
+    "page": "借贷账户--大额专项分期信息(lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage",
+    "field_name": "已用分期金额",
+    "field_code": "amount_used",
+    "field_type": "int(15)",
+    "field_desc": "已经使用的大额专项分期金额"
+  },
+  {
+    "page": "借贷账户--大额专项分期信息(lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_loan_account_lamount_stage",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datatime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "账户标识",
+    "field_code": "account_no",
+    "field_type": "varchar(60)",
+    "field_desc": "账户标识"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "月份",
+    "field_code": "month",
+    "field_type": "varchar(12)",
+    "field_desc": "月份"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "账户状态",
+    "field_code": "account_state",
+    "field_type": "varchar(12)",
+    "field_desc": "账户状态"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "余额",
+    "field_code": "balance",
+    "field_type": "int",
+    "field_desc": "余额"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "已用额度",
+    "field_code": "used_amount",
+    "field_type": "int",
+    "field_desc": "已用额度"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "未出单的大额专项分期余额",
+    "field_code": "lsiw_balance",
+    "field_type": "int",
+    "field_desc": "未出单的大额专项分期余额"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "五级分类",
+    "field_code": "level5_type",
+    "field_type": "varchar(16)",
+    "field_desc": "贷款五级分类"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "剩余还款期数",
+    "field_code": "remain_repayment_period",
+    "field_type": "int",
+    "field_desc": "剩余还款期数"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "结算/应还款日",
+    "field_code": "settle_date",
+    "field_type": "date",
+    "field_desc": "结算/应还款日"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "本月应还款",
+    "field_code": "repayment_amount",
+    "field_type": "int",
+    "field_desc": "本月应还款"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "本月实还款",
+    "field_code": "actual_repayment_amount",
+    "field_type": "int",
+    "field_desc": "本月实还款"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "最近一次还款日期",
+    "field_code": "latest_repayment_date",
+    "field_type": "date",
+    "field_desc": "最近一次还款日期"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "当前逾期期数",
+    "field_code": "overdue_period",
+    "field_type": "int",
+    "field_desc": "当前逾期期数"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "当前逾期总额",
+    "field_code": "overdue_amount_total",
+    "field_type": "int",
+    "field_desc": "当前逾期总额"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "逾期31—60天未还本金",
+    "field_code": "overdue_pd2_amount",
+    "field_type": "int",
+    "field_desc": "逾期31—60天未还本金"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "逾期61－90天未还本金",
+    "field_code": "overdue_pd3_amount",
+    "field_type": "int",
+    "field_desc": "逾期61－90天未还本金"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "逾期91－180天未还本金",
+    "field_code": "overdue_pd456_amount",
+    "field_type": "int",
+    "field_desc": "逾期91－180天未还本金"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "逾期180天以上未还本金",
+    "field_code": "overdue_pd7_amount",
+    "field_type": "int",
+    "field_desc": "逾期180天以上未还本金"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "透支180天以上未付余额",
+    "field_code": "overdraw_pd7_amount",
+    "field_type": "int",
+    "field_desc": "透支180天以上未付余额"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "最近6个月平均使用额度",
+    "field_code": "ave6m_use_amount",
+    "field_type": "int",
+    "field_desc": "最近6个月平均使用额度"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "最近6个月平均透支余额",
+    "field_code": "ave6m_overdraft_amount",
+    "field_type": "int",
+    "field_desc": "最近6个月平均透支余额"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "最大使用额度",
+    "field_code": "max_use_amount",
+    "field_type": "int",
+    "field_desc": "最大使用额度"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "最大透支余额",
+    "field_code": "max_overdraft_amount",
+    "field_type": "int",
+    "field_desc": "最大透支余额"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "信息报告日期",
+    "field_code": "info_dt",
+    "field_type": "date",
+    "field_desc": "信息报告日期"
+  },
+  {
+    "page": "借贷账户--最近一月表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "借贷账户--最近一次表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "借贷账户--最近一次表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "借贷账户--最近一次表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform",
+    "field_name": "账户标识",
+    "field_code": "account_id",
+    "field_type": "varchar(60)",
+    "field_desc": "账户标识"
+  },
+  {
+    "page": "借贷账户--最近一次表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform",
+    "field_name": "账户状态",
+    "field_code": "account_state",
+    "field_type": "varchar(16)",
+    "field_desc": "账户状态(枚举)"
+  },
+  {
+    "page": "借贷账户--最近一次表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform",
+    "field_name": "关闭日期",
+    "field_code": "close_date",
+    "field_type": "date",
+    "field_desc": "关闭日期"
+  },
+  {
+    "page": "借贷账户--最近一次表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform",
+    "field_name": "转出年月",
+    "field_code": "turn_out_date",
+    "field_type": "varchar(16)",
+    "field_desc": "转出年月"
+  },
+  {
+    "page": "借贷账户--最近一次表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform",
+    "field_name": "余额",
+    "field_code": "balance",
+    "field_type": "int",
+    "field_desc": "余额"
+  },
+  {
+    "page": "借贷账户--最近一次表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform",
+    "field_name": "最近一次还款日期",
+    "field_code": "latest_repayment_date",
+    "field_type": "date",
+    "field_desc": "最近一次还款日期"
+  },
+  {
+    "page": "借贷账户--最近一次表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform",
+    "field_name": "最近一次还款金额",
+    "field_code": "latest_repayment_amount",
+    "field_type": "int",
+    "field_desc": "最近一次还款金额"
+  },
+  {
+    "page": "借贷账户--最近一次表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform",
+    "field_name": "五级分类",
+    "field_code": "level5_type",
+    "field_type": "varchar(16)",
+    "field_desc": "贷款五级分类(枚举)"
+  },
+  {
+    "page": "借贷账户--最近一次表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform",
+    "field_name": "还款状态",
+    "field_code": "repayment_state",
+    "field_type": "varchar(16)",
+    "field_desc": "还款状态(枚举)"
+  },
+  {
+    "page": "借贷账户--最近一次表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform",
+    "field_name": "信息报告日期",
+    "field_code": "info_date",
+    "field_type": "date",
+    "field_desc": "信息报告日期"
+  },
+  {
+    "page": "借贷账户--最近一次表现(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datatime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "借贷账户--特殊事件说明(lj_iceberg.dsst.pboc2_gaa02_loan_account_sevent_info)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_loan_account_sevent_info",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "借贷账户--特殊事件说明(lj_iceberg.dsst.pboc2_gaa02_loan_account_sevent_info)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_loan_account_sevent_info",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "借贷账户--特殊事件说明(lj_iceberg.dsst.pboc2_gaa02_loan_account_sevent_info)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_loan_account_sevent_info",
+    "field_name": "账户标识",
+    "field_code": "account_no",
+    "field_type": "varchar(60)",
+    "field_desc": "账户标识"
+  },
+  {
+    "page": "借贷账户--特殊事件说明(lj_iceberg.dsst.pboc2_gaa02_loan_account_sevent_info)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_loan_account_sevent_info",
+    "field_name": "特殊事件发生月份",
+    "field_code": "occur_month",
+    "field_type": "varchar(12)",
+    "field_desc": "特殊事件发生月份"
+  },
+  {
+    "page": "借贷账户--特殊事件说明(lj_iceberg.dsst.pboc2_gaa02_loan_account_sevent_info)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_loan_account_sevent_info",
+    "field_name": "特殊事件类型",
+    "field_code": "sevent_type",
+    "field_type": "varchar(12)",
+    "field_desc": "特殊事件类型"
+  },
+  {
+    "page": "借贷账户--特殊事件说明(lj_iceberg.dsst.pboc2_gaa02_loan_account_sevent_info)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_loan_account_sevent_info",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datatime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "借贷账户--特殊交易(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "借贷账户--特殊交易(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "借贷账户--特殊交易(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "账户标识",
+    "field_code": "account_no",
+    "field_type": "varchar(60)",
+    "field_desc": "账户标识"
+  },
+  {
+    "page": "借贷账户--特殊交易(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "特殊交易类型",
+    "field_code": "strans_type",
+    "field_type": "varchar(16)",
+    "field_desc": "特殊交易类型"
+  },
+  {
+    "page": "借贷账户--特殊交易(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "特殊交易发生日期",
+    "field_code": "strans_date",
+    "field_type": "date",
+    "field_desc": "反映特殊交易发生的日期"
+  },
+  {
+    "page": "借贷账户--特殊交易(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "到期日期变更月数",
+    "field_code": "strans_month_update_num",
+    "field_type": "short",
+    "field_desc": "特殊交易引起的到期日变更月数"
+  },
+  {
+    "page": "借贷账户--特殊交易(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "特殊交易发生金额",
+    "field_code": "strans_amount",
+    "field_type": "int(15)",
+    "field_desc": "反映特殊交易相应的发生金额"
+  },
+  {
+    "page": "借贷账户--特殊交易(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "特殊交易明细记录",
+    "field_code": "strans_des",
+    "field_type": "varchar(256)",
+    "field_desc": "特殊交易详细情况的描述"
+  },
+  {
+    "page": "借贷账户--特殊交易(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datatime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "借贷账户--还款记录信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "借贷账户--还款记录信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "借贷账户--还款记录信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "账户标识",
+    "field_code": "account_no",
+    "field_type": "varchar(60)",
+    "field_desc": "账户标识"
+  },
+  {
+    "page": "借贷账户--还款记录信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "起始年月最近24m",
+    "field_code": "m24_startm",
+    "field_type": "varchar(32)",
+    "field_desc": "起始年月"
+  },
+  {
+    "page": "借贷账户--还款记录信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "截止年月最近24m",
+    "field_code": "m24_endm",
+    "field_type": "varchar(32)",
+    "field_desc": "截止年月"
+  },
+  {
+    "page": "借贷账户--还款记录信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "还款状态信息(24m)",
+    "field_code": "repay_state_24m",
+    "field_type": "varchar(128)",
+    "field_desc": "还款状态最近24m"
+  },
+  {
+    "page": "借贷账户--还款记录信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "起始年月最近5Y",
+    "field_code": "y5_startm",
+    "field_type": "varchar(32)",
+    "field_desc": ""
+  },
+  {
+    "page": "借贷账户--还款记录信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "截止年月最近5Y",
+    "field_code": "y5_endm",
+    "field_type": "varchar(32)",
+    "field_desc": ""
+  },
+  {
+    "page": "借贷账户--还款记录信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "还款状态信息(5y)",
+    "field_code": "repay_state_5y",
+    "field_type": "varchar(2056)",
+    "field_desc": "还款状态5y"
+  },
+  {
+    "page": "借贷账户--还款记录信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_his_perform",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datatime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "公共信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppo_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppo_summary",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "公共信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppo_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppo_summary",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "公共信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppo_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppo_summary",
+    "field_name": "信息类型",
+    "field_code": "public_info_type",
+    "field_type": "varchar(32)",
+    "field_desc": "信息类型"
+  },
+  {
+    "page": "公共信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppo_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppo_summary",
+    "field_name": "记录数",
+    "field_code": "record_num",
+    "field_type": "int(11)",
+    "field_desc": "记录数"
+  },
+  {
+    "page": "公共信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppo_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppo_summary",
+    "field_name": "涉及金额",
+    "field_code": "amount",
+    "field_type": "int",
+    "field_desc": "涉及金额"
+  },
+  {
+    "page": "公共信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppo_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppo_summary",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "强制执行记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "强制执行记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "强制执行记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record",
+    "field_name": "执行法院",
+    "field_code": "court_exc",
+    "field_type": "varchar(100)",
+    "field_desc": ""
+  },
+  {
+    "page": "强制执行记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record",
+    "field_name": "执行案由",
+    "field_code": "rsn_excact",
+    "field_type": "varchar(50)",
+    "field_desc": ""
+  },
+  {
+    "page": "强制执行记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record",
+    "field_name": "立案日期",
+    "field_code": "date_filcase",
+    "field_type": "date",
+    "field_desc": ""
+  },
+  {
+    "page": "强制执行记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record",
+    "field_name": "结案方式",
+    "field_code": "type_cloway",
+    "field_type": "varchar(50)",
+    "field_desc": ""
+  },
+  {
+    "page": "强制执行记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record",
+    "field_name": "案件状态",
+    "field_code": "stu_case",
+    "field_type": "varchar(50)",
+    "field_desc": ""
+  },
+  {
+    "page": "强制执行记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record",
+    "field_name": "结案日期",
+    "field_code": "date_clocase",
+    "field_type": "date",
+    "field_desc": ""
+  },
+  {
+    "page": "强制执行记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record",
+    "field_name": "申请执行标的",
+    "field_code": "sub_appexc",
+    "field_type": "varchar(100)",
+    "field_desc": ""
+  },
+  {
+    "page": "强制执行记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record",
+    "field_name": "申请执行标的价值",
+    "field_code": "pri_appexcsub",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "强制执行记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record",
+    "field_name": "已执行标的",
+    "field_code": "sub_perf",
+    "field_type": "varchar(100)",
+    "field_desc": ""
+  },
+  {
+    "page": "强制执行记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record",
+    "field_name": "已执行标的金额",
+    "field_code": "pri_perfsub",
+    "field_type": "decimal",
+    "field_desc": ""
+  },
+  {
+    "page": "强制执行记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pce_record",
+    "field_name": "系统插入记录时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": ""
+  },
+  {
+    "page": "执业资格记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "执业资格记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "执业资格记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record",
+    "field_name": "编号",
+    "field_code": "no_serial",
+    "field_type": "int",
+    "field_desc": "编号"
+  },
+  {
+    "page": "执业资格记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record",
+    "field_name": "执行资格名称",
+    "field_code": "ppq_name",
+    "field_type": "varchar(64)",
+    "field_desc": "执业资格名称"
+  },
+  {
+    "page": "执业资格记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record",
+    "field_name": "等级",
+    "field_code": "level",
+    "field_type": "varchar(16)",
+    "field_desc": "等级"
+  },
+  {
+    "page": "执业资格记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record",
+    "field_name": "获得日期",
+    "field_code": "acquire_date",
+    "field_type": "date",
+    "field_desc": "获得日期"
+  },
+  {
+    "page": "执业资格记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record",
+    "field_name": "到期日期",
+    "field_code": "expire_date",
+    "field_type": "date",
+    "field_desc": "到期日期"
+  },
+  {
+    "page": "执业资格记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record",
+    "field_name": "吊销日期",
+    "field_code": "revoke_date",
+    "field_type": "date",
+    "field_desc": "吊销日期"
+  },
+  {
+    "page": "执业资格记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record",
+    "field_name": "颁发机构",
+    "field_code": "award_org",
+    "field_type": "varchar(32)",
+    "field_desc": "颁发机构"
+  },
+  {
+    "page": "执业资格记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record",
+    "field_name": "机构所在地",
+    "field_code": "org_location",
+    "field_type": "varchar(32)",
+    "field_desc": "机构所在地"
+  },
+  {
+    "page": "执业资格记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_ppq_record",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "授信协议编号",
+    "field_code": "credit_serial_no",
+    "field_type": "varchar(32)",
+    "field_desc": "授信协议编号"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "业务管理机构",
+    "field_code": "org_name",
+    "field_type": "varchar(16)",
+    "field_desc": "业务管理机构"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "授信协议标识",
+    "field_code": "identification",
+    "field_type": "varchar(32)",
+    "field_desc": "授信协议标识"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "生效日期",
+    "field_code": "start_date",
+    "field_type": "date",
+    "field_desc": "生效日期"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "到期日期",
+    "field_code": "end_date",
+    "field_type": "date",
+    "field_desc": "到期日期"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "授信额度用途",
+    "field_code": "credit_purpose",
+    "field_type": "varchar(16)",
+    "field_desc": "授信额度用途"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "授信额度",
+    "field_code": "credit_amount",
+    "field_type": "int",
+    "field_desc": "授信额度"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "授信限额",
+    "field_code": "limit_amount",
+    "field_type": "int",
+    "field_desc": "授信限额"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "授信限额编号",
+    "field_code": "limit_no",
+    "field_type": "varchar(64)",
+    "field_desc": "授信限额编号"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "已用额度",
+    "field_code": "use_amount",
+    "field_type": "int",
+    "field_desc": "已用额度"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "币种",
+    "field_code": "currency_type",
+    "field_type": "varchar(16)",
+    "field_desc": "币种"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "业务管理机构类型",
+    "field_code": "busi_org_type",
+    "field_type": "varchar(16)",
+    "field_desc": "业务管理机构类型"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "授信协议状态",
+    "field_code": "status",
+    "field_type": "varchar(16)",
+    "field_desc": "授信协议状态"
+  },
+  {
+    "page": "授信协议信息(lj_iceberg.dsst.pboc2_gaa02_pca_record）",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pca_record",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "本人声明(lj_iceberg.dsst.pboc2_gaa02_self_content)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_self_content",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "本人声明(lj_iceberg.dsst.pboc2_gaa02_self_content)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_self_content",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "本人声明(lj_iceberg.dsst.pboc2_gaa02_self_content)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_self_content",
+    "field_name": "编号",
+    "field_code": "no_selfsta",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "本人声明(lj_iceberg.dsst.pboc2_gaa02_self_content)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_self_content",
+    "field_name": "声明内容",
+    "field_code": "con_sta",
+    "field_type": "varchar(300)",
+    "field_desc": ""
+  },
+  {
+    "page": "本人声明(lj_iceberg.dsst.pboc2_gaa02_self_content)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_self_content",
+    "field_name": "添加日期",
+    "field_code": "time_addselfsta",
+    "field_type": "date",
+    "field_desc": ""
+  },
+  {
+    "page": "本人声明(lj_iceberg.dsst.pboc2_gaa02_self_content)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_self_content",
+    "field_name": "系统插入记录时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": ""
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "上一次查询日期",
+    "field_code": "last_query_date",
+    "field_type": "date",
+    "field_desc": "上一次查询日期"
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "上一次查询机构类型",
+    "field_code": "last_query_org_type",
+    "field_type": "varchar(32)",
+    "field_desc": "上一次查询机构类型"
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "上一次查询机构代码",
+    "field_code": "last_query_org_code",
+    "field_type": "varchar(32)",
+    "field_desc": "上一次查询机构代码"
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "上一次查询原因",
+    "field_code": "last_query_reason",
+    "field_type": "varchar(32)",
+    "field_desc": "上一次查询原因"
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "最近一月内查询机构数(贷款审批)",
+    "field_code": "loan_audit_query_org_num_1m",
+    "field_type": "short(8)",
+    "field_desc": "最近一月内查询机构数(贷款审批)"
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "最近一月内查询机构数(信用卡审批)",
+    "field_code": "credit_audit_query_org_num_1m",
+    "field_type": "short(8)",
+    "field_desc": "最近一月内查询机构数(信用卡审批)"
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "最近一月内查询次数(贷款审批)",
+    "field_code": "loan_audit_query_num_1m",
+    "field_type": "short(8)",
+    "field_desc": "最近一月内查询次数(贷款审批)"
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "最近一月内查询次数(信用卡审批)",
+    "field_code": "credit_audit_query_num_1m",
+    "field_type": "short(8)",
+    "field_desc": "最近一月内查询次数(信用卡审批)"
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "最近一月内查询次数(本人查询)",
+    "field_code": "person_query_num_1m",
+    "field_type": "short(8)",
+    "field_desc": "最近一月内查询次数(本人查询)"
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "最近两年内的查询次数(贷后管理)",
+    "field_code": "plm_query_num_2y",
+    "field_type": "short(8)",
+    "field_desc": "最近两年内的查询次数(贷后管理)"
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "最近两年内的查询次数(担保资格审查)",
+    "field_code": "assure_query_num_2y",
+    "field_type": "short(8)",
+    "field_desc": "最近两年内的查询次数(担保资格审查)"
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "最近两年内的查询次数(特约商户实名审查)",
+    "field_code": "sam_query_num_2y",
+    "field_type": "short(8)",
+    "field_desc": "最近两年内的查询次数(特约商户实名审查)"
+  },
+  {
+    "page": "查询记录概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "查询记录表(lj_iceberg.pboccr2d.gaa02_query_record)",
+    "table": "lj_iceberg.pboccr2d.gaa02_query_record",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "查询记录表(lj_iceberg.pboccr2d.gaa02_query_record)",
+    "table": "lj_iceberg.pboccr2d.gaa02_query_record",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "查询记录表(lj_iceberg.pboccr2d.gaa02_query_record)",
+    "table": "lj_iceberg.pboccr2d.gaa02_query_record",
+    "field_name": "查询日期",
+    "field_code": "query_date",
+    "field_type": "date",
+    "field_desc": "查询日期"
+  },
+  {
+    "page": "查询记录表(lj_iceberg.pboccr2d.gaa02_query_record)",
+    "table": "lj_iceberg.pboccr2d.gaa02_query_record",
+    "field_name": "查询机构",
+    "field_code": "query_org",
+    "field_type": "varchar(32)",
+    "field_desc": "查询机构"
+  },
+  {
+    "page": "查询记录表(lj_iceberg.pboccr2d.gaa02_query_record)",
+    "table": "lj_iceberg.pboccr2d.gaa02_query_record",
+    "field_name": "查询原因",
+    "field_code": "query_reason",
+    "field_type": "varchar(16)",
+    "field_desc": "查询原因"
+  },
+  {
+    "page": "查询记录表(lj_iceberg.pboccr2d.gaa02_query_record)",
+    "table": "lj_iceberg.pboccr2d.gaa02_query_record",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "标注及声明信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "标注及声明信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "标注及声明信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info",
+    "field_name": "数据块类型",
+    "field_code": "common_data_block_type",
+    "field_type": "varchar(60)",
+    "field_desc": "数据块标识"
+  },
+  {
+    "page": "标注及声明信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info",
+    "field_name": "数据ID",
+    "field_code": "data_id",
+    "field_type": "varchar(60)",
+    "field_desc": "数据ID"
+  },
+  {
+    "page": "标注及声明信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info",
+    "field_name": "标注及声明类型",
+    "field_code": "label_declare_type",
+    "field_type": "varchar(8)",
+    "field_desc": "标注及声明类型"
+  },
+  {
+    "page": "标注及声明信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info",
+    "field_name": "标注或声明内容",
+    "field_code": "label_content",
+    "field_type": "varchar(256)",
+    "field_desc": "标注或声明内容"
+  },
+  {
+    "page": "标注及声明信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info",
+    "field_name": "数据添加日期",
+    "field_code": "add_date",
+    "field_type": "date",
+    "field_desc": "添加日期"
+  },
+  {
+    "page": "标注及声明信息段(lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_common_mark_info",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "欠税信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pot_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pot_record",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "欠税信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pot_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pot_record",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "欠税信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pot_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pot_record",
+    "field_name": "主管税务机关",
+    "field_code": "tax_org_manage",
+    "field_type": "varchar(32)",
+    "field_desc": "主管税务机关"
+  },
+  {
+    "page": "欠税信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pot_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pot_record",
+    "field_name": "欠税总额",
+    "field_code": "tax_owing_amount",
+    "field_type": "int",
+    "field_desc": "欠税总额"
+  },
+  {
+    "page": "欠税信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pot_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pot_record",
+    "field_name": "欠税统计日期",
+    "field_code": "stat_date",
+    "field_type": "date",
+    "field_desc": "欠税统计日期"
+  },
+  {
+    "page": "欠税信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pot_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pot_record",
+    "field_name": "系统插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "系统插入时间"
+  },
+  {
+    "page": "民事判决记录(lj_iceberg.dsst.pboc2_gaa02_pcj_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pcj_record",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "民事判决记录(lj_iceberg.dsst.pboc2_gaa02_pcj_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pcj_record",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "民事判决记录(lj_iceberg.dsst.pboc2_gaa02_pcj_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pcj_record",
+    "field_name": "立案法院",
+    "field_code": "court_file",
+    "field_type": "varchar(64)",
+    "field_desc": "立案法院"
+  },
+  {
+    "page": "民事判决记录(lj_iceberg.dsst.pboc2_gaa02_pcj_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pcj_record",
+    "field_name": "案由",
+    "field_code": "reason",
+    "field_type": "varchar(256)",
+    "field_desc": "判决案由"
+  },
+  {
+    "page": "民事判决记录(lj_iceberg.dsst.pboc2_gaa02_pcj_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pcj_record",
+    "field_name": "立案日期",
+    "field_code": "date_file_case",
+    "field_type": "date",
+    "field_desc": "立案日期"
+  },
+  {
+    "page": "民事判决记录(lj_iceberg.dsst.pboc2_gaa02_pcj_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pcj_record",
+    "field_name": "结案方式",
+    "field_code": "type_close_way",
+    "field_type": "varchar(16)",
+    "field_desc": "结案方式"
+  },
+  {
+    "page": "民事判决记录(lj_iceberg.dsst.pboc2_gaa02_pcj_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pcj_record",
+    "field_name": "判决/调解结果",
+    "field_code": "result",
+    "field_type": "varchar(256)",
+    "field_desc": "判决/调解结果"
+  },
+  {
+    "page": "民事判决记录(lj_iceberg.dsst.pboc2_gaa02_pcj_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pcj_record",
+    "field_name": "判决/调解生效日期",
+    "field_code": "efffect_date",
+    "field_type": "date",
+    "field_desc": "判决/调解生效日期"
+  },
+  {
+    "page": "民事判决记录(lj_iceberg.dsst.pboc2_gaa02_pcj_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pcj_record",
+    "field_name": "诉讼标的",
+    "field_code": "sub_litigation",
+    "field_type": "varchar(16)",
+    "field_desc": "诉讼标的"
+  },
+  {
+    "page": "民事判决记录(lj_iceberg.dsst.pboc2_gaa02_pcj_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pcj_record",
+    "field_name": "诉讼标的金额",
+    "field_code": "sub_litigation_amount",
+    "field_type": "int",
+    "field_desc": "诉讼标的金额"
+  },
+  {
+    "page": "民事判决记录(lj_iceberg.dsst.pboc2_gaa02_pcj_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_pcj_record",
+    "field_name": "系统插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "系统插入时间"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "主借款人身份类别",
+    "field_code": "main_loaner_type",
+    "field_type": "varchar(16)",
+    "field_desc": "主借款人身份类别"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "业务管理机构类型",
+    "field_code": "org_manage_type",
+    "field_type": "varchar(16)",
+    "field_desc": "业务管理机构类型"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "业务管理机构",
+    "field_code": "org_manage",
+    "field_type": "varchar(16)",
+    "field_desc": "业务管理机构"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "业务种类",
+    "field_code": "busi_type",
+    "field_type": "varchar(16)",
+    "field_desc": "业务种类"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "开立日期",
+    "field_code": "open_date",
+    "field_type": "date",
+    "field_desc": "开立日期"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "到期日期",
+    "field_code": "end_date",
+    "field_type": "date",
+    "field_desc": "到期日期"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "相关还款人责任人类型",
+    "field_code": "duty_type",
+    "field_type": "varchar(32)",
+    "field_desc": "相关还款人责任人类型"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "保证合同编号",
+    "field_code": "contract_no",
+    "field_type": "varchar(64)",
+    "field_desc": "保证合同编号"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "相关还款责任金额",
+    "field_code": "duty_amount",
+    "field_type": "int",
+    "field_desc": "相关还款责任金额"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "币种",
+    "field_code": "currency_type",
+    "field_type": "varchar(16)",
+    "field_desc": "币种"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "余额",
+    "field_code": "balance",
+    "field_type": "int",
+    "field_desc": "余额"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "五级分类",
+    "field_code": "level5",
+    "field_type": "varchar(16)",
+    "field_desc": "五级分类"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "账户类型",
+    "field_code": "account_type",
+    "field_type": "varchar(16)",
+    "field_desc": "账户状态"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "还款状态",
+    "field_code": "repay_status",
+    "field_type": "varchar(16)",
+    "field_desc": "还款状态"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "逾期月数",
+    "field_code": "due_month_num",
+    "field_type": "int",
+    "field_desc": "逾期月数"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "信息报告日期",
+    "field_code": "info_date",
+    "field_type": "date",
+    "field_desc": "信息报告日期"
+  },
+  {
+    "page": "相关还款责任信息(lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pcr_record",
+    "field_name": "系统插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "系统插入时间"
+  },
+  {
+    "page": "行政处罚记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "行政处罚记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "行政处罚记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record",
+    "field_name": "处罚机构",
+    "field_code": "punish_org",
+    "field_type": "varchar(32)",
+    "field_desc": ""
+  },
+  {
+    "page": "行政处罚记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record",
+    "field_name": "处罚内容",
+    "field_code": "punish_content",
+    "field_type": "varchar(256)",
+    "field_desc": ""
+  },
+  {
+    "page": "行政处罚记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record",
+    "field_name": "处罚金额",
+    "field_code": "punish_amount",
+    "field_type": "int",
+    "field_desc": ""
+  },
+  {
+    "page": "行政处罚记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record",
+    "field_name": "生效日期",
+    "field_code": "start_date",
+    "field_type": "date",
+    "field_desc": ""
+  },
+  {
+    "page": "行政处罚记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record",
+    "field_name": "截止日期",
+    "field_code": "end_date",
+    "field_type": "date",
+    "field_desc": ""
+  },
+  {
+    "page": "行政处罚记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record",
+    "field_name": "行政复议结果",
+    "field_code": "ar_result",
+    "field_type": "varchar(32)",
+    "field_desc": ""
+  },
+  {
+    "page": "行政处罚记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pap_record",
+    "field_name": "系统插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": ""
+  },
+  {
+    "page": "行政奖励记录(lj_iceberg.dsst.pboc2_gaa02_reward_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_reward_record",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "行政奖励记录(lj_iceberg.dsst.pboc2_gaa02_reward_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_reward_record",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "行政奖励记录(lj_iceberg.dsst.pboc2_gaa02_reward_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_reward_record",
+    "field_name": "编号",
+    "field_code": "no_reward",
+    "field_type": "varchar(32)",
+    "field_desc": "编号"
+  },
+  {
+    "page": "行政奖励记录(lj_iceberg.dsst.pboc2_gaa02_reward_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_reward_record",
+    "field_name": "奖励机构",
+    "field_code": "reward_org",
+    "field_type": "varchar(32)",
+    "field_desc": "奖励机构"
+  },
+  {
+    "page": "行政奖励记录(lj_iceberg.dsst.pboc2_gaa02_reward_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_reward_record",
+    "field_name": "奖励内容",
+    "field_code": "reward_content",
+    "field_type": "varchar(128)",
+    "field_desc": "奖励内容"
+  },
+  {
+    "page": "行政奖励记录(lj_iceberg.dsst.pboc2_gaa02_reward_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_reward_record",
+    "field_name": "生效日期",
+    "field_code": "start_date",
+    "field_type": "date",
+    "field_desc": "生效日期"
+  },
+  {
+    "page": "行政奖励记录(lj_iceberg.dsst.pboc2_gaa02_reward_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_reward_record",
+    "field_name": "截止日期",
+    "field_code": "end_date",
+    "field_type": "date",
+    "field_desc": "截止日期"
+  },
+  {
+    "page": "行政奖励记录(lj_iceberg.dsst.pboc2_gaa02_reward_record)",
+    "table": "lj_iceberg.dsst.pboc2_gaa02_reward_record",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "插入时间"
+  },
+  {
+    "page": "需要加工的数据",
+    "table": "",
+    "field_name": "",
+    "field_code": "",
+    "field_type": "",
+    "field_desc": ""
+  },
+  {
+    "page": "需要加工的数据",
+    "table": "",
+    "field_name": "",
+    "field_code": "",
+    "field_type": "",
+    "field_desc": ""
+  },
+  {
+    "page": "需要加工的数据",
+    "table": "",
+    "field_name": "",
+    "field_code": "",
+    "field_type": "",
+    "field_desc": ""
+  },
+  {
+    "page": "需要加工的数据",
+    "table": "",
+    "field_name": "",
+    "field_code": "",
+    "field_type": "",
+    "field_desc": ""
+  },
+  {
+    "page": "非信贷交易信息明细-后付费记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "非信贷交易信息明细-后付费记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "非信贷交易信息明细-后付费记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record",
+    "field_name": "后付费账户类型",
+    "field_code": "account_type",
+    "field_type": "varchar(32)",
+    "field_desc": "后付费账户类型"
+  },
+  {
+    "page": "非信贷交易信息明细-后付费记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record",
+    "field_name": "机构名称",
+    "field_code": "org_name",
+    "field_type": "varchar(32)",
+    "field_desc": "机构名称"
+  },
+  {
+    "page": "非信贷交易信息明细-后付费记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record",
+    "field_name": "业务类型",
+    "field_code": "busi_type",
+    "field_type": "varchar(16)",
+    "field_desc": "后付费业务类型"
+  },
+  {
+    "page": "非信贷交易信息明细-后付费记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record",
+    "field_name": "业务开通日期",
+    "field_code": "busi_open_date",
+    "field_type": "date",
+    "field_desc": "业务开通日期"
+  },
+  {
+    "page": "非信贷交易信息明细-后付费记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record",
+    "field_name": "当前缴费状态",
+    "field_code": "status_payment",
+    "field_type": "varchar(16)",
+    "field_desc": "当前缴费状态"
+  },
+  {
+    "page": "非信贷交易信息明细-后付费记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record",
+    "field_name": "当前欠费金额",
+    "field_code": "arrears_amount",
+    "field_type": "int",
+    "field_desc": "当前欠费金额"
+  },
+  {
+    "page": "非信贷交易信息明细-后付费记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record",
+    "field_name": "记账日期",
+    "field_code": "account_date",
+    "field_type": "date",
+    "field_desc": "记账日期"
+  },
+  {
+    "page": "非信贷交易信息明细-后付费记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record",
+    "field_name": "最近24月缴费记录",
+    "field_code": "payment_record_24m",
+    "field_type": "varcahr(64)",
+    "field_desc": "最近24月缴费记录"
+  },
+  {
+    "page": "非信贷交易信息明细-后付费记录(lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_pnd_record",
+    "field_name": "系统插入时间",
+    "field_code": "time_inst",
+    "field_type": "datetime",
+    "field_desc": "系统插入时间"
+  },
+  {
+    "page": "非信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_common_trans_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_common_trans_summary",
+    "field_name": "报告ID",
+    "field_code": "id_unqf",
+    "field_type": "varchar(32)",
+    "field_desc": "报告ID"
+  },
+  {
+    "page": "非信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_common_trans_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_common_trans_summary",
+    "field_name": "客户ID",
+    "field_code": "id_unqp",
+    "field_type": "varchar(32)",
+    "field_desc": "客户ID"
+  },
+  {
+    "page": "非信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_common_trans_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_common_trans_summary",
+    "field_name": "后付费业务类型",
+    "field_code": "fee_delay_type",
+    "field_type": "varchar(32)",
+    "field_desc": "后付费业务类型"
+  },
+  {
+    "page": "非信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_common_trans_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_common_trans_summary",
+    "field_name": "欠费账户数",
+    "field_code": "arrears_account_num",
+    "field_type": "short(8)",
+    "field_desc": "欠费账户数"
+  },
+  {
+    "page": "非信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_common_trans_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_common_trans_summary",
+    "field_name": "欠费金额",
+    "field_code": "arrears_amount",
+    "field_type": "int",
+    "field_desc": "欠费金额"
+  },
+  {
+    "page": "非信贷交易信息概要(lj_iceberg.pboccr2d.dsst_eds_gaa02_common_trans_summary)",
+    "table": "lj_iceberg.pboccr2d.dsst_eds_gaa02_common_trans_summary",
+    "field_name": "插入时间",
+    "field_code": "time_inst",
+    "field_type": "datatime",
+    "field_desc": "插入时间"
+  }
+]
