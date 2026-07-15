@@ -11,12 +11,14 @@
 -- =============================================================================
 
 -- Step 1: 循环贷账户级明细（R1/R2/R3，剔除马消）
+-- 关联键说明：生产表 latest_perform 实际字段为 account_no（与你原 SQL 一致），
+-- 非 Notion 文档中的 account_id。
 create table if not exists lj_iceberg.ai_decision_dev.yye_credit_account_base_20260623 as
 select
     t1.id_unqf,
     t1.id_unqp,
-    t2.account_no,
-    t1.account_id,
+    t1.account_no,
+    t2.account_id,
     coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) as balance,
     t2.org_manage_type,
     t2.org_manage_code,
@@ -37,7 +39,7 @@ select
     end as util_rate,
     case when coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0 then 1 else 0 end as is_pos_bal_acct
 from (
-    select id_unqf, id_unqp, account_id, close_date, balance, dt
+    select id_unqf, id_unqp, account_no, close_date, balance, dt
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform
     where dt >= '20241001' and dt < '20260201'
       and (close_date is null or cast(close_date as string) = '')
@@ -51,7 +53,7 @@ inner join (
       and org_manage_code <> 'T10156530H0001'
 ) t2
   on t1.id_unqf = t2.id_unqf and t1.id_unqp = t2.id_unqp
- and t1.account_id = t2.account_id and t1.dt = t2.dt
+ and t1.account_no = t2.account_no and t1.dt = t2.dt
 left join (
     select id_unqf, id_unqp, account_no, settle_date, info_dt, month, dt,
            row_number() over (
@@ -62,7 +64,7 @@ left join (
     where dt >= '20241001' and dt < '20260201'
 ) t3
   on t1.id_unqf = t3.id_unqf and t1.id_unqp = t3.id_unqp
- and t1.account_id = t3.account_no and t1.dt = t3.dt and t3.rn = 1
+ and t1.account_no = t3.account_no and t1.dt = t3.dt and t3.rn = 1
 ;
 
 -- Step 2: 循环贷报告级聚合
