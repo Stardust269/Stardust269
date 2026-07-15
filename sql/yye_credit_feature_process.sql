@@ -1,57 +1,33 @@
 -- =============================================================================
--- 二代征信循环贷特征加工 SQL（已按 Notion 全量子页面字段校对）
+-- 二代征信特征加工 SQL（按 Notion《需要加工的数据》最新版）
 --
--- 源表（Notion 子页面括号内表名）：
---   t1: lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform  借贷账户--最近一次表现
---   t2: lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info       借贷账户--基本信息
---   t3: lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform 借贷账户--最近一月表现
---   样本: lj_iceberg.ai_decision_dev.yye_pril_bal_info_20260623_2
---
--- 关键字段编码（Notion）：
---   id_unqf            报告ID
---   id_unqp            客户ID
---   account_id         账户标识（latest_perform / basic_info）
---   account_no         账户编号（basic_info）；1m表中 account_no 实际存的是“账户标识”
---   account_type       账户类型（R1/R2/R3）
---   org_manage_code    业务管理机构代码（马消=T10156530H0001，需剔除）
---   balance            余额
---   credit_grant_amount 账户授信额度
---   close_date         关闭日期
---   settle_date        结算/应还款日（账单日来源）
---   dt                 分区日期（生产表通用，Notion 字段页未列出）
---
--- 特征清单来源：Notion《需要加工的数据》
+-- 特征大类：
+--   A. 循环贷额度及额度利用率（剔除马消 T10156530H0001）
+--   B. 征信查询次数（查询记录概要 + 近一年多份报告均值）
+--   C. 逾期次数/金额（逾期透支信息汇总，最近一份）
+--   D. 资质：房贷/公积金贷款（最近一份）
+--   E. 信用卡额度/账户数/余额/利用率（信贷交易信息概要，最近一份）
+--   F. 工作单位类型（个人职业信息 org_type，最近一份）
 -- =============================================================================
 
--- ===================== 参数区（按需修改） =====================
--- set hivevar:zx_dt_start=20241001;   -- 需覆盖观察日前推1年
--- set hivevar:zx_dt_end=20260201;
--- set hivevar:mx_org_code=T10156530H0001;
--- set hivevar:sample_table=lj_iceberg.ai_decision_dev.yye_pril_bal_info_20260623_2;
-
--- =============================================================================
--- Step 1: 账户级征信明细
--- 关联键（按 Notion 字段定义校对）：
---   latest_perform.account_id = basic_info.account_id
---   latest_1m_perform.account_no = basic_info.account_id   -- 1m表 account_no 即账户标识
--- =============================================================================
+-- Step 1: 循环贷账户级明细（R1/R2/R3，剔除马消）
 create table if not exists lj_iceberg.ai_decision_dev.yye_credit_account_base_20260623 as
 select
-    t1.id_unqf,                                          -- 报告ID
-    t1.id_unqp,                                          -- 客户ID
-    t2.account_no,                                       -- 账户编号（来自 basic_info）
-    t1.account_id,                                       -- 账户标识
+    t1.id_unqf,
+    t1.id_unqp,
+    t2.account_no,
+    t1.account_id,
     coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) as balance,
-    t2.org_manage_type,                                  -- 业务管理机构类型
-    t2.org_manage_code,                                  -- 业务管理机构代码
+    t2.org_manage_type,
+    t2.org_manage_code,
     coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0) as credit_grant_amount,
-    t2.account_type,                                     -- R1/R2/R3
+    t2.account_type,
     t1.dt,
     concat(substr(t1.dt, 1, 4), '-', substr(t1.dt, 5, 2), '-', substr(t1.dt, 7, 2)) as days_dt_zx,
     case
         when t3.settle_date is null or cast(t3.settle_date as string) = '' then null
         else cast(day(cast(t3.settle_date as date)) as int)
-    end as bill_day,                                     -- settle_date 结算/应还款日
+    end as bill_day,
     case
         when coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0) > 0
              and coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0
@@ -59,64 +35,40 @@ select
              / coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0)
         else null
     end as util_rate,
-    case
-        when coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0 then 1
-        else 0
-    end as is_pos_bal_acct                                 -- 有余额账户（马消已在 t2 过滤）
+    case when coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0 then 1 else 0 end as is_pos_bal_acct
 from (
-    select
-        id_unqf, id_unqp, account_id, account_state, close_date, turn_out_date,
-        balance, latest_repayment_date, latest_repayment_amount, level5_type,
-        repayment_state, info_date, time_inst, dt
+    select id_unqf, id_unqp, account_id, close_date, balance, dt
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform
-    where dt >= '20241001'
-      and dt < '20260201'
-      and (close_date is null or cast(close_date as string) = '')   -- close_date 未结清
+    where dt >= '20241001' and dt < '20260201'
+      and (close_date is null or cast(close_date as string) = '')
 ) t1
 inner join (
-    select
-        id_unqf, id_unqp, account_no, account_id, credit_serial_no, account_type,
-        org_manage_type, org_manage_code, open_date, end_date,
-        loan_amount, currency_type, busi_type, assure_type, payment_payment,
-        payment_frequency, payment_type, loan_together_state, credit_grant_amount,
-        share_credit_amount, loan_give_type, payment_state_transfer, dt
+    select id_unqf, id_unqp, account_no, account_id, account_type,
+           org_manage_type, org_manage_code, credit_grant_amount, dt
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info
-    where dt >= '20241001'
-      and dt < '20260201'
+    where dt >= '20241001' and dt < '20260201'
       and account_type in ('R1', 'R2', 'R3')
-      and org_manage_code <> 'T10156530H0001'              -- 剔除马消
+      and org_manage_code <> 'T10156530H0001'
 ) t2
-  on t1.id_unqf = t2.id_unqf
- and t1.id_unqp = t2.id_unqp
- and t1.account_id = t2.account_id                         -- 校对：用 account_id 关联
- and t1.dt = t2.dt
+  on t1.id_unqf = t2.id_unqf and t1.id_unqp = t2.id_unqp
+ and t1.account_id = t2.account_id and t1.dt = t2.dt
 left join (
-    select
-        id_unqf, id_unqp, account_no, settle_date, info_dt, month, dt,
-        row_number() over (
-            partition by id_unqf, id_unqp, account_no, dt
-            order by coalesce(info_dt, settle_date) desc, month desc
-        ) as rn
+    select id_unqf, id_unqp, account_no, settle_date, info_dt, month, dt,
+           row_number() over (
+               partition by id_unqf, id_unqp, account_no, dt
+               order by coalesce(info_dt, settle_date) desc, month desc
+           ) as rn
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform
-    where dt >= '20241001'
-      and dt < '20260201'
+    where dt >= '20241001' and dt < '20260201'
 ) t3
-  on t1.id_unqf = t3.id_unqf
- and t1.id_unqp = t3.id_unqp
- and t1.account_id = t3.account_no                          -- 校对：1m.account_no = 账户标识
- and t1.dt = t3.dt
- and t3.rn = 1
+  on t1.id_unqf = t3.id_unqf and t1.id_unqp = t3.id_unqp
+ and t1.account_id = t3.account_no and t1.dt = t3.dt and t3.rn = 1
 ;
 
--- =============================================================================
--- Step 2: 报告级聚合（id_unqp + id_unqf + dt）
--- =============================================================================
+-- Step 2: 循环贷报告级聚合
 create table if not exists lj_iceberg.ai_decision_dev.yye_credit_report_agg_20260623 as
 select
-    id_unqp,
-    id_unqf,
-    dt,
-    days_dt_zx,
+    id_unqp, id_unqf, dt, days_dt_zx,
     sum(is_pos_bal_acct) as pos_bal_acct_cnt,
     sum(if(is_pos_bal_acct = 1, balance, 0)) as bal_sum,
     max(if(is_pos_bal_acct = 1, balance, null)) as bal_max,
@@ -126,226 +78,312 @@ select
     min(if(is_pos_bal_acct = 1, credit_grant_amount, null)) as crdt_min,
     max(if(is_pos_bal_acct = 1, util_rate, null)) as util_max,
     min(if(is_pos_bal_acct = 1, util_rate, null)) as util_min,
-    case
-        when sum(if(is_pos_bal_acct = 1, credit_grant_amount, 0)) > 0
-        then sum(if(is_pos_bal_acct = 1, balance, 0))
-             / sum(if(is_pos_bal_acct = 1, credit_grant_amount, 0))
-        else null
-    end as util_sum,
+    case when sum(if(is_pos_bal_acct = 1, credit_grant_amount, 0)) > 0
+         then sum(if(is_pos_bal_acct = 1, balance, 0))
+              / sum(if(is_pos_bal_acct = 1, credit_grant_amount, 0))
+         else null end as util_sum,
     count(distinct if(is_pos_bal_acct = 1 and bill_day is not null, bill_day, null)) as bill_day_cnt
 from lj_iceberg.ai_decision_dev.yye_credit_account_base_20260623
 group by id_unqp, id_unqf, dt, days_dt_zx
 ;
 
--- =============================================================================
--- Step 3: 账单日压力（同账单日最大账户数 / 最大余额合计）
--- =============================================================================
+-- Step 3: 账单日压力
 create table if not exists lj_iceberg.ai_decision_dev.yye_credit_billday_agg_20260623 as
-select
-    id_unqp,
-    id_unqf,
-    dt,
-    days_dt_zx,
-    max(acct_cnt_same_billday) as same_billday_acct_cnt_max,
-    max(bal_sum_same_billday) as same_billday_bal_sum_max
+select id_unqp, id_unqf, dt, days_dt_zx,
+       max(acct_cnt_same_billday) as same_billday_acct_cnt_max,
+       max(bal_sum_same_billday) as same_billday_bal_sum_max
 from (
-    select
-        id_unqp,
-        id_unqf,
-        dt,
-        days_dt_zx,
-        bill_day,
-        sum(is_pos_bal_acct) as acct_cnt_same_billday,
-        sum(if(is_pos_bal_acct = 1, balance, 0)) as bal_sum_same_billday
+    select id_unqp, id_unqf, dt, days_dt_zx, bill_day,
+           sum(is_pos_bal_acct) as acct_cnt_same_billday,
+           sum(if(is_pos_bal_acct = 1, balance, 0)) as bal_sum_same_billday
     from lj_iceberg.ai_decision_dev.yye_credit_account_base_20260623
-    where is_pos_bal_acct = 1
-      and bill_day is not null
+    where is_pos_bal_acct = 1 and bill_day is not null
     group by id_unqp, id_unqf, dt, days_dt_zx, bill_day
 ) t
 group by id_unqp, id_unqf, dt, days_dt_zx
 ;
 
--- =============================================================================
--- Step 4: 样本关联 + 时间窗标签
--- 观察日锚点：days_dt_1
---   flg_win_1m/6m/1y : 观察日前回看 30/180/365 天（Notion 近一月/近6月/近1年）
---   flg_fwd_60d      : 观察日后 60 天（兼容你原 SQL 关联窗口）
---   latest_report_rn : 最近一份=观察日前最新报告；若无则取观察日后60天内最新报告
--- =============================================================================
-create table if not exists lj_iceberg.ai_decision_dev.yye_credit_report_with_sample_20260623 as
+-- Step 4: 报告级扩展特征（查询/逾期/信用卡/资质/职业）
+create table if not exists lj_iceberg.ai_decision_dev.yye_credit_report_ext_20260623 as
 select
-    s.uuid,
-    s.user_id,
-    s.pril_bal,
-    s.crdt_lim_yx,
-    s.pril_bal_rate,
-    s.dt,
-    s.days_dt,
-    s.no_balance_flg_30,
-    s.no_balance_flg_60,
-    s.no_balance_flg_90,
-    s.days_dt_1,
-    s.had_0_30_zx,
-    s.had_31_60_zx,
-    s.had_61_90_zx,
-    s.had_91_120_zx,
-    s.with_0_30,
-    s.with_31_60,
-    s.with_61_90,
-    s.with_91_120,
-    s.with_0_30_5103,
-    s.with_31_60_5103,
-    s.with_61_90_5103,
-    s.with_91_120_5103,
-    r.id_unqf,
-    r.dt as dt_zx,
-    r.days_dt_zx,
-    r.pos_bal_acct_cnt,
-    r.bal_sum,
-    r.bal_max,
-    r.bal_min,
-    r.crdt_sum,
-    r.crdt_max,
-    r.crdt_min,
-    r.util_sum,
-    r.util_max,
-    r.util_min,
-    r.bill_day_cnt,
-    b.same_billday_acct_cnt_max,
-    b.same_billday_bal_sum_max,
-    case
-        when r.days_dt_zx > date_sub(s.days_dt_1, 30)
-         and r.days_dt_zx <= s.days_dt_1 then 1 else 0
-    end as flg_win_1m,
-    case
-        when r.days_dt_zx > date_sub(s.days_dt_1, 180)
-         and r.days_dt_zx <= s.days_dt_1 then 1 else 0
-    end as flg_win_6m,
-    case
-        when r.days_dt_zx > date_sub(s.days_dt_1, 365)
-         and r.days_dt_zx <= s.days_dt_1 then 1 else 0
-    end as flg_win_1y,
-    case
-        when r.days_dt_zx >= s.days_dt_1
-         and r.days_dt_zx <= date_add(s.days_dt_1, 60) then 1 else 0
-    end as flg_fwd_60d,
-    row_number() over (
-        partition by s.uuid
-        order by
-            case when r.days_dt_zx <= s.days_dt_1 then 0 else 1 end,
-            r.days_dt_zx desc
-    ) as latest_report_rn
+    spine.id_unqp,
+    spine.id_unqf,
+    spine.dt,
+    spine.days_dt_zx,
+
+    -- B. 征信查询次数 dsst_eds_gaa02_query_summary
+    cast(nullif(q.credit_audit_query_org_num_1m, '') as int) as credit_audit_query_org_num_1m,
+    cast(nullif(q.loan_audit_query_num_1m, '') as int) as loan_audit_query_num_1m,
+    cast(nullif(q.credit_audit_query_num_1m, '') as int) as credit_audit_query_num_1m,
+    cast(nullif(q.person_query_num_1m, '') as int) as person_query_num_1m,
+    cast(nullif(q.plm_query_num_2y, '') as int) as plm_query_num_2y,
+    cast(nullif(q.assure_query_num_2y, '') as int) as assure_query_num_2y,
+    cast(nullif(q.sam_query_num_2y, '') as int) as sam_query_num_2y,
+    coalesce(cast(nullif(q.loan_audit_query_num_1m, '') as int), 0)
+      + coalesce(cast(nullif(q.credit_audit_query_num_1m, '') as int), 0) as hard_query_num_1m,
+
+    -- C. 逾期 dsst_eds_gaa02_credit_loan_summary_pd_summary（按报告汇总多业务类型）
+    pd.pd_num_month_max,
+    pd.pd_num_month_sum,
+    pd.pd_max_overdue_months,
+    pd.pd_max_overdue_amt,
+
+    -- E. 信用卡 dsst_eds_gaa02_credit_loan_summary
+    cast(nullif(cls.credit_account_num, '') as int) as credit_account_num,
+    cast(nullif(cls.credit_amount, '') as decimal(18, 2)) as credit_amount,
+    cast(nullif(cls.credit_used_amount, '') as decimal(18, 2)) as credit_used_amount,
+    case when coalesce(cast(nullif(cls.credit_amount, '') as decimal(18, 2)), 0) > 0
+         then cast(nullif(cls.credit_used_amount, '') as decimal(18, 2))
+              / cast(nullif(cls.credit_amount, '') as decimal(18, 2))
+         else null end as credit_util_rate,
+
+    -- D. 资质：房贷 / 公积金贷款
+    case when coalesce(tip.has_house_loan_flg, 0) > 0
+           or coalesce(bi.has_house_loan_flg, 0) > 0 then 1 else 0 end as has_house_loan_flg,
+    case when coalesce(tip.has_gjj_loan_flg, 0) > 0
+           or coalesce(phf.has_gjj_record_flg, 0) > 0
+           or coalesce(bi.has_gjj_loan_flg, 0) > 0 then 1 else 0 end as has_gjj_loan_flg,
+
+    -- F. 工作单位类型 dsst_eds_gaa02_person_job_info.org_type
+    job.org_type
+
 from (
-    select
-        uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt,
-        no_balance_flg_30, no_balance_flg_60, no_balance_flg_90, days_dt_1,
-        had_0_30_zx, had_31_60_zx, had_61_90_zx, had_91_120_zx,
-        with_0_30, with_31_60, with_61_90, with_91_120,
-        with_0_30_5103, with_31_60_5103, with_61_90_5103, with_91_120_5103
-    from lj_iceberg.ai_decision_dev.yye_pril_bal_info_20260623_2
-) s
-left join lj_iceberg.ai_decision_dev.yye_credit_report_agg_20260623 r
-  on s.uuid = r.id_unqp
-left join lj_iceberg.ai_decision_dev.yye_credit_billday_agg_20260623 b
-  on r.id_unqp = b.id_unqp
- and r.id_unqf = b.id_unqf
- and r.dt = b.dt
-where r.days_dt_zx is null
-   or r.days_dt_zx > date_sub(s.days_dt_1, 365)
-  and r.days_dt_zx <= date_add(s.days_dt_1, 60)
+    select id_unqp, id_unqf, dt,
+           concat(substr(dt, 1, 4), '-', substr(dt, 5, 2), '-', substr(dt, 7, 2)) as days_dt_zx
+    from lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary
+    where dt >= '20241001' and dt < '20260201'
+) spine
+left join lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary q
+  on spine.id_unqf = q.id_unqf and spine.id_unqp = q.id_unqp and spine.dt = q.dt
+left join (
+    select id_unqp, id_unqf, dt,
+           max(cast(nullif(num_month, '') as int)) as pd_num_month_max,
+           sum(cast(nullif(num_month, '') as int)) as pd_num_month_sum,
+           max(cast(nullif(first_business_month, '') as int)) as pd_max_overdue_months,
+           max(cast(nullif(amt_pdtotal, '') as decimal(18, 2))) as pd_max_overdue_amt
+    from lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary
+    where dt >= '20241001' and dt < '20260201'
+    group by id_unqp, id_unqf, dt
+) pd
+  on spine.id_unqf = pd.id_unqf and spine.id_unqp = pd.id_unqp and spine.dt = pd.dt
+left join lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary cls
+  on spine.id_unqf = cls.id_unqf and spine.id_unqp = cls.id_unqp and spine.dt = cls.dt
+left join (
+    select id_unqp, id_unqf, dt,
+           max(case when cre_tran_pro_type in ('11', '12') then 1 else 0 end) as has_house_loan_flg,
+           max(case when cre_tran_pro_type = '13' then 1 else 0 end) as has_gjj_loan_flg
+    from lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_tip_detail
+    where dt >= '20241001' and dt < '20260201'
+    group by id_unqp, id_unqf, dt
+) tip
+  on spine.id_unqf = tip.id_unqf and spine.id_unqp = tip.id_unqp and spine.dt = tip.dt
+left join (
+    select id_unqp, id_unqf, dt,
+           max(case when busi_type = '13' or busi_type like '%公积金%' then 1 else 0 end) as has_gjj_loan_flg,
+           max(case when busi_type in ('11', '12') or busi_type like '%住房%' then 1 else 0 end) as has_house_loan_flg
+    from lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info
+    where dt >= '20241001' and dt < '20260201'
+    group by id_unqp, id_unqf, dt
+) bi
+  on spine.id_unqf = bi.id_unqf and spine.id_unqp = bi.id_unqp and spine.dt = bi.dt
+left join (
+    select id_unqp, id_unqf, dt, 1 as has_gjj_record_flg
+    from lj_iceberg.pboccr2d.dsst_eds_gaa02_phf_record
+    where dt >= '20241001' and dt < '20260201'
+    group by id_unqp, id_unqf, dt
+) phf
+  on spine.id_unqf = phf.id_unqf and spine.id_unqp = phf.id_unqp and spine.dt = phf.dt
+left join (
+    select id_unqp, id_unqf, dt, org_type
+    from (
+        select id_unqp, id_unqf, dt, org_type,
+               row_number() over (
+                   partition by id_unqf, id_unqp, dt
+                   order by update_date desc nulls last, time_inst desc
+               ) as rn
+        from lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info
+        where dt >= '20241001' and dt < '20260201'
+    ) x
+    where rn = 1
+) job
+  on spine.id_unqf = job.id_unqf and spine.id_unqp = job.id_unqp and spine.dt = job.dt
 ;
 
--- =============================================================================
--- Step 5: 最终特征宽表 ↔ Notion《需要加工的数据》
--- =============================================================================
+-- Step 5: 样本关联（报告主键统一后再挂循环贷/扩展/账单日特征）
+create table if not exists lj_iceberg.ai_decision_dev.yye_credit_report_with_sample_20260623 as
+select
+    s.uuid, s.user_id, s.pril_bal, s.crdt_lim_yx, s.pril_bal_rate,
+    s.dt, s.days_dt, s.no_balance_flg_30, s.no_balance_flg_60, s.no_balance_flg_90,
+    s.days_dt_1, s.had_0_30_zx, s.had_31_60_zx, s.had_61_90_zx, s.had_91_120_zx,
+    s.with_0_30, s.with_31_60, s.with_61_90, s.with_91_120,
+    s.with_0_30_5103, s.with_31_60_5103, s.with_61_90_5103, s.with_91_120_5103,
+
+    rep.id_unqf,
+    rep.dt as dt_zx,
+    rep.days_dt_zx,
+
+    r.pos_bal_acct_cnt, r.bal_sum, r.bal_max, r.bal_min,
+    r.crdt_sum, r.crdt_max, r.crdt_min, r.util_sum, r.util_max, r.util_min, r.bill_day_cnt,
+    b.same_billday_acct_cnt_max, b.same_billday_bal_sum_max,
+
+    e.credit_audit_query_org_num_1m, e.loan_audit_query_num_1m, e.credit_audit_query_num_1m,
+    e.person_query_num_1m, e.plm_query_num_2y, e.assure_query_num_2y, e.sam_query_num_2y,
+    e.hard_query_num_1m,
+    e.pd_num_month_max, e.pd_num_month_sum, e.pd_max_overdue_months, e.pd_max_overdue_amt,
+    e.credit_account_num, e.credit_amount, e.credit_used_amount, e.credit_util_rate,
+    e.has_house_loan_flg, e.has_gjj_loan_flg, e.org_type,
+
+    case when rep.days_dt_zx > date_sub(s.days_dt_1, 30)
+          and rep.days_dt_zx <= s.days_dt_1 then 1 else 0 end as flg_win_1m,
+    case when rep.days_dt_zx > date_sub(s.days_dt_1, 180)
+          and rep.days_dt_zx <= s.days_dt_1 then 1 else 0 end as flg_win_6m,
+    case when rep.days_dt_zx > date_sub(s.days_dt_1, 365)
+          and rep.days_dt_zx <= s.days_dt_1 then 1 else 0 end as flg_win_1y,
+    case when rep.days_dt_zx >= s.days_dt_1
+          and rep.days_dt_zx <= date_add(s.days_dt_1, 60) then 1 else 0 end as flg_fwd_60d,
+
+    row_number() over (
+        partition by s.uuid
+        order by case when rep.days_dt_zx <= s.days_dt_1 then 0 else 1 end,
+                 rep.days_dt_zx desc
+    ) as latest_report_rn
+from (
+    select uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt,
+           no_balance_flg_30, no_balance_flg_60, no_balance_flg_90, days_dt_1,
+           had_0_30_zx, had_31_60_zx, had_61_90_zx, had_91_120_zx,
+           with_0_30, with_31_60, with_61_90, with_91_120,
+           with_0_30_5103, with_31_60_5103, with_61_90_5103, with_91_120_5103
+    from lj_iceberg.ai_decision_dev.yye_pril_bal_info_20260623_2
+) s
+left join (
+    select id_unqp, id_unqf, dt, days_dt_zx
+    from lj_iceberg.ai_decision_dev.yye_credit_report_ext_20260623
+    union
+    select id_unqp, id_unqf, dt, days_dt_zx
+    from lj_iceberg.ai_decision_dev.yye_credit_report_agg_20260623
+) rep
+  on s.uuid = rep.id_unqp
+left join lj_iceberg.ai_decision_dev.yye_credit_report_agg_20260623 r
+  on rep.id_unqp = r.id_unqp and rep.id_unqf = r.id_unqf and rep.dt = r.dt
+left join lj_iceberg.ai_decision_dev.yye_credit_report_ext_20260623 e
+  on rep.id_unqp = e.id_unqp and rep.id_unqf = e.id_unqf and rep.dt = e.dt
+left join lj_iceberg.ai_decision_dev.yye_credit_billday_agg_20260623 b
+  on rep.id_unqp = b.id_unqp and rep.id_unqf = b.id_unqf and rep.dt = b.dt
+where rep.days_dt_zx is null
+   or (
+        rep.days_dt_zx > date_sub(s.days_dt_1, 365)
+    and rep.days_dt_zx <= date_add(s.days_dt_1, 60)
+      )
+;
+
+-- Step 6: 最终特征宽表
 create table if not exists lj_iceberg.ai_decision_dev.yye_credit_feature_20260623 as
 select
-    uuid,
-    user_id,
-    pril_bal,
-    crdt_lim_yx,
-    pril_bal_rate,
-    dt,
-    days_dt,
-    no_balance_flg_30,
-    no_balance_flg_60,
-    no_balance_flg_90,
-    days_dt_1,
-    had_0_30_zx,
-    had_31_60_zx,
-    had_61_90_zx,
-    had_91_120_zx,
-    with_0_30,
-    with_31_60,
-    with_61_90,
-    with_91_120,
-    with_0_30_5103,
-    with_31_60_5103,
-    with_61_90_5103,
-    with_91_120_5103,
+    uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt,
+    no_balance_flg_30, no_balance_flg_60, no_balance_flg_90, days_dt_1,
+    had_0_30_zx, had_31_60_zx, had_61_90_zx, had_91_120_zx,
+    with_0_30, with_31_60, with_61_90, with_91_120,
+    with_0_30_5103, with_31_60_5103, with_61_90_5103, with_91_120_5103,
 
-    -- 账户数
-    max(if(latest_report_rn = 1, pos_bal_acct_cnt, null)) as latest_pos_bal_acct_cnt,          -- 最近一份有余额账户数
-    avg(if(flg_win_1m = 1, pos_bal_acct_cnt, null))       as avg_1m_pos_bal_acct_cnt,          -- 近一月平均有余额账户数
-    avg(if(flg_win_6m = 1, pos_bal_acct_cnt, null))       as avg_6m_pos_bal_acct_cnt,          -- 近6月平均有余额账户数
-    avg(if(flg_win_1y = 1, pos_bal_acct_cnt, null))       as avg_1y_pos_bal_acct_cnt,          -- 近一年平均有余额账户数
+    -- A. 循环贷账户数
+    max(if(latest_report_rn = 1, pos_bal_acct_cnt, null)) as latest_pos_bal_acct_cnt,
+    avg(if(flg_win_1m = 1, pos_bal_acct_cnt, null)) as avg_1m_pos_bal_acct_cnt,
+    avg(if(flg_win_6m = 1, pos_bal_acct_cnt, null)) as avg_6m_pos_bal_acct_cnt,
+    avg(if(flg_win_1y = 1, pos_bal_acct_cnt, null)) as avg_1y_pos_bal_acct_cnt,
 
-    -- 余额
-    max(if(latest_report_rn = 1, bal_sum, null))            as latest_bal_sum,                 -- 最近一份总余额
-    max(if(latest_report_rn = 1, bal_max, null))            as latest_bal_max,                 -- 最近一份账户最大余额
-    max(if(latest_report_rn = 1, bal_min, null))            as latest_bal_min,                 -- 最近一份账户最小余额
-    avg(if(flg_win_1m = 1, bal_sum, null))                  as avg_1m_bal_sum,
-    avg(if(flg_win_1m = 1, bal_max, null))                  as avg_1m_bal_max,
-    avg(if(flg_win_1m = 1, bal_min, null))                  as avg_1m_bal_min,
-    avg(if(flg_win_6m = 1, bal_sum, null))                  as avg_6m_bal_sum,
-    avg(if(flg_win_6m = 1, bal_max, null))                  as avg_6m_bal_max,
-    avg(if(flg_win_6m = 1, bal_min, null))                  as avg_6m_bal_min,
-    avg(if(flg_win_1y = 1, bal_sum, null))                  as avg_1y_bal_sum,
-    avg(if(flg_win_1y = 1, bal_max, null))                  as avg_1y_bal_max,
-    avg(if(flg_win_1y = 1, bal_min, null))                  as avg_1y_bal_min,
+    -- A. 余额
+    max(if(latest_report_rn = 1, bal_sum, null)) as latest_bal_sum,
+    max(if(latest_report_rn = 1, bal_max, null)) as latest_bal_max,
+    max(if(latest_report_rn = 1, bal_min, null)) as latest_bal_min,
+    avg(if(flg_win_1m = 1, bal_sum, null)) as avg_1m_bal_sum,
+    avg(if(flg_win_1m = 1, bal_max, null)) as avg_1m_bal_max,
+    avg(if(flg_win_1m = 1, bal_min, null)) as avg_1m_bal_min,
+    avg(if(flg_win_6m = 1, bal_sum, null)) as avg_6m_bal_sum,
+    avg(if(flg_win_6m = 1, bal_max, null)) as avg_6m_bal_max,
+    avg(if(flg_win_6m = 1, bal_min, null)) as avg_6m_bal_min,
+    avg(if(flg_win_1y = 1, bal_sum, null)) as avg_1y_bal_sum,
+    avg(if(flg_win_1y = 1, bal_max, null)) as avg_1y_bal_max,
+    avg(if(flg_win_1y = 1, bal_min, null)) as avg_1y_bal_min,
 
-    -- 授信额度
-    max(if(latest_report_rn = 1, crdt_sum, null))           as latest_crdt_sum,                -- 最近一份授信额度
-    max(if(latest_report_rn = 1, crdt_max, null))           as latest_crdt_max,                -- 最近一份账户最大授信额度
-    max(if(latest_report_rn = 1, crdt_min, null))           as latest_crdt_min,                -- 最近一份账户最小授信额度
-    avg(if(flg_win_1m = 1, crdt_sum, null))                  as avg_1m_crdt_sum,                -- 近一月账户授信额度(均值)
-    avg(if(flg_win_1m = 1, crdt_max, null))                  as avg_1m_crdt_max,
-    avg(if(flg_win_1m = 1, crdt_min, null))                  as avg_1m_crdt_min,
-    avg(if(flg_win_6m = 1, crdt_sum, null))                  as avg_6m_crdt_sum,
-    avg(if(flg_win_6m = 1, crdt_max, null))                  as avg_6m_crdt_max,
-    avg(if(flg_win_6m = 1, crdt_min, null))                  as avg_6m_crdt_min,
-    avg(if(flg_win_1y = 1, crdt_sum, null))                  as avg_1y_crdt_sum,
-    avg(if(flg_win_1y = 1, crdt_max, null))                  as avg_1y_crdt_max,
-    avg(if(flg_win_1y = 1, crdt_min, null))                  as avg_1y_crdt_min,
+    -- A. 授信额度
+    max(if(latest_report_rn = 1, crdt_sum, null)) as latest_crdt_sum,
+    max(if(latest_report_rn = 1, crdt_max, null)) as latest_crdt_max,
+    max(if(latest_report_rn = 1, crdt_min, null)) as latest_crdt_min,
+    avg(if(flg_win_1m = 1, crdt_sum, null)) as avg_1m_crdt_sum,
+    avg(if(flg_win_1m = 1, crdt_max, null)) as avg_1m_crdt_max,
+    avg(if(flg_win_1m = 1, crdt_min, null)) as avg_1m_crdt_min,
+    avg(if(flg_win_6m = 1, crdt_sum, null)) as avg_6m_crdt_sum,
+    avg(if(flg_win_6m = 1, crdt_max, null)) as avg_6m_crdt_max,
+    avg(if(flg_win_6m = 1, crdt_min, null)) as avg_6m_crdt_min,
+    avg(if(flg_win_1y = 1, crdt_sum, null)) as avg_1y_crdt_sum,
+    avg(if(flg_win_1y = 1, crdt_max, null)) as avg_1y_crdt_max,
+    avg(if(flg_win_1y = 1, crdt_min, null)) as avg_1y_crdt_min,
 
-    -- 额度利用率
-    max(if(latest_report_rn = 1, util_sum, null))             as latest_util_sum,
-    max(if(latest_report_rn = 1, util_max, null))             as latest_util_max,
-    max(if(latest_report_rn = 1, util_min, null))             as latest_util_min,
-    avg(if(flg_win_1m = 1, util_sum, null))                  as avg_1m_util_sum,
-    avg(if(flg_win_1m = 1, util_max, null))                   as avg_1m_util_max,
-    avg(if(flg_win_1m = 1, util_min, null))                   as avg_1m_util_min,
-    avg(if(flg_win_6m = 1, util_sum, null))                  as avg_6m_util_sum,
-    avg(if(flg_win_6m = 1, util_max, null))                   as avg_6m_util_max,
-    avg(if(flg_win_6m = 1, util_min, null))                   as avg_6m_util_min,
-    avg(if(flg_win_1y = 1, util_sum, null))                  as avg_1y_util_sum,
-    avg(if(flg_win_1y = 1, util_max, null))                   as avg_1y_util_max,
-    avg(if(flg_win_1y = 1, util_min, null))                   as avg_1y_util_min,
+    -- A. 额度利用率
+    max(if(latest_report_rn = 1, util_sum, null)) as latest_util_sum,
+    max(if(latest_report_rn = 1, util_max, null)) as latest_util_max,
+    max(if(latest_report_rn = 1, util_min, null)) as latest_util_min,
+    avg(if(flg_win_1m = 1, util_sum, null)) as avg_1m_util_sum,
+    avg(if(flg_win_1m = 1, util_max, null)) as avg_1m_util_max,
+    avg(if(flg_win_1m = 1, util_min, null)) as avg_1m_util_min,
+    avg(if(flg_win_6m = 1, util_sum, null)) as avg_6m_util_sum,
+    avg(if(flg_win_6m = 1, util_max, null)) as avg_6m_util_max,
+    avg(if(flg_win_6m = 1, util_min, null)) as avg_6m_util_min,
+    avg(if(flg_win_1y = 1, util_sum, null)) as avg_1y_util_sum,
+    avg(if(flg_win_1y = 1, util_max, null)) as avg_1y_util_max,
+    avg(if(flg_win_1y = 1, util_min, null)) as avg_1y_util_min,
 
-    -- 账单日（最近一份报告）
-    max(if(latest_report_rn = 1, bill_day_cnt, null))         as latest_bill_day_cnt,            -- 账单日总数
-    max(if(latest_report_rn = 1, same_billday_acct_cnt_max, null)) as latest_same_billday_acct_cnt_max, -- 相同账单日最大账户数
-    max(if(latest_report_rn = 1, same_billday_bal_sum_max, null))   as latest_same_billday_bal_sum_max,  -- 相同账单日最大余额
+    -- A. 账单日
+    max(if(latest_report_rn = 1, bill_day_cnt, null)) as latest_bill_day_cnt,
+    max(if(latest_report_rn = 1, same_billday_acct_cnt_max, null)) as latest_same_billday_acct_cnt_max,
+    max(if(latest_report_rn = 1, same_billday_bal_sum_max, null)) as latest_same_billday_bal_sum_max,
     max(if(flg_win_1m = 1, same_billday_bal_sum_max, null)) as max_1m_same_billday_bal_sum,
-    max(if(flg_win_6m = 1, same_billday_bal_sum_max, null))  as max_6m_same_billday_bal_sum,
+    max(if(flg_win_6m = 1, same_billday_bal_sum_max, null)) as max_6m_same_billday_bal_sum,
     max(if(flg_win_1y = 1, same_billday_bal_sum_max, null)) as max_1y_same_billday_bal_sum,
 
-    -- 辅助字段
-    max(if(latest_report_rn = 1, dt_zx, null))              as latest_dt_zx,
-    sum(flg_win_1m)                                         as zx_report_cnt_1m,
-    sum(flg_win_6m)                                         as zx_report_cnt_6m,
-    sum(flg_win_1y)                                         as zx_report_cnt_1y,
-    sum(flg_fwd_60d)                                        as zx_report_cnt_fwd_60d
+    -- B. 征信查询次数（最近一份 + 近一年均值）
+    max(if(latest_report_rn = 1, credit_audit_query_org_num_1m, null)) as latest_credit_audit_query_org_num_1m,
+    max(if(latest_report_rn = 1, loan_audit_query_num_1m, null)) as latest_loan_audit_query_num_1m,
+    max(if(latest_report_rn = 1, credit_audit_query_num_1m, null)) as latest_credit_audit_query_num_1m,
+    max(if(latest_report_rn = 1, person_query_num_1m, null)) as latest_person_query_num_1m,
+    max(if(latest_report_rn = 1, plm_query_num_2y, null)) as latest_plm_query_num_2y,
+    max(if(latest_report_rn = 1, assure_query_num_2y, null)) as latest_assure_query_num_2y,
+    max(if(latest_report_rn = 1, sam_query_num_2y, null)) as latest_sam_query_num_2y,
+    max(if(latest_report_rn = 1, hard_query_num_1m, null)) as latest_hard_query_num_1m,
+    avg(if(flg_win_1y = 1, credit_audit_query_org_num_1m, null)) as avg_1y_credit_audit_query_org_num_1m,
+    avg(if(flg_win_1y = 1, loan_audit_query_num_1m, null)) as avg_1y_loan_audit_query_num_1m,
+    avg(if(flg_win_1y = 1, credit_audit_query_num_1m, null)) as avg_1y_credit_audit_query_num_1m,
+    avg(if(flg_win_1y = 1, person_query_num_1m, null)) as avg_1y_person_query_num_1m,
+    avg(if(flg_win_1y = 1, plm_query_num_2y, null)) as avg_1y_plm_query_num_2y,
+    avg(if(flg_win_1y = 1, assure_query_num_2y, null)) as avg_1y_assure_query_num_2y,
+    avg(if(flg_win_1y = 1, sam_query_num_2y, null)) as avg_1y_sam_query_num_2y,
+    avg(if(flg_win_1y = 1, hard_query_num_1m, null)) as avg_1y_hard_query_num_1m,
+
+    -- C. 逾期（最近一份）
+    max(if(latest_report_rn = 1, pd_num_month_max, null)) as latest_pd_num_month,
+    max(if(latest_report_rn = 1, pd_num_month_sum, null)) as latest_pd_total_overdue_cnt,
+    max(if(latest_report_rn = 1, pd_max_overdue_months, null)) as latest_pd_max_overdue_months,
+    max(if(latest_report_rn = 1, pd_max_overdue_amt, null)) as latest_pd_max_overdue_amt,
+
+    -- D. 资质（最近一份）
+    max(if(latest_report_rn = 1, has_house_loan_flg, null)) as latest_has_house_loan_flg,
+    max(if(latest_report_rn = 1, has_gjj_loan_flg, null)) as latest_has_gjj_loan_flg,
+
+    -- E. 信用卡（最近一份）
+    max(if(latest_report_rn = 1, credit_account_num, null)) as latest_credit_account_num,
+    max(if(latest_report_rn = 1, credit_amount, null)) as latest_credit_amount,
+    max(if(latest_report_rn = 1, credit_used_amount, null)) as latest_credit_used_amount,
+    max(if(latest_report_rn = 1, credit_util_rate, null)) as latest_credit_util_rate,
+
+    -- F. 工作单位类型（最近一份）
+    max(if(latest_report_rn = 1, org_type, null)) as latest_org_type,
+
+    -- 辅助
+    max(if(latest_report_rn = 1, dt_zx, null)) as latest_dt_zx,
+    sum(flg_win_1m) as zx_report_cnt_1m,
+    sum(flg_win_6m) as zx_report_cnt_6m,
+    sum(flg_win_1y) as zx_report_cnt_1y,
+    sum(flg_fwd_60d) as zx_report_cnt_fwd_60d
 from lj_iceberg.ai_decision_dev.yye_credit_report_with_sample_20260623
 group by
     uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt,
@@ -354,21 +392,3 @@ group by
     with_0_30, with_31_60, with_61_90, with_91_120,
     with_0_30_5103, with_31_60_5103, with_61_90_5103, with_91_120_5103
 ;
-
--- =============================================================================
--- Step 6: 复现你原来的“余额是否上升”统计（可选）
--- =============================================================================
--- select
---     if(coalesce(max_6m_same_billday_bal_sum, latest_bal_max, 0)
---        > coalesce(latest_bal_sum, 0), 1, 0) as flg_bal_increase,
---     count(1) as num
--- from lj_iceberg.ai_decision_dev.yye_credit_feature_20260623
--- where crdt_lim_yx >= 20000
---   and had_0_30_zx = 1
---   and had_31_60_zx = 1
---   and had_61_90_zx = 1
---   and no_balance_flg_90 = 1
---   and with_0_30 + with_31_60 + with_61_90 = 0
--- group by if(coalesce(max_6m_same_billday_bal_sum, latest_bal_max, 0)
---             > coalesce(latest_bal_sum, 0), 1, 0)
--- ;
