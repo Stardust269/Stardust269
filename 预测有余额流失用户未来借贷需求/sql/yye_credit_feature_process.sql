@@ -44,10 +44,15 @@
 --   jcr_credit_feature_20260623          <-- 最终特征宽表
 --   jcr_credit_feature_label_20260623    <-- 特征+标签+数据集划分
 
--- Step 0（可选，一次性）：若你还没有自己的样本表，可从同事表复制到你名下。
--- 执行一次后请注释掉，避免反复依赖同事表。
--- create table if not exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623 as
--- select * from lj_iceberg.ai_decision_dev.yye_pril_bal_info_20260623_2;
+-- Step 0（必须先执行）：创建个人样本表 jcr_pril_bal_info_20260623
+-- 方式A（推荐，一次性）：从同事样本表复制到你名下（需读 yye 表权限，只执行一次）
+-- 方式B：若你已有自己的样本 SQL，请直接 create 同名表，跳过方式A
+-- 执行成功后，可将下方方式A注释掉
+create table if not exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623 as
+select * from lj_iceberg.ai_decision_dev.yye_pril_bal_info_20260623_2;
+
+-- 核验样本表是否创建成功（应有数据，不应报错）
+-- select count(*) from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623;
 
 -- Step 1: 循环贷账户级明细（R1/R2/R3，剔除马消）
 -- 关联键说明：生产表 latest_perform 实际字段为 account_no（与你原 SQL 一致），
