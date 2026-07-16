@@ -188,7 +188,7 @@
 | 账户数 | `account_num` | int | 账户数 | 信贷交易信息概要--逾期 透支信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary) |
 | 逾期月份数 | `num_month` | int | 总共逾期的次数 | 信贷交易信息概要--逾期 透支信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary) |
 | 单月最高逾期/透支金额 | `amt_pdtotal` | long | 单月最高逾期/透支金额 | 信贷交易信息概要--逾期 透支信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary) |
-| 最长逾期/透支月数 | `first_business_month` | varchar(16) | 首笔业务发放月份 | 信贷交易信息概要--逾期 透支信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary) |
+| 最长逾期/透支月数 | `max_amt_pd` | string | 最长逾期/透支月数（生产表校对，非 first_business_month） | 信贷交易信息概要--逾期 透支信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary) |
 | 插入时间 | `time_inst` | datetime | 插入时间 | 信贷交易信息概要--逾期 透支信息汇总(lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary) |
 
 ## lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_recovery_detail
