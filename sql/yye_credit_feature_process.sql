@@ -200,7 +200,7 @@ left join (
     select id_unqp, id_unqf, dt,
            max(cast(nullif(num_month, '') as int)) as pd_num_month_max,
            sum(cast(nullif(num_month, '') as int)) as pd_num_month_sum,
-           max(cast(nullif(first_business_month, '') as int)) as pd_max_overdue_months,
+           max(cast(nullif(max_amt_pd, '') as int)) as pd_max_overdue_months,
            max(cast(nullif(amt_pdtotal, '') as decimal(18, 2))) as pd_max_overdue_amt
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary
     where dt >= '20240801' and dt < '20260101'
@@ -454,7 +454,7 @@ select
     case
         when f.days_dt = '2025-11-01' then 'test'
         when substr(f.dt, 1, 6) in ('202508', '202509', '202510')
-             and pmod(hash(f.uuid), 10) < 8 then 'train'
+             and abs(hash(f.uuid)) % 10 < 8 then 'train'
         when substr(f.dt, 1, 6) in ('202508', '202509', '202510') then 'val'
         else 'other'
     end as dataset_split

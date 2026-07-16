@@ -10,8 +10,10 @@ page_id: 39c617cf-3593-8099-8d4f-f5ca37fa065d
 | 账户数 |  | 账户数 | account_num | int |
 | 逾期月份数 |  | 总共逾期的次数 | num_month | int |
 | 单月最高逾期/透支金额 |  | 单月最高逾期/透支金额 | amt_pdtotal | long |
-| 最长逾期/透支月数 |  | 首笔业务发放月份 | first_business_month | varchar(16) |
-| 插入时间 |  | 插入时间 | time_inst | datetime |
+| 最长逾期/透支月数 |  | 最长逾期/透支月数 | max_amt_pd | string |
+| 插入时间 |  | 插入时间 | time_inst | string |
+
+> **生产表校对（2025-07）：** Notion 原文档误写为 `first_business_month`，实际 Iceberg 字段为 `max_amt_pd`。另：生产表字段多为 `string` 类型，分区字段为 `dt`。
 可直接用于模型训练的特征共3项：
 逾期月份数（num_month）→ 历史违约频率的核心指标；
 单月最高逾期/透支金额（amt_pdtotal）→ 极端风险程度的量化依据；
