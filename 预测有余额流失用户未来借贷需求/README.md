@@ -11,8 +11,10 @@
 
 - 特征需求清单：`notion_schema/需要加工的数据.md`
 - 标签构建说明：`notion_schema/项目说明_标签构建.md`
+- **同事样本 SQL 对照**：`notion_schema/项目说明_同事样本SQL对照.md`
 - 字段总表：`notion_schema/FIELD_CATALOG.md`
 - 特征 SQL：`sql/yye_credit_feature_process.sql`
+- **同事样本参考 SQL**：`sql/yye_pril_bal_sample_reference.sql`
 
 ## 训练 cohort
 
