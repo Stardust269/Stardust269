@@ -258,9 +258,13 @@ left join (
 -- Step 5: 样本关联（报告主键统一后再挂循环贷/扩展/账单日特征）
 -- 训练 cohort：样本表 dt 落在 202508/202509/202510（2025年8~10月）
 -- 征信关联窗：days_dt_1 前推365天 ~ 后推60天（标签观察窗）
--- 【重要】必须用 drop+create 重跑；create if not exists 若曾空跑会永久 0 行
-drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623;
-create table lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623 as
+--
+-- 【跑前必查】以下 4 张上游表必须已存在且有数据，否则本步 CREATE 会失败且表不存在：
+--   jcr_pril_bal_info_20260623 / jcr_credit_report_agg_20260623
+--   jcr_credit_report_ext_20260623 / jcr_credit_billday_agg_20260623
+-- 【执行方式】请单独提交本段（不要与 drop/select 混在一个失败即停的任务里）
+-- 使用 create or replace：避免 drop 成功但 create 失败导致表消失
+create or replace table lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623 as
 select
     s.uuid, s.user_id, s.pril_bal, s.crdt_lim_yx, s.pril_bal_rate,
     s.dt, s.days_dt, s.no_balance_flg_30, s.no_balance_flg_60, s.no_balance_flg_90,
@@ -283,14 +287,14 @@ select
     e.credit_account_num, e.credit_amount, e.credit_used_amount, e.credit_util_rate,
     e.has_house_loan_flg, e.has_gjj_loan_flg, e.org_type,
 
-    case when rep.days_dt_zx > date_sub(s.days_dt_1, 30)
-          and rep.days_dt_zx <= s.days_dt_1 then 1 else 0 end as flg_win_1m,
-    case when rep.days_dt_zx > date_sub(s.days_dt_1, 180)
-          and rep.days_dt_zx <= s.days_dt_1 then 1 else 0 end as flg_win_6m,
-    case when rep.days_dt_zx > date_sub(s.days_dt_1, 365)
-          and rep.days_dt_zx <= s.days_dt_1 then 1 else 0 end as flg_win_1y,
-    case when rep.days_dt_zx >= s.days_dt_1
-          and rep.days_dt_zx <= date_add(s.days_dt_1, 60) then 1 else 0 end as flg_fwd_60d,
+    case when rep.days_dt_zx > date_sub(cast(s.days_dt_1 as date), 30)
+          and rep.days_dt_zx <= cast(s.days_dt_1 as date) then 1 else 0 end as flg_win_1m,
+    case when rep.days_dt_zx > date_sub(cast(s.days_dt_1 as date), 180)
+          and rep.days_dt_zx <= cast(s.days_dt_1 as date) then 1 else 0 end as flg_win_6m,
+    case when rep.days_dt_zx > date_sub(cast(s.days_dt_1 as date), 365)
+          and rep.days_dt_zx <= cast(s.days_dt_1 as date) then 1 else 0 end as flg_win_1y,
+    case when rep.days_dt_zx >= cast(s.days_dt_1 as date)
+          and rep.days_dt_zx <= date_add(cast(s.days_dt_1 as date), 60) then 1 else 0 end as flg_fwd_60d,
 
     row_number() over (
         partition by s.uuid
@@ -314,8 +318,8 @@ left join (
 ) rep
   on s.uuid = rep.id_unqp
  and s.days_dt_1 is not null
- and rep.days_dt_zx > date_sub(s.days_dt_1, 365)
- and rep.days_dt_zx <= date_add(s.days_dt_1, 60)
+ and cast(rep.days_dt_zx as date) > date_sub(cast(s.days_dt_1 as date), 365)
+ and cast(rep.days_dt_zx as date) <= date_add(cast(s.days_dt_1 as date), 60)
 left join lj_iceberg.ai_decision_dev.jcr_credit_report_agg_20260623 r
   on rep.id_unqp = r.id_unqp and rep.id_unqf = r.id_unqf and rep.dt = r.dt
 left join lj_iceberg.ai_decision_dev.jcr_credit_report_ext_20260623 e
@@ -324,9 +328,8 @@ left join lj_iceberg.ai_decision_dev.jcr_credit_billday_agg_20260623 b
   on rep.id_unqp = b.id_unqp and rep.id_unqf = b.id_unqf and rep.dt = b.dt
 ;
 
--- Step 6: 最终特征宽表
-drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_20260623;
-create table lj_iceberg.ai_decision_dev.jcr_credit_feature_20260623 as
+-- Step 6: 最终特征宽表（单独提交）
+create or replace table lj_iceberg.ai_decision_dev.jcr_credit_feature_20260623 as
 select
     uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt,
     no_balance_flg_30, no_balance_flg_60, no_balance_flg_90, days_dt_1,
@@ -442,12 +445,8 @@ group by
     with_0_30_5103, with_31_60_5103, with_61_90_5103, with_91_120_5103
 ;
 
--- Step 7: 标签 + 数据集划分（训练/验证/测试）
--- 正样本 label=1：样本日后60天内征信余额增加（fwd_max_balance > fwd_first_balance）
--- 负样本 label=0：未增加
--- 训练 cohort：2025-08/09/10；测试打分：2025-11-01（仅特征，label 可为空）
-drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623;
-create table lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623 as
+-- Step 7: 标签 + 数据集划分（单独提交）
+create or replace table lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623 as
 select
     f.*,
     substr(f.dt, 1, 6) as sample_month,
@@ -492,15 +491,21 @@ where f.crdt_lim_yx >= 20000
 ;
 
 -- =============================================================================
--- Step 8: 数据量排查（表为 0kb / 0 行时逐步执行，定位断在哪一步）
+-- Step 8: 数据量排查（按顺序执行；某张表 not found 说明该 Step 的 CREATE 未成功）
 -- =============================================================================
--- ① 样本表是否有数据
+-- ⑧-0 跑 Step5 前：确认 4 张上游表都存在（缺任一都会导致 Step5 建表失败）
+-- select 'jcr_pril_bal_info' as tbl, count(1) as cnt from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623
+-- union all select 'jcr_credit_report_agg', count(1) from lj_iceberg.ai_decision_dev.jcr_credit_report_agg_20260623
+-- union all select 'jcr_credit_report_ext', count(1) from lj_iceberg.ai_decision_dev.jcr_credit_report_ext_20260623
+-- union all select 'jcr_credit_billday_agg', count(1) from lj_iceberg.ai_decision_dev.jcr_credit_billday_agg_20260623;
+--
+-- ⑧-1 样本表是否有数据
 -- select count(1) as sample_cnt,
 --        count(distinct uuid) as sample_uuid_cnt,
 --        sum(case when days_dt_1 is null then 1 else 0 end) as null_days_dt_1_cnt
 -- from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623;
 --
--- ② uuid 能否关联上征信 id_unqp（匹配率）
+-- ⑧-2 uuid 能否关联上征信 id_unqp（匹配率）
 -- select count(distinct s.uuid) as sample_uuid_cnt,
 --        count(distinct case when r.id_unqp is not null then s.uuid end) as matched_uuid_cnt
 -- from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623 s
@@ -510,7 +515,7 @@ where f.crdt_lim_yx >= 20000
 --     select distinct id_unqp from lj_iceberg.ai_decision_dev.jcr_credit_report_ext_20260623
 -- ) r on s.uuid = r.id_unqp;
 --
--- ③ 各 Step 行数（哪一步开始变 0）
+-- ⑧-3 各 Step 行数（哪一步开始变 0；若 step5 not found 说明 Step5 CREATE 失败）
 -- select 'jcr_pril_bal_info' as tbl, count(1) as cnt from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623
 -- union all select 'jcr_credit_report_agg', count(1) from lj_iceberg.ai_decision_dev.jcr_credit_report_agg_20260623
 -- union all select 'jcr_credit_report_ext', count(1) from lj_iceberg.ai_decision_dev.jcr_credit_report_ext_20260623
@@ -518,13 +523,13 @@ where f.crdt_lim_yx >= 20000
 -- union all select 'jcr_credit_feature', count(1) from lj_iceberg.ai_decision_dev.jcr_credit_feature_20260623
 -- union all select 'jcr_credit_feature_label', count(1) from lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623;
 --
--- ④ Step5 每个样本是否至少有一行（应等于样本 uuid 数）
+-- ⑧-4 Step5 每个样本是否至少有一行（仅 Step5 建表成功后执行）
 -- select count(distinct uuid) as uuid_in_step5 from lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623;
 --
--- ⑤ 若 ①=0：Step0 样本表为空，检查 yye 源表权限或 drop 后重跑 Step0
--- 若 ② 匹配率极低：uuid 与 id_unqp 不是同一套 ID，需改关联键
--- 若 ①>0 但 ④<①：旧版 WHERE 滤掉了用户；请用本版 SQL 重跑 Step5（时间窗已移到 JOIN ON）
--- 若 ④>0 但 feature=0：曾用 create if not exists 空跑 Step6，drop 后重跑 Step6
+-- ⑧-5 若 step5 not found：看任务日志里 Step5 的报错（常见：缺 Step4 表、样本表为空、日期字段类型错误）
+-- 若 ⑧-1=0：检查 Step0 样本表
+-- 若 ⑧-0 中 ext 报错：先跑 Step4
+-- 若 ⑧-4>0 但 feature=0：重跑 Step6
 
 -- Step 9: 标签分布核验（2025年10月示例，可按 sample_month 调整）
 -- select
