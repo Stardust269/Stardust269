@@ -17,9 +17,10 @@
 --   days_dt_1 = date_sub(days_dt, 1)
 --   no_balance 锚点 days_dt；had/with 锚点 days_dt_1
 --
--- 建模 cohort（同事最后一查，已确认 5401）：
---   crdt_lim>=20000; had_0_30=1 AND had_31_60=1（仅 2 段，不含 61~90/91~120）
---   no_balance_flg_60=1; with_0_30+with_31_60=0（60 天窗，非 90 天）
+-- 建模 cohort（同事最后一查，精确 5401）：
+--   权威名单：Step 0d 从 yye_pril_bal_info_20260623_4 取 distinct uuid
+--   勿仅用 jcr _2 WHERE 复算（自建样本约 5186，差 215）
+--   条件：had_0_30+31_60; no_balance_flg_60; with_0_30+31_60=0
 -- label：yye _4 表 zx_rank=1 balance vs max(balance)，days_dt_1~+60，剔马消
 -- =============================================================================
 
@@ -32,7 +33,8 @@
 
 -- ===================== 个人表名 =====================
 -- Step0 中间表：jcr_pril_bal_info_raw_20260623 / jcr_pril_bal_info_nb_20260623
--- 样本终表：    jcr_pril_bal_info_20260623
+-- 样本终表：    jcr_pril_bal_info_20260623（建议复制 yye _2）
+-- cohort 名单： jcr_cohort_5401_20260623（Step 0d，精确 5401）
 -- 特征/标签：  jcr_credit_*_20260623
 
 -- =============================================================================
@@ -151,6 +153,21 @@ group by uuid, t1.user_id, pril_bal, crdt_lim_yx, pril_bal_rate, t1.dt, days_dt,
 --   and had_0_30_zx = 1 and had_31_60_zx = 1
 --   and no_balance_flg_60 = 1
 --   and with_0_30 + with_31_60 = 0;
+
+-- =============================================================================
+-- Step 0d：权威 cohort 5401 名单（与同事最后一查 _4 group by uuid 一致）
+-- 前置：yye_pril_bal_info_20260623_4 已存在；建议 Step 0c 已复制 yye _2
+-- 单独脚本：sql/step0d_cohort_5401_from_yye.sql
+-- =============================================================================
+drop table if exists lj_iceberg.ai_decision_dev.jcr_cohort_5401_20260623;
+create table lj_iceberg.ai_decision_dev.jcr_cohort_5401_20260623 as
+select distinct uuid
+from lj_iceberg.ai_decision_dev.yye_pril_bal_info_20260623_4
+where crdt_lim_yx >= 20000
+  and had_0_30_zx = 1
+  and had_31_60_zx = 1
+  and no_balance_flg_60 = 1
+  and with_0_30 + with_31_60 = 0;
 
 -- Step 1: 循环贷账户级明细（R1/R2/R3；标签窗用 20251001~20260201 与同事 analyse 表一致）
 drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_account_base_20260623;
@@ -356,13 +373,12 @@ left join (
 ;
 
 -- Step 5: 样本关联（报告主键统一后再挂循环贷/扩展/账单日特征）
--- 分析 cohort：同事最后一查（5401）
---   had_0_30+had_31_60; no_balance_flg_60; with_0_30+with_31_60=0
+-- 分析 cohort：inner join jcr_cohort_5401_20260623（精确 5401，不用 _2 WHERE 复算）
 -- 征信关联窗：days_dt_1 前推365天 ~ 后推60天（标签观察窗）
 --
--- 【跑前必查】以下 4 张上游表必须已存在且有数据，否则本步 CREATE 会失败且表不存在：
---   jcr_pril_bal_info_20260623 / jcr_credit_report_agg_20260623
---   jcr_credit_report_ext_20260623 / jcr_credit_billday_agg_20260623
+-- 【跑前必查】以下 5 张上游表必须已存在且有数据，否则本步 CREATE 会失败：
+--   jcr_cohort_5401_20260623 / jcr_pril_bal_info_20260623
+--   jcr_credit_report_agg_20260623 / jcr_credit_report_ext_20260623 / jcr_credit_billday_agg_20260623
 -- 【执行方式】请单独提交本段（不要与 drop/select 混在一个失败即停的任务里）
 -- 使用 drop + create（平台不支持 create or replace）
 drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623;
@@ -405,16 +421,14 @@ select
                  rep.days_dt_zx desc
     ) as latest_report_rn
 from (
-    select uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt,
-           no_balance_flg_30, no_balance_flg_60, no_balance_flg_90, days_dt_1,
-           had_0_30_zx, had_31_60_zx, had_61_90_zx, had_91_120_zx,
-           with_0_30, with_31_60, with_61_90, with_91_120,
-           with_0_30_5103, with_31_60_5103, with_61_90_5103, with_91_120_5103
-    from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623
-    where crdt_lim_yx >= 20000
-      and had_0_30_zx = 1 and had_31_60_zx = 1
-      and no_balance_flg_60 = 1
-      and with_0_30 + with_31_60 = 0
+    select s.uuid, s.user_id, s.pril_bal, s.crdt_lim_yx, s.pril_bal_rate, s.dt, s.days_dt,
+           s.no_balance_flg_30, s.no_balance_flg_60, s.no_balance_flg_90, s.days_dt_1,
+           s.had_0_30_zx, s.had_31_60_zx, s.had_61_90_zx, s.had_91_120_zx,
+           s.with_0_30, s.with_31_60, s.with_61_90, s.with_91_120,
+           s.with_0_30_5103, s.with_31_60_5103, s.with_61_90_5103, s.with_91_120_5103
+    from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623 s
+    inner join lj_iceberg.ai_decision_dev.jcr_cohort_5401_20260623 c
+      on s.uuid = c.uuid
 ) s
 left join (
     select id_unqp, id_unqf, dt, days_dt_zx
@@ -555,8 +569,7 @@ group by
 
 -- Step 7: 标签 + 数据集划分（与同事 _3/_4 + 最后一查一致）
 -- label：days_dt_1~+60 账户级余额（剔马消）最早 vs 最大
--- cohort_eligible：同事最后一查（5401）
---   had_0_30+had_31_60; no_balance_flg_60; with_0_30+with_31_60=0
+-- cohort_eligible：uuid 在 jcr_cohort_5401_20260623（=5401）
 drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623;
 create table lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623 as
 select
@@ -569,21 +582,9 @@ select
         when l.fwd_max_balance is not null then 0
         else null
     end as label,
+    case when c.uuid is not null then 1 else 0 end as cohort_eligible,
     case
-        when f.crdt_lim_yx >= 20000
-         and f.had_0_30_zx = 1
-         and f.had_31_60_zx = 1
-         and f.no_balance_flg_60 = 1
-         and f.with_0_30 + f.with_31_60 = 0
-        then 1 else 0
-    end as cohort_eligible,
-    case
-        when f.crdt_lim_yx >= 20000
-         and f.had_0_30_zx = 1
-         and f.had_31_60_zx = 1
-         and f.no_balance_flg_60 = 1
-         and f.with_0_30 + f.with_31_60 = 0
-         and l.fwd_max_balance is not null
+        when c.uuid is not null and l.fwd_max_balance is not null
         then 1 else 0
     end as label_eligible,
     case
@@ -594,6 +595,8 @@ select
         else 'other'
     end as dataset_split
 from lj_iceberg.ai_decision_dev.jcr_credit_feature_20260623 f
+left join lj_iceberg.ai_decision_dev.jcr_cohort_5401_20260623 c
+  on f.uuid = c.uuid
 left join (
     select
         uuid,
@@ -606,18 +609,13 @@ left join (
             b.days_dt_zx,
             sum(if(b.balance > 0 and b.org_manage_code <> 'T10156530H0001', b.balance, 0)) as balance,
             row_number() over (partition by s.uuid order by b.days_dt_zx asc) as zx_rank
-        from (
-            select uuid, days_dt_1
-            from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623
-            where crdt_lim_yx >= 20000
-              and had_0_30_zx = 1 and had_31_60_zx = 1
-              and no_balance_flg_60 = 1
-              and with_0_30 + with_31_60 = 0
-        ) s
+        from lj_iceberg.ai_decision_dev.jcr_cohort_5401_20260623 s
+        inner join lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623 p
+          on s.uuid = p.uuid
         left join lj_iceberg.ai_decision_dev.jcr_credit_account_base_20260623 b
           on s.uuid = b.id_unqp
-         and cast(b.days_dt_zx as date) between cast(s.days_dt_1 as date)
-                                              and date_add(cast(s.days_dt_1 as date), 60)
+         and cast(b.days_dt_zx as date) between cast(p.days_dt_1 as date)
+                                              and date_add(cast(p.days_dt_1 as date), 60)
         group by s.uuid, b.dt, b.days_dt_zx
     ) t
     group by uuid

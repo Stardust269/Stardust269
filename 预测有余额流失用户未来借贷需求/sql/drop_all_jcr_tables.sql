@@ -12,7 +12,7 @@
 -- order by table_name;
 
 -- =============================================================================
--- A. 全量删除（10 张，重跑完整链路前执行）
+-- A. 全量删除（11 张，重跑完整链路前执行）
 -- 顺序：先下游后上游（Step 7 → Step 0a）
 -- =============================================================================
 
@@ -39,6 +39,9 @@ drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_account_base_20260623
 
 -- Step 0c 样本终表（had/with/no_balance）
 drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623;
+
+-- Step 0d 权威 cohort 5401 名单
+drop table if exists lj_iceberg.ai_decision_dev.jcr_cohort_5401_20260623;
 
 -- Step 0b 无余额标识
 drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260623;
@@ -73,6 +76,6 @@ drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260623;
 -- =============================================================================
 -- C. 删后重跑指引
 -- =============================================================================
--- 全量：A 删完后按 Step 0a → 0b → 0c → 1 → 2 → 3 → 4 → 5 → 6 → 7 逐段执行
--- 样本已好、只改 cohort：B1 后重跑 Step 5~7
+-- 全量：A 删完后按 Step 0c(copy yye _2) → 0d → 1 → 2 → 3 → 4 → 5 → 6 → 7
+-- 精确 5401：必须先有 yye _4，再跑 Step 0d；见 step0d_cohort_5401_from_yye.sql
 -- 核验 5401：sql/verify_cohort_5401.sql

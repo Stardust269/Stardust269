@@ -19,7 +19,7 @@
 
 ## 分析 cohort（5401）
 
-- **口径**：2 段 had + `no_balance_flg_60` + 60 天内无提现（同事最后一查确认版）
-- **产出表**：`jcr_credit_feature_label_20260623`（`cohort_eligible=1` 应为 5401 行）
-- **核验**：`sql/verify_cohort_5401.sql`
+- **精确 5401**：`step0d` 从同事 `yye_pril_bal_info_20260623_4` 取 uuid 名单
+- **勿用** `jcr_pril_bal_info` 同条件 WHERE 复算（约 5186，差 215）
+- **核验**：`select count(1) from jcr_cohort_5401_20260623` 必须 = 5401
 - 测试打分日：2025-11-01
