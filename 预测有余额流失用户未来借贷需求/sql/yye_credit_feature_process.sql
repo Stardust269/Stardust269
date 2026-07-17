@@ -1,5 +1,7 @@
 -- =============================================================================
--- 二代征信特征加工 SQL（样本/标签口径对齐同事 yye_pril_bal 脚本）
+-- 【执行说明】平台不支持 create or replace；已改为 drop + create。
+-- 请每次只提交一个 Step（从 drop 到分号），不要整文件一次运行。
+-- =============================================================================
 -- 同事参考：sql/yye_pril_bal_sample_reference.sql
 -- 对照说明：notion_schema/项目说明_同事样本SQL对照.md
 --
@@ -36,7 +38,8 @@
 -- =============================================================================
 -- Step 0a：月内每日快照 + 额度利用率 rk（同事 yye_pril_bal_info_20260623）
 -- =============================================================================
-create or replace table lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260623 as
+drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260623;
+create table lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260623 as
 select
     uuid, user_id, pril_bal, crdt_lim_yx,
     pril_bal / crdt_lim_yx as pril_bal_rate,
@@ -61,7 +64,8 @@ where dt >= '20251002' and dt <= '20251101'
 -- Step 0b：rk=1 + 后续是否无余额（同事 yye_pril_bal_info_20260623_1）
 -- no_balance 锚点：days_dt（最低利用率日），不是 days_dt_1
 -- =============================================================================
-create or replace table lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260623 as
+drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260623;
+create table lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260623 as
 select
     t1.uuid, t1.user_id, t1.pril_bal, t1.crdt_lim_yx, t1.pril_bal_rate, t1.dt, t1.days_dt,
     max(t2.no_balance_flg) as no_balance_flg_90,
@@ -84,7 +88,7 @@ left join (
       and prod_cd = '5103'
 ) t2
   on t1.uuid = t2.uuid and t1.user_id = t2.user_id
- and t2.days_dt between t1.days_dt and date_add(t1.days_dt, 90)
+where t2.days_dt between t1.days_dt and date_add(t1.days_dt, 90)
 group by t1.uuid, t1.user_id, t1.pril_bal, t1.crdt_lim_yx, t1.pril_bal_rate, t1.dt, t1.days_dt
 ;
 
@@ -92,7 +96,8 @@ group by t1.uuid, t1.user_id, t1.pril_bal, t1.crdt_lim_yx, t1.pril_bal_rate, t1.
 -- Step 0c：had_*_zx / with_* + days_dt_1（同事 yye_pril_bal_info_20260623_2）
 -- days_dt_1 = date_sub(days_dt, 1)；had/with 锚点 days_dt_1
 -- =============================================================================
-create or replace table lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623 as
+drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623;
+create table lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623 as
 select
     t1.*,
     max(case when days_dt_zx between days_dt_1 and date_add(days_dt_1, 30) then 1 else 0 end) as had_0_30_zx,
@@ -140,7 +145,8 @@ group by uuid, t1.user_id, pril_bal, crdt_lim_yx, pril_bal_rate, t1.dt, days_dt,
 -- select count(1) from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623;
 
 -- Step 1: 循环贷账户级明细（R1/R2/R3；马消在 Step2 聚合时剔除，与同事一致）
-create or replace table lj_iceberg.ai_decision_dev.jcr_credit_account_base_20260623 as
+drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_account_base_20260623;
+create table lj_iceberg.ai_decision_dev.jcr_credit_account_base_20260623 as
 select
     t1.id_unqf,
     t1.id_unqp,
@@ -194,7 +200,8 @@ left join (
 ;
 
 -- Step 2: 循环贷报告级聚合（剔马消：与同事 balance 汇总口径一致）
-create or replace table lj_iceberg.ai_decision_dev.jcr_credit_report_agg_20260623 as
+drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_report_agg_20260623;
+create table lj_iceberg.ai_decision_dev.jcr_credit_report_agg_20260623 as
 select
     id_unqp, id_unqf, dt, days_dt_zx,
     sum(if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001', 1, 0)) as pos_bal_acct_cnt,
@@ -216,7 +223,8 @@ group by id_unqp, id_unqf, dt, days_dt_zx
 ;
 
 -- Step 3: 账单日压力（剔马消有余额账户）
-create or replace table lj_iceberg.ai_decision_dev.jcr_credit_billday_agg_20260623 as
+drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_billday_agg_20260623;
+create table lj_iceberg.ai_decision_dev.jcr_credit_billday_agg_20260623 as
 select id_unqp, id_unqf, dt, days_dt_zx,
        max(acct_cnt_same_billday) as same_billday_acct_cnt_max,
        max(bal_sum_same_billday) as same_billday_bal_sum_max
@@ -233,7 +241,8 @@ group by id_unqp, id_unqf, dt, days_dt_zx
 ;
 
 -- Step 4: 报告级扩展特征（查询/逾期/信用卡/资质/职业）
-create or replace table lj_iceberg.ai_decision_dev.jcr_credit_report_ext_20260623 as
+drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_report_ext_20260623;
+create table lj_iceberg.ai_decision_dev.jcr_credit_report_ext_20260623 as
 select
     spine.id_unqp,
     spine.id_unqf,
@@ -328,7 +337,7 @@ left join (
         select id_unqp, id_unqf, dt, org_type,
                row_number() over (
                    partition by id_unqf, id_unqp, dt
-                   order by update_date desc nulls last, time_inst desc
+                   order by update_date desc, time_inst desc
                ) as rn
         from lj_iceberg.pboccr2d.dsst_eds_gaa02_person_job_info
         where dt >= '20240801' and dt < '20260101'
@@ -346,8 +355,9 @@ left join (
 --   jcr_pril_bal_info_20260623 / jcr_credit_report_agg_20260623
 --   jcr_credit_report_ext_20260623 / jcr_credit_billday_agg_20260623
 -- 【执行方式】请单独提交本段（不要与 drop/select 混在一个失败即停的任务里）
--- 使用 create or replace：避免 drop 成功但 create 失败导致表消失
-create or replace table lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623 as
+-- 使用 drop + create（平台不支持 create or replace）
+drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623;
+create table lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623 as
 select
     s.uuid, s.user_id, s.pril_bal, s.crdt_lim_yx, s.pril_bal_rate,
     s.dt, s.days_dt, s.no_balance_flg_30, s.no_balance_flg_60, s.no_balance_flg_90,
@@ -413,7 +423,8 @@ left join lj_iceberg.ai_decision_dev.jcr_credit_billday_agg_20260623 b
 ;
 
 -- Step 6: 最终特征宽表（单独提交）
-create or replace table lj_iceberg.ai_decision_dev.jcr_credit_feature_20260623 as
+drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_20260623;
+create table lj_iceberg.ai_decision_dev.jcr_credit_feature_20260623 as
 select
     uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt,
     no_balance_flg_30, no_balance_flg_60, no_balance_flg_90, days_dt_1,
@@ -532,7 +543,8 @@ group by
 -- Step 7: 标签 + 数据集划分（与同事 _3/_4 + 最后一查一致）
 -- label：days_dt_1~+60 账户级余额（剔马消）最早 vs 最大
 -- cohort：had_0_30/31_60/61_90=1, no_balance_90=1, with_0_30+31_60+61_90=0
-create or replace table lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623 as
+drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623;
+create table lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623 as
 select
     f.*,
     substr(f.dt, 1, 6) as sample_month,
