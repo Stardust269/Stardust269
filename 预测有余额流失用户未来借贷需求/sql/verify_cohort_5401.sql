@@ -13,7 +13,7 @@ where crdt_lim_yx >= 20000
   and had_0_30_zx = 1 and had_31_60_zx = 1
   and had_61_90_zx = 1 and had_91_120_zx = 1;
 
--- 2) label 圈选口径（同事 _4 最后一查，3511+1890=5401）→ 目标应 ≈ 5401
+-- 2) label 圈选口径（同事 _4 最后一查）→ 自建 Step0 约 488；复制 yye _2 后应 ≈ 5401
 select count(1) as cnt_label_cohort
 from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623
 where crdt_lim_yx >= 20000
@@ -57,7 +57,17 @@ from lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623
 where cohort_eligible = 1 and label is not null
 group by label order by label;
 
--- 7) 若同事 yye 表存在，直接对比
--- select count(1) from lj_iceberg.ai_decision_dev.yye_pril_bal_info_20260623_2
--- where crdt_lim_yx >= 20000 and had_0_30_zx=1 and had_31_60_zx=1
---   and had_61_90_zx=1 and had_91_120_zx=1;
+-- 7) ★ 关键对比：同事 yye 表 vs 自建 jcr 表（请优先跑这条）
+select 'yye_2' as src, count(1) as cnt_label_cohort
+from lj_iceberg.ai_decision_dev.yye_pril_bal_info_20260623_2
+where crdt_lim_yx >= 20000
+  and had_0_30_zx = 1 and had_31_60_zx = 1 and had_61_90_zx = 1
+  and no_balance_flg_90 = 1
+  and with_0_30 + with_31_60 + with_61_90 = 0
+union all
+select 'jcr_0c' as src, count(1) as cnt_label_cohort
+from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623
+where crdt_lim_yx >= 20000
+  and had_0_30_zx = 1 and had_31_60_zx = 1 and had_61_90_zx = 1
+  and no_balance_flg_90 = 1
+  and with_0_30 + with_31_60 + with_61_90 = 0;
