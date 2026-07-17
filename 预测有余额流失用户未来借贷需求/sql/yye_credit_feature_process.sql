@@ -4,7 +4,7 @@
 -- 【权限与读写说明】
 --   只读（征信公共源表，不会改写任何人数据）：
 --     lj_iceberg.pboccr2d.*  共 9 张
---   只读（你自己的样本表）：
+--   只读（你自己的样本表，由 Step 0 创建）：
 --     lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623
 --   只写（下面 Step1~6 全部为你个人新建表，前缀 jcr_，与同事 yye_ 表无关）：
 --     lj_iceberg.ai_decision_dev.jcr_credit_*  共 7 张（含标签表）
@@ -258,7 +258,9 @@ left join (
 -- Step 5: 样本关联（报告主键统一后再挂循环贷/扩展/账单日特征）
 -- 训练 cohort：样本表 dt 落在 202508/202509/202510（2025年8~10月）
 -- 征信关联窗：days_dt_1 前推365天 ~ 后推60天（标签观察窗）
-create table if not exists lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623 as
+-- 【重要】必须用 drop+create 重跑；create if not exists 若曾空跑会永久 0 行
+drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623;
+create table lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623 as
 select
     s.uuid, s.user_id, s.pril_bal, s.crdt_lim_yx, s.pril_bal_rate,
     s.dt, s.days_dt, s.no_balance_flg_30, s.no_balance_flg_60, s.no_balance_flg_90,
@@ -311,21 +313,20 @@ left join (
     from lj_iceberg.ai_decision_dev.jcr_credit_report_agg_20260623
 ) rep
   on s.uuid = rep.id_unqp
+ and s.days_dt_1 is not null
+ and rep.days_dt_zx > date_sub(s.days_dt_1, 365)
+ and rep.days_dt_zx <= date_add(s.days_dt_1, 60)
 left join lj_iceberg.ai_decision_dev.jcr_credit_report_agg_20260623 r
   on rep.id_unqp = r.id_unqp and rep.id_unqf = r.id_unqf and rep.dt = r.dt
 left join lj_iceberg.ai_decision_dev.jcr_credit_report_ext_20260623 e
   on rep.id_unqp = e.id_unqp and rep.id_unqf = e.id_unqf and rep.dt = e.dt
 left join lj_iceberg.ai_decision_dev.jcr_credit_billday_agg_20260623 b
   on rep.id_unqp = b.id_unqp and rep.id_unqf = b.id_unqf and rep.dt = b.dt
-where rep.days_dt_zx is null
-   or (
-        rep.days_dt_zx > date_sub(s.days_dt_1, 365)
-    and rep.days_dt_zx <= date_add(s.days_dt_1, 60)
-      )
 ;
 
 -- Step 6: 最终特征宽表
-create table if not exists lj_iceberg.ai_decision_dev.jcr_credit_feature_20260623 as
+drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_20260623;
+create table lj_iceberg.ai_decision_dev.jcr_credit_feature_20260623 as
 select
     uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt,
     no_balance_flg_30, no_balance_flg_60, no_balance_flg_90, days_dt_1,
@@ -445,7 +446,8 @@ group by
 -- 正样本 label=1：样本日后60天内征信余额增加（fwd_max_balance > fwd_first_balance）
 -- 负样本 label=0：未增加
 -- 训练 cohort：2025-08/09/10；测试打分：2025-11-01（仅特征，label 可为空）
-create table if not exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623 as
+drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623;
+create table lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623 as
 select
     f.*,
     substr(f.dt, 1, 6) as sample_month,
@@ -489,7 +491,42 @@ where f.crdt_lim_yx >= 20000
       )
 ;
 
--- Step 8: 标签分布核验（2025年10月示例，可按 sample_month 调整）
+-- =============================================================================
+-- Step 8: 数据量排查（表为 0kb / 0 行时逐步执行，定位断在哪一步）
+-- =============================================================================
+-- ① 样本表是否有数据
+-- select count(1) as sample_cnt,
+--        count(distinct uuid) as sample_uuid_cnt,
+--        sum(case when days_dt_1 is null then 1 else 0 end) as null_days_dt_1_cnt
+-- from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623;
+--
+-- ② uuid 能否关联上征信 id_unqp（匹配率）
+-- select count(distinct s.uuid) as sample_uuid_cnt,
+--        count(distinct case when r.id_unqp is not null then s.uuid end) as matched_uuid_cnt
+-- from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623 s
+-- left join (
+--     select distinct id_unqp from lj_iceberg.ai_decision_dev.jcr_credit_report_agg_20260623
+--     union
+--     select distinct id_unqp from lj_iceberg.ai_decision_dev.jcr_credit_report_ext_20260623
+-- ) r on s.uuid = r.id_unqp;
+--
+-- ③ 各 Step 行数（哪一步开始变 0）
+-- select 'jcr_pril_bal_info' as tbl, count(1) as cnt from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623
+-- union all select 'jcr_credit_report_agg', count(1) from lj_iceberg.ai_decision_dev.jcr_credit_report_agg_20260623
+-- union all select 'jcr_credit_report_ext', count(1) from lj_iceberg.ai_decision_dev.jcr_credit_report_ext_20260623
+-- union all select 'jcr_credit_report_with_sample', count(1) from lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623
+-- union all select 'jcr_credit_feature', count(1) from lj_iceberg.ai_decision_dev.jcr_credit_feature_20260623
+-- union all select 'jcr_credit_feature_label', count(1) from lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623;
+--
+-- ④ Step5 每个样本是否至少有一行（应等于样本 uuid 数）
+-- select count(distinct uuid) as uuid_in_step5 from lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260623;
+--
+-- ⑤ 若 ①=0：Step0 样本表为空，检查 yye 源表权限或 drop 后重跑 Step0
+-- 若 ② 匹配率极低：uuid 与 id_unqp 不是同一套 ID，需改关联键
+-- 若 ①>0 但 ④<①：旧版 WHERE 滤掉了用户；请用本版 SQL 重跑 Step5（时间窗已移到 JOIN ON）
+-- 若 ④>0 但 feature=0：曾用 create if not exists 空跑 Step6，drop 后重跑 Step6
+
+-- Step 9: 标签分布核验（2025年10月示例，可按 sample_month 调整）
 -- select
 --     sample_month,
 --     label,
