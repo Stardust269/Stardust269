@@ -531,7 +531,9 @@ where f.crdt_lim_yx >= 20000
 -- 若 ⑧-0 中 ext 报错：先跑 Step4
 -- 若 ⑧-4>0 但 feature=0：重跑 Step6
 
--- Step 9: 标签分布核验（2025年10月示例，可按 sample_month 调整）
+-- Step 9: 标签分布核验（口径见 notion_schema/项目说明_标签构建.md §2.2）
+-- 锚点 days_dt_1 后 0～60 日：无余额(60) + 未贷款(0-60) + 有征信(0-60)
+-- 10 月预期：合计 5401，label=0 共 3511，label=1 共 1890
 -- select
 --     sample_month,
 --     label,
@@ -540,11 +542,11 @@ where f.crdt_lim_yx >= 20000
 --     round(count(1) * 100.0 / sum(count(1)) over (partition by sample_month), 2) as pct
 -- from lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623
 -- where sample_month = '202510'
---   and no_balance_flg_90 = 1
+--   and dataset_split in ('train', 'val')
+--   and no_balance_flg_60 = 1
 --   and had_0_30_zx = 1
 --   and had_31_60_zx = 1
---   and had_61_90_zx = 1
---   and with_0_30 + with_31_60 + with_61_90 = 0
+--   and with_0_30 + with_31_60 = 0
 --   and label is not null
 -- group by sample_month, label, dataset_split
 -- order by label, dataset_split
