@@ -212,6 +212,7 @@ from ( select uuid,user_id,pril_bal,crdt_lim_yx,pril_bal_rate,dt,days_dt,no_bala
 ;
 
 --统计最早的那份征信的余额 和 最大的余额，统计余额有增加的用户数量
+-- ★ 同事确认版（5401 样本口径，2026-07 更新）
 -- 统计有需求
 SELECT if(balance_max>first_balance,1,0) as flg
 ,count(1) as num
@@ -223,12 +224,12 @@ where crdt_lim_yx >= 20000
 -- and pril_bal_rate >=0.5
 and had_0_30_zx =1
 and had_31_60_zx =1
-and had_61_90_zx=1
+-- and had_61_90_zx=1
 -- and had_91_120_zx=1
--- and no_balance_flg_60 =1
--- and with_0_30 + with_31_60 = 0
-and no_balance_flg_90 =1
-and with_0_30 + with_31_60 + with_61_90= 0
+and no_balance_flg_60 =1
+and with_0_30 + with_31_60 = 0
+-- and no_balance_flg_90 =1
+-- and with_0_30 + with_31_60 + with_61_90= 0
 group by uuid
 )tt
 group by if(balance_max>first_balance,1,0)

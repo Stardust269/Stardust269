@@ -19,8 +19,7 @@
 
 ## 分析 cohort（5401）
 
-- **口径**：同事 `_4` label 圈选 — 3 段 had + `no_balance_90` + 90 天内无提现 → **3511+1890=5401**
-- **注意**：4 段 had 统计 `count(1)` 在我方约 **339,211**，不是 5401
+- **口径**：2 段 had + `no_balance_flg_60` + 60 天内无提现（同事最后一查确认版）
 - **产出表**：`jcr_credit_feature_label_20260623`（`cohort_eligible=1` 应为 5401 行）
-- **若自建 Step0 仅 ~488**：用 `sql/step0c_copy_from_yye.sql` 复制同事 `_2` 表后重跑 Step 5~7
+- **核验**：`sql/verify_cohort_5401.sql`
 - 测试打分日：2025-11-01

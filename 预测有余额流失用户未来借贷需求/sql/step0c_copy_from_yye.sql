@@ -18,9 +18,9 @@ where crdt_lim_yx >= 20000
 select count(1) as cnt_label_cohort
 from lj_iceberg.ai_decision_dev.yye_pril_bal_info_20260623_2
 where crdt_lim_yx >= 20000
-  and had_0_30_zx = 1 and had_31_60_zx = 1 and had_61_90_zx = 1
-  and no_balance_flg_90 = 1
-  and with_0_30 + with_31_60 + with_61_90 = 0;
+  and had_0_30_zx = 1 and had_31_60_zx = 1
+  and no_balance_flg_60 = 1
+  and with_0_30 + with_31_60 = 0;
 
 -- 1) 复制到个人样本表（替代 Step 0a~0c）
 drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623;

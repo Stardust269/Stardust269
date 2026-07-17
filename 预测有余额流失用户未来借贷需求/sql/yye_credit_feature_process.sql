@@ -17,10 +17,9 @@
 --   days_dt_1 = date_sub(days_dt, 1)
 --   no_balance 锚点 days_dt；had/with 锚点 days_dt_1
 --
--- 建模 cohort（同事 label 查询，3511+1890=5401）：
---   crdt_lim>=20000; had 0~30/31~60/61~90=1（不含 91~120）;
---   no_balance_90=1; with_0_30+31_60+61_90=0
--- 统计查询 num（4 段 had，不含 no_balance/with）在我方环境约 33 万，不是 5401
+-- 建模 cohort（同事最后一查，已确认 5401）：
+--   crdt_lim>=20000; had_0_30=1 AND had_31_60=1（仅 2 段，不含 61~90/91~120）
+--   no_balance_flg_60=1; with_0_30+with_31_60=0（60 天窗，非 90 天）
 -- label：yye _4 表 zx_rank=1 balance vs max(balance)，days_dt_1~+60，剔马消
 -- =============================================================================
 
@@ -145,13 +144,13 @@ group by uuid, t1.user_id, pril_bal, crdt_lim_yx, pril_bal_rate, t1.dt, days_dt,
          no_balance_flg_30, no_balance_flg_60, no_balance_flg_90, days_dt_1
 ;
 
--- 核验：应对齐同事 label 圈选 5401（3511+1890）
+-- 核验：应对齐同事最后一查 5401
 -- select count(1) as cohort_cnt
 -- from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623
 -- where crdt_lim_yx >= 20000
---   and had_0_30_zx = 1 and had_31_60_zx = 1 and had_61_90_zx = 1
---   and no_balance_flg_90 = 1
---   and with_0_30 + with_31_60 + with_61_90 = 0;
+--   and had_0_30_zx = 1 and had_31_60_zx = 1
+--   and no_balance_flg_60 = 1
+--   and with_0_30 + with_31_60 = 0;
 
 -- Step 1: 循环贷账户级明细（R1/R2/R3；标签窗用 20251001~20260201 与同事 analyse 表一致）
 drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_account_base_20260623;
@@ -357,8 +356,8 @@ left join (
 ;
 
 -- Step 5: 样本关联（报告主键统一后再挂循环贷/扩展/账单日特征）
--- 分析 cohort：同事 _4 最后一查口径（3511+1890=5401）
---   crdt_lim>=20000; had 0~30/31~60/61~90; no_balance_90; 90天内无提现
+-- 分析 cohort：同事最后一查（5401）
+--   had_0_30+had_31_60; no_balance_flg_60; with_0_30+with_31_60=0
 -- 征信关联窗：days_dt_1 前推365天 ~ 后推60天（标签观察窗）
 --
 -- 【跑前必查】以下 4 张上游表必须已存在且有数据，否则本步 CREATE 会失败且表不存在：
@@ -413,9 +412,9 @@ from (
            with_0_30_5103, with_31_60_5103, with_61_90_5103, with_91_120_5103
     from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623
     where crdt_lim_yx >= 20000
-      and had_0_30_zx = 1 and had_31_60_zx = 1 and had_61_90_zx = 1
-      and no_balance_flg_90 = 1
-      and with_0_30 + with_31_60 + with_61_90 = 0
+      and had_0_30_zx = 1 and had_31_60_zx = 1
+      and no_balance_flg_60 = 1
+      and with_0_30 + with_31_60 = 0
 ) s
 left join (
     select id_unqp, id_unqf, dt, days_dt_zx
@@ -556,8 +555,8 @@ group by
 
 -- Step 7: 标签 + 数据集划分（与同事 _3/_4 + 最后一查一致）
 -- label：days_dt_1~+60 账户级余额（剔马消）最早 vs 最大
--- cohort_eligible：同事 label 圈选（3511+1890=5401）
--- label_eligible：cohort 内且 label 可计算（fwd 窗内有征信）
+-- cohort_eligible：同事最后一查（5401）
+--   had_0_30+had_31_60; no_balance_flg_60; with_0_30+with_31_60=0
 drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623;
 create table lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623 as
 select
@@ -574,18 +573,16 @@ select
         when f.crdt_lim_yx >= 20000
          and f.had_0_30_zx = 1
          and f.had_31_60_zx = 1
-         and f.had_61_90_zx = 1
-         and f.no_balance_flg_90 = 1
-         and f.with_0_30 + f.with_31_60 + f.with_61_90 = 0
+         and f.no_balance_flg_60 = 1
+         and f.with_0_30 + f.with_31_60 = 0
         then 1 else 0
     end as cohort_eligible,
     case
         when f.crdt_lim_yx >= 20000
          and f.had_0_30_zx = 1
          and f.had_31_60_zx = 1
-         and f.had_61_90_zx = 1
-         and f.no_balance_flg_90 = 1
-         and f.with_0_30 + f.with_31_60 + f.with_61_90 = 0
+         and f.no_balance_flg_60 = 1
+         and f.with_0_30 + f.with_31_60 = 0
          and l.fwd_max_balance is not null
         then 1 else 0
     end as label_eligible,
@@ -613,9 +610,9 @@ left join (
             select uuid, days_dt_1
             from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260623
             where crdt_lim_yx >= 20000
-              and had_0_30_zx = 1 and had_31_60_zx = 1 and had_61_90_zx = 1
-              and no_balance_flg_90 = 1
-              and with_0_30 + with_31_60 + with_61_90 = 0
+              and had_0_30_zx = 1 and had_31_60_zx = 1
+              and no_balance_flg_60 = 1
+              and with_0_30 + with_31_60 = 0
         ) s
         left join lj_iceberg.ai_decision_dev.jcr_credit_account_base_20260623 b
           on s.uuid = b.id_unqp
@@ -669,12 +666,12 @@ left join (
 -- 若 ⑧-0 中 ext 报错：先跑 Step4
 -- 若 ⑧-4>0 但 feature=0：重跑 Step6
 
--- Step 9: 核验（应对齐同事 label 圈选 5401）
+-- Step 9: 核验（应对齐同事最后一查 5401）
 -- select count(1) as cohort_cnt, count(distinct uuid) as uuid_cnt
 -- from lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623
 -- where cohort_eligible = 1;
 --
--- 标签分布（应约 3511 负 + 1890 正）：
+-- 标签分布：
 -- select label, count(1) as num
 -- from lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260623
 -- where cohort_eligible = 1 and label is not null
