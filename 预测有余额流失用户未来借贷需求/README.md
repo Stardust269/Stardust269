@@ -14,6 +14,7 @@
 - **同事样本 SQL 对照**：`notion_schema/项目说明_同事样本SQL对照.md`
 - 字段总表：`notion_schema/FIELD_CATALOG.md`
 - 特征 SQL：`sql/yye_credit_feature_process.sql`
+- **删除全部 jcr 表**：`sql/drop_all_jcr_tables.sql`
 - **同事样本参考 SQL**：`sql/yye_pril_bal_sample_reference.sql`
 
 ## 分析 cohort（5401）
