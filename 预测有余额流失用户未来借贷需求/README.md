@@ -18,7 +18,7 @@
 
 ## 分析 cohort（5401）
 
-- **口径**：同事 `_2` 统计查询 — `crdt_lim_yx>=20000` 且 4 段 `had_*_zx=1`
+- **口径**：同事 `_4` label 圈选 — 3 段 had + `no_balance_90` + 90 天内无提现 → **3511+1890=5401**
+- **注意**：4 段 had 统计 `count(1)` 在我方约 **339,211**，不是 5401
 - **产出表**：`jcr_credit_feature_label_20260623`（`cohort_eligible=1` 应为 5401 行）
-- **打 label 子集**：`label_eligible=1`（no_balance_90 + 90 天内无提现）
 - 测试打分日：2025-11-01
