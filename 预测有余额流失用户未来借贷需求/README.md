@@ -16,7 +16,9 @@
 - 特征 SQL：`sql/yye_credit_feature_process.sql`
 - **同事样本参考 SQL**：`sql/yye_pril_bal_sample_reference.sql`
 
-## 训练 cohort
+## 分析 cohort（5401）
 
-- 2025 年 8 / 9 / 10 月
+- **口径**：同事 `_2` 统计查询 — `crdt_lim_yx>=20000` 且 4 段 `had_*_zx=1`
+- **产出表**：`jcr_credit_feature_label_20260623`（`cohort_eligible=1` 应为 5401 行）
+- **打 label 子集**：`label_eligible=1`（no_balance_90 + 90 天内无提现）
 - 测试打分日：2025-11-01
