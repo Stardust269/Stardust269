@@ -40,7 +40,10 @@
 |------|------|
 | `sql/run_all_20260715.sql` | **一键全量**（征信特征 + 标签 + 马消关联） |
 | `sql/yye_pril_bal_sample_reference_20260715.sql` | 同事参考 SQL（样本 + 马消特征） |
-| `sql/drop_all_jcr_tables_20260715.sql` | 删除 jcr_*_20260715 表 |
+| `sql/drop_all_project_tables.sql` | **全库清理**（jcr+yye+ayh，释放 7TB 必用） |
+| `sql/list_project_tables.sql` | 删后核验残留表 |
+| `sql/run_part01_sample_cohort_20260715.sql` | 仅 Part0~2（样本+cohort） |
+| `sql/drop_sample_intermediate_20260715.sql` | cohort 通过后删中间表腾空间 |
 
 ## 三月版执行顺序（20260715）
 

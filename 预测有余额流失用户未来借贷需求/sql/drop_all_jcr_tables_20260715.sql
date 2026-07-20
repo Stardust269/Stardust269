@@ -18,7 +18,7 @@
 -- =============================================================================
 
 -- Part 8  征信 + 马消终表
-drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_full_20260715 purge purge;
+drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_full_20260715 purge;
 
 -- Part 7  征信特征 + 标签
 drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260715 purge;
