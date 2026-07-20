@@ -61,13 +61,13 @@ drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260715 p
 -- =============================================================================
 
 -- B1. 仅重跑 Part 5~8（样本 Part 1 及征信 Step 1~4 保留）
--- drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_full_20260715 purge purge;
+-- drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_full_20260715 purge;
 -- drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260715 purge;
 -- drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_20260715 purge;
 -- drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260715 purge;
 
 -- B2. 仅重跑 Part 8（马消关联；需同事 ayh_feature_* 表已存在）
--- drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_full_20260715 purge purge;
+-- drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_full_20260715 purge;
 
 -- =============================================================================
 -- C. 删后重跑指引
