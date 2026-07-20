@@ -3,8 +3,8 @@
 -- =============================================================================
 -- 【与 20260623 版区别】
 --   样本：202508~202510 三月，月内 rk=1，源表 ayh_mkt_yx_cust_type_base_df（T-1）
---   cohort：crdt>=2w & no_balance_60 & with_0_30+31_60=0（同事子集，约1.5w）
---   with 锚点：days_dt（非 days_dt_1）；无 had_*_zx
+--   cohort：与 0623 完全同口径 5 条件（含 had_0_30_zx & had_31_60_zx），三月约 5401×3≈1.6w
+--   had/with 锚点：days_dt_1（与 0623 一致）；no_balance 锚点：days_dt
 --   标签 zx_balance_label：样本日后60天外部征信余额是否增加（剔马消）
 --   马消特征：left join 同事 ayh_feature_*（只读，由同事加工）
 --
@@ -83,45 +83,62 @@ where t2.days_dt between t1.days_dt and date_add(t1.days_dt, 90)
 group by t1.uuid, t1.user_id, t1.pril_bal, t1.crdt_lim_yx, t1.pril_bal_rate, t1.dt, t1.days_dt, t1.m
 ;
 
--- Step 0c：提现 with_*（锚点 days_dt，非 days_dt_1）
+-- Step 0c：had_*_zx + with_*（与 0623 一致，锚点 days_dt_1 = date_sub(days_dt,1)）
 drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260715;
 create table lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260715 as
 select
-    t1.*,
-    max(if(wday between days_dt and date_add(days_dt, 30), 1, 0)) as with_0_30,
-    max(if(wday between date_add(days_dt, 31) and date_add(days_dt, 60), 1, 0)) as with_31_60,
-    max(if(wday between date_add(days_dt, 61) and date_add(days_dt, 90), 1, 0)) as with_61_90,
-    max(if(wday between date_add(days_dt, 91) and date_add(days_dt, 120), 1, 0)) as with_91_120,
-    max(if(wday between days_dt and date_add(days_dt, 30) and prod_cd = '5103', 1, 0)) as with_0_30_5103,
-    max(if(wday between date_add(days_dt, 31) and date_add(days_dt, 60) and prod_cd = '5103', 1, 0)) as with_31_60_5103,
-    max(if(wday between date_add(days_dt, 61) and date_add(days_dt, 90) and prod_cd = '5103', 1, 0)) as with_61_90_5103,
-    max(if(wday between date_add(days_dt, 91) and date_add(days_dt, 120) and prod_cd = '5103', 1, 0)) as with_91_120_5103
+    t1.uuid, t1.user_id, t1.pril_bal, t1.crdt_lim_yx, t1.pril_bal_rate, t1.dt, t1.days_dt, t1.m,
+    t1.no_balance_flg_30, t1.no_balance_flg_60, t1.no_balance_flg_90,
+    t1.days_dt_1,
+    max(case when t2.days_dt_zx between t1.days_dt_1 and date_add(t1.days_dt_1, 30) then 1 else 0 end) as had_0_30_zx,
+    max(case when t2.days_dt_zx between date_add(t1.days_dt_1, 31) and date_add(t1.days_dt_1, 60) then 1 else 0 end) as had_31_60_zx,
+    max(case when t2.days_dt_zx between date_add(t1.days_dt_1, 61) and date_add(t1.days_dt_1, 90) then 1 else 0 end) as had_61_90_zx,
+    max(case when t2.days_dt_zx between date_add(t1.days_dt_1, 91) and date_add(t1.days_dt_1, 120) then 1 else 0 end) as had_91_120_zx,
+    max(if(t3.wday between t1.days_dt_1 and date_add(t1.days_dt_1, 30), 1, 0)) as with_0_30,
+    max(if(t3.wday between date_add(t1.days_dt_1, 31) and date_add(t1.days_dt_1, 60), 1, 0)) as with_31_60,
+    max(if(t3.wday between date_add(t1.days_dt_1, 61) and date_add(t1.days_dt_1, 90), 1, 0)) as with_61_90,
+    max(if(t3.wday between date_add(t1.days_dt_1, 91) and date_add(t1.days_dt_1, 120), 1, 0)) as with_91_120,
+    max(if(t3.wday between t1.days_dt_1 and date_add(t1.days_dt_1, 30) and t3.prod_cd = '5103', 1, 0)) as with_0_30_5103,
+    max(if(t3.wday between date_add(t1.days_dt_1, 31) and date_add(t1.days_dt_1, 60) and t3.prod_cd = '5103', 1, 0)) as with_31_60_5103,
+    max(if(t3.wday between date_add(t1.days_dt_1, 61) and date_add(t1.days_dt_1, 90) and t3.prod_cd = '5103', 1, 0)) as with_61_90_5103,
+    max(if(t3.wday between date_add(t1.days_dt_1, 91) and date_add(t1.days_dt_1, 120) and t3.prod_cd = '5103', 1, 0)) as with_91_120_5103
 from (
     select uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt, m,
-           no_balance_flg_30, no_balance_flg_60, no_balance_flg_90
+           no_balance_flg_30, no_balance_flg_60, no_balance_flg_90,
+           date_sub(days_dt, 1) as days_dt_1
     from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260715
 ) t1
 left join (
-    select unique_id, user_id, prod_cd,
+    select id_unqp,
+           concat(substr(dt, 1, 4), '-', substr(dt, 5, 2), '-', substr(dt, 7, 2)) as days_dt_zx
+    from lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary
+    where dt >= '20250801' and dt < '20260310'
+    group by id_unqp, dt
+) t2
+  on t1.uuid = t2.id_unqp
+left join (
+    select unique_id, prod_cd,
            concat(substr(day_time, 1, 4), '-', substr(day_time, 5, 2), '-', substr(day_time, 7, 2)) as wday
     from dec_intelligence_eng.dec_intel_eng_user_fact_wdraw_apply_df
     where dt = 'get_max_pt[dec_intelligence_eng@dec_intel_eng_user_fact_wdraw_apply_df]'
       and day_time >= '20250801' and day_time < '20260310'
       and unique_id is not null
-    group by unique_id, user_id, prod_cd,
+    group by unique_id, prod_cd,
              concat(substr(day_time, 1, 4), '-', substr(day_time, 5, 2), '-', substr(day_time, 7, 2))
 ) t3
   on t1.uuid = t3.unique_id
-group by uuid, t1.user_id, pril_bal, crdt_lim_yx, pril_bal_rate, t1.dt, days_dt, m,
-         no_balance_flg_30, no_balance_flg_60, no_balance_flg_90
+group by t1.uuid, t1.user_id, t1.pril_bal, t1.crdt_lim_yx, t1.pril_bal_rate, t1.dt, t1.days_dt, t1.m,
+         t1.no_balance_flg_30, t1.no_balance_flg_60, t1.no_balance_flg_90, t1.days_dt_1
 ;
 
--- ########## Part 2：cohort 子集（同事口径，uuid+dt 粒度）##########
+-- ########## Part 2：cohort 子集（与 0623 同口径 5 条件，uuid+dt 粒度）##########
 drop table if exists lj_iceberg.ai_decision_dev.jcr_cohort_20260715;
 create table lj_iceberg.ai_decision_dev.jcr_cohort_20260715 as
 select uuid, user_id, dt, days_dt, m
 from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260715
 where crdt_lim_yx >= 20000
+  and had_0_30_zx = 1
+  and had_31_60_zx = 1
   and no_balance_flg_60 = 1
   and with_0_30 + with_31_60 = 0;
 
@@ -330,7 +347,7 @@ left join (
 ;
 
 -- Step 5: 样本关联（报告主键统一后再挂循环贷/扩展/账单日特征）
--- 分析 cohort：inner join jcr_cohort_20260715（同事子集，约 1.5w，uuid+dt 粒度）
+-- 分析 cohort：inner join jcr_cohort_20260715（0623 同口径 5 条件，三月约 1.6w，uuid+dt 粒度）
 -- 征信关联窗：days_dt 前推365天 ~ 后推60天（标签观察窗）
 --
 -- 【跑前必查】以下 5 张上游表必须已存在且有数据，否则本步 CREATE 会失败：
@@ -343,6 +360,7 @@ create table lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260715 a
 select
     s.uuid, s.user_id, s.pril_bal, s.crdt_lim_yx, s.pril_bal_rate,
     s.dt, s.days_dt, s.m, s.no_balance_flg_30, s.no_balance_flg_60, s.no_balance_flg_90,
+    s.days_dt_1, s.had_0_30_zx, s.had_31_60_zx, s.had_61_90_zx, s.had_91_120_zx,
     s.with_0_30, s.with_31_60, s.with_61_90, s.with_91_120,
     s.with_0_30_5103, s.with_31_60_5103, s.with_61_90_5103, s.with_91_120_5103,
 
@@ -378,7 +396,8 @@ select
     ) as latest_report_rn
 from (
     select s.uuid, s.user_id, s.pril_bal, s.crdt_lim_yx, s.pril_bal_rate, s.dt, s.days_dt, s.m,
-           s.no_balance_flg_30, s.no_balance_flg_60, s.no_balance_flg_90,
+           s.no_balance_flg_30, s.no_balance_flg_60, s.no_balance_flg_90, s.days_dt_1,
+           s.had_0_30_zx, s.had_31_60_zx, s.had_61_90_zx, s.had_91_120_zx,
            s.with_0_30, s.with_31_60, s.with_61_90, s.with_91_120,
            s.with_0_30_5103, s.with_31_60_5103, s.with_61_90_5103, s.with_91_120_5103
     from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260715 s
@@ -409,7 +428,8 @@ drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_20260715;
 create table lj_iceberg.ai_decision_dev.jcr_credit_feature_20260715 as
 select
     uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt, m,
-    no_balance_flg_30, no_balance_flg_60, no_balance_flg_90,
+    no_balance_flg_30, no_balance_flg_60, no_balance_flg_90, days_dt_1,
+    had_0_30_zx, had_31_60_zx, had_61_90_zx, had_91_120_zx,
     with_0_30, with_31_60, with_61_90, with_91_120,
     with_0_30_5103, with_31_60_5103, with_61_90_5103, with_91_120_5103,
 
@@ -515,14 +535,15 @@ select
 from lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260715
 group by
     uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt, m,
-    no_balance_flg_30, no_balance_flg_60, no_balance_flg_90,
+    no_balance_flg_30, no_balance_flg_60, no_balance_flg_90, days_dt_1,
+    had_0_30_zx, had_31_60_zx, had_61_90_zx, had_91_120_zx,
     with_0_30, with_31_60, with_61_90, with_91_120,
     with_0_30_5103, with_31_60_5103, with_61_90_5103, with_91_120_5103
 ;
 
 -- Step 7: 标签 + 数据集划分
--- zx_balance_label：days_dt~+60 账户级余额（剔马消）最早 vs 最大
--- cohort_eligible：uuid+dt 在 jcr_cohort_20260715（同事子集）
+-- zx_balance_label：days_dt_1~+60 账户级余额（剔马消）最早 vs 最大（与 0623 一致）
+-- cohort_eligible：uuid+dt 在 jcr_cohort_20260715（0623 同口径 5 条件）
 drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260715;
 create table lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260715 as
 select
@@ -547,7 +568,7 @@ select
         when coalesce(c.m, f.m) in ('202508', '202509') then 'val'
         else 'other'
     end as dataset_split,
-    if(f.no_balance_flg_60 = 1 and f.with_0_30 + f.with_31_60 = 0, 1, 0) as colleague_cohort_flg
+    if(f.no_balance_flg_60 = 1 and f.with_0_30 + f.with_31_60 = 0, 1, 0) as colleague_mx_label_flg
 from lj_iceberg.ai_decision_dev.jcr_credit_feature_20260715 f
 left join lj_iceberg.ai_decision_dev.jcr_cohort_20260715 c
   on f.uuid = c.uuid and f.dt = c.dt
@@ -570,8 +591,8 @@ left join (
           on s.uuid = p.uuid and s.dt = p.dt
         left join lj_iceberg.ai_decision_dev.jcr_credit_account_base_20260715 b
           on s.uuid = b.id_unqp
-         and cast(b.days_dt_zx as date) between cast(p.days_dt as date)
-                                              and date_add(cast(p.days_dt as date), 60)
+         and cast(b.days_dt_zx as date) between cast(p.days_dt_1 as date)
+                                              and date_add(cast(p.days_dt_1 as date), 60)
         group by s.uuid, s.dt, b.dt, b.days_dt_zx
     ) t
     group by uuid, dt
