@@ -12,7 +12,7 @@
 | 版本 | 主脚本 | 场景 |
 |------|--------|------|
 | **20260623**（已验证） | `sql/run_all_20260623.sql` | 十月单 cohort **5401**；复制同事 `yye _2/_4` |
-| **20260715**（三月版） | `sql/run_all_20260715.sql` | **八月~十月** cohort **~1.6w**（0623 同口径×3） |
+| **20260715**（三月版） | `sql/run_all_20260715.sql` | **八月~十月** 全渠道 cohort（10 月预期 **~5401**） |
 
 ## 主要文档
 
@@ -34,14 +34,15 @@
 | `sql/drop_all_jcr_tables.sql` | 删除 jcr_*_20260623 表 |
 | `sql/verify_cohort_5401.sql` | 核验 5401 |
 
-### 三月样本（~1.5w）
+### 三月样本（全渠道，10 月 ~5401）
 
 | 文件 | 说明 |
 |------|------|
-| `sql/run_all_20260715.sql` | **一键全量**（征信特征 + 标签 + 马消关联） |
-| `sql/yye_pril_bal_sample_reference_20260715.sql` | 同事参考 SQL（样本 + 马消特征） |
-| `sql/drop_all_project_tables.sql` | **全库清理**（jcr+yye+ayh，释放 7TB 必用） |
-| `sql/list_project_tables.sql` | 删后核验残留表 |
+| `sql/run_all_20260715.sql` | **一键全量**（全渠道样本 + 征信特征 + 标签 + 马消关联） |
+| `sql/yye_pril_bal_sample_reference_20260715.sql` | 同事参考 SQL（**5103 单渠道**，马消用；勿与征信 cohort 混用） |
+| `sql/drop_all_jcr_tables_20260715.sql` | 删除本人 `jcr_*_20260715` 表（15 张） |
+| `sql/drop_all_jcr_tables.sql` | 删除本人 `jcr_*_20260623` 表（11 张） |
+| `sql/list_project_tables.sql` | 核验本人 `jcr%` 表残留 |
 | `sql/run_part01_sample_cohort_20260715.sql` | 仅 Part0~2（样本+cohort） |
 | `sql/drop_sample_intermediate_20260715.sql` | cohort 通过后删中间表腾空间 |
 

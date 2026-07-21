@@ -2,11 +2,10 @@
 -- 一键全量 v20260715：三月样本 + 征信特征 + 征信余额标签 + 马消特征关联
 -- =============================================================================
 -- 【与 20260623 版区别】
---   样本：202508~202510 三月，月内 rk=1，源表 ayh_mkt_yx_cust_type_base_df（T-1）
---   cohort：与 0623 完全同口径 5 条件（含 had_0_30_zx & had_31_60_zx），三月约 5401×3≈1.6w
---   had/with 锚点：days_dt_1（与 0623 一致）；no_balance 锚点：days_dt
---   性能：先 crdt+no_balance 预筛 → 分别算 had/with（避免笛卡尔积）→ cohort ~1.6w → 再 join 征信
---   马消特征：left join 同事 ayh_feature_*（只读，由同事加工）
+--   样本：202508~202510 三月，月内 rk=1，源表 base_df（T-1）
+--   渠道：全渠道（不限制 prod_cd；同事参考脚本为 5103 单渠道，仅作马消对照）
+--   cohort：0623 同口径 5 条件；10 月预期 ~5401，三月合计约 5401×3
+--   had/with 锚点：days_dt_1；no_balance 锚点：days_dt
 --
 -- 【前置只读】
 --   lj_iceberg.ayh_mkt.ayh_mkt_yx_cust_type_base_df
@@ -36,8 +35,9 @@ drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260715;
 drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260715;
 drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260715;
 
--- ########## Part 1：样本三步（同事 20260715，八月~十月）##########
--- Step 0a：月内最低额度利用率日 rk（按月 partition）
+-- ########## Part 1：样本（全渠道，八月~十月）##########
+-- Step 0a：全渠道用户-日去重 → 月内最低额度利用率日 rk（按月 partition）
+-- 说明：去掉 prod_cd='5103'，从 ~512w 全渠道底池筛；同日多产品先聚合再 rk
 drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260715;
 create table lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260715 as
 select
@@ -50,13 +50,19 @@ select
         partition by uuid, user_id, substr(dt, 1, 6)
         order by pril_bal / crdt_lim_yx
     ) as rk
-from lj_iceberg.ayh_mkt.ayh_mkt_yx_cust_type_base_df
-where dt >= '20250801' and dt <= '20251031'
-  and sx_rowid = 1
-  and prod_cd = '5103'
-  and if_lend = '复贷'
-  and cust_types_01 = '有余额'
-  and crdt_lim_yx > 0
+from (
+    select
+        uuid, user_id, dt,
+        sum(pril_bal) as pril_bal,
+        max(crdt_lim_yx) as crdt_lim_yx
+    from lj_iceberg.ayh_mkt.ayh_mkt_yx_cust_type_base_df
+    where dt >= '20250801' and dt <= '20251031'
+      and sx_rowid = 1
+      and if_lend = '复贷'
+      and cust_types_01 = '有余额'
+      and crdt_lim_yx > 0
+    group by uuid, user_id, dt
+) daily
 ;
 
 -- Step 0b：后续是否无余额（锚点 days_dt）
@@ -79,7 +85,6 @@ left join (
     from lj_iceberg.ayh_mkt.ayh_mkt_yx_cust_type_base_df
     where dt >= '20250831' and dt <= '20260201'
       and sx_rowid = 1
-      and prod_cd = '5103'
 ) t2
   on t1.uuid = t2.uuid and t1.user_id = t2.user_id
 where t2.days_dt between t1.days_dt and date_add(t1.days_dt, 90)
@@ -163,7 +168,7 @@ inner join lj_iceberg.ai_decision_dev.jcr_pril_bal_with_20260715 w
   on pf.uuid = w.uuid and pf.dt = w.dt
 ;
 
--- ########## Part 2：cohort（0623 同口径 5 条件，约 1.6w，uuid+dt）##########
+-- ########## Part 2：cohort（0623 同口径 5 条件，全渠道；10 月预期 ~5401）##########
 drop table if exists lj_iceberg.ai_decision_dev.jcr_cohort_20260715;
 create table lj_iceberg.ai_decision_dev.jcr_cohort_20260715 as
 select uuid, user_id, dt, days_dt, m

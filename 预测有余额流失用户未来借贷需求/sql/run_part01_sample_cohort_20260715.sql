@@ -1,15 +1,13 @@
 -- =============================================================================
--- 仅跑 Part 0~2：样本 + cohort（~1.6w）
+-- 仅跑 Part 0~2：全渠道样本 + cohort（10 月预期 ~5401）
 -- =============================================================================
--- 用法：drop_all_project_tables.sql 清完并核验后，单独提交本文件
--- 不要与 run_all_20260715.sql 整文件混跑（避免重复占空间）
--- 跑完核验：
---   select count(1) from jcr_cohort_20260715;  -- 预期 ~1.6w
--- 核验通过后，可删中间表腾空间，再跑 Part 3~8：
---   drop jcr_pril_bal_info_raw/nb/pf/had/with（保留 cohort + pril_bal_info）
+-- 与 run_all_20260715.sql Part1~2 一致：全渠道（无 prod_cd 限制）
+-- 用法：先 drop_all_jcr_tables_20260715.sql，再提交本文件
+-- 核验：
+--   select m, count(1) from jcr_cohort_20260715 group by m order by m;
+--   -- 10 月 m=202510 预期 ~5401
 -- =============================================================================
 
--- Part 0：删本链路表（仅 20260715）
 drop table if exists lj_iceberg.ai_decision_dev.jcr_cohort_20260715 purge;
 drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_with_20260715 purge;
 drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_had_20260715 purge;
@@ -18,7 +16,7 @@ drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260715 purge
 drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260715 purge;
 drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260715 purge;
 
--- Step 0a
+-- Step 0a：全渠道，用户-日聚合后按月 rk
 create table lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260715 as
 select
     uuid, user_id, pril_bal, crdt_lim_yx,
@@ -30,13 +28,19 @@ select
         partition by uuid, user_id, substr(dt, 1, 6)
         order by pril_bal / crdt_lim_yx
     ) as rk
-from lj_iceberg.ayh_mkt.ayh_mkt_yx_cust_type_base_df
-where dt >= '20250801' and dt <= '20251031'
-  and sx_rowid = 1 and prod_cd = '5103'
-  and if_lend = '复贷' and cust_types_01 = '有余额' and crdt_lim_yx > 0
+from (
+    select uuid, user_id, dt,
+           sum(pril_bal) as pril_bal,
+           max(crdt_lim_yx) as crdt_lim_yx
+    from lj_iceberg.ayh_mkt.ayh_mkt_yx_cust_type_base_df
+    where dt >= '20250801' and dt <= '20251031'
+      and sx_rowid = 1 and if_lend = '复贷'
+      and cust_types_01 = '有余额' and crdt_lim_yx > 0
+    group by uuid, user_id, dt
+) daily
 ;
 
--- Step 0b
+-- Step 0b：全渠道无余额
 create table lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260715 as
 select
     t1.uuid, t1.user_id, t1.pril_bal, t1.crdt_lim_yx, t1.pril_bal_rate, t1.dt, t1.days_dt, t1.m,
@@ -52,7 +56,7 @@ left join (
            if(if_lend = '复贷' and cust_types_01 = '无余额', 1, 0) as no_balance_flg,
            concat(substr(dt, 1, 4), '-', substr(dt, 5, 2), '-', substr(dt, 7, 2)) as days_dt
     from lj_iceberg.ayh_mkt.ayh_mkt_yx_cust_type_base_df
-    where dt >= '20250831' and dt <= '20260201' and sx_rowid = 1 and prod_cd = '5103'
+    where dt >= '20250831' and dt <= '20260201' and sx_rowid = 1
 ) t2 on t1.uuid = t2.uuid and t1.user_id = t2.user_id
 where t2.days_dt between t1.days_dt and date_add(t1.days_dt, 90)
 group by t1.uuid, t1.user_id, t1.pril_bal, t1.crdt_lim_yx, t1.pril_bal_rate, t1.dt, t1.days_dt, t1.m
@@ -82,7 +86,7 @@ left join (
 group by t1.uuid, t1.dt
 ;
 
--- Step 0c-with
+-- Step 0c-with（cohort 用 with_0_30+with_31_60 全渠道；with_*_5103 仅作马消对照）
 create table lj_iceberg.ai_decision_dev.jcr_pril_bal_with_20260715 as
 select t1.uuid, t1.dt,
     max(if(t3.wday between t1.days_dt_1 and date_add(t1.days_dt_1, 30), 1, 0)) as with_0_30,
@@ -106,7 +110,6 @@ left join (
 group by t1.uuid, t1.dt
 ;
 
--- merge + cohort
 create table lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260715 as
 select pf.*, h.had_0_30_zx, h.had_31_60_zx, h.had_61_90_zx, h.had_91_120_zx,
        w.with_0_30, w.with_31_60, w.with_61_90, w.with_91_120,
@@ -122,6 +125,6 @@ from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260715
 where had_0_30_zx = 1 and had_31_60_zx = 1 and with_0_30 + with_31_60 = 0
 ;
 
--- 核验
 select m, count(1) as cohort_cnt from lj_iceberg.ai_decision_dev.jcr_cohort_20260715 group by m order by m;
 select count(1) as total_cohort from lj_iceberg.ai_decision_dev.jcr_cohort_20260715;
+select count(1) as oct_cohort from lj_iceberg.ai_decision_dev.jcr_cohort_20260715 where m = '202510';
