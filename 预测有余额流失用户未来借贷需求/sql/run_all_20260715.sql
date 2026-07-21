@@ -388,7 +388,7 @@ left join (
 
 -- Step 5: 样本关联（报告主键统一后再挂循环贷/扩展/账单日特征）
 -- 分析 cohort：inner join jcr_cohort_20260715（0623 同口径 5 条件，三月约 1.6w，uuid+dt 粒度）
--- 征信关联窗：days_dt 前推365天 ~ 后推60天（标签观察窗）
+-- 征信关联窗：days_dt_1 前推365天 ~ 后推60天（与 0623 / 标签观察窗一致；勿用 days_dt）
 --
 -- 【跑前必查】以下 5 张上游表必须已存在且有数据，否则本步 CREATE 会失败：
 --   jcr_cohort_20260715 / jcr_pril_bal_info_20260715
@@ -419,19 +419,19 @@ select
     e.credit_account_num, e.credit_amount, e.credit_used_amount, e.credit_util_rate,
     e.has_house_loan_flg, e.has_gjj_loan_flg, e.org_type,
 
-    case when rep.days_dt_zx > date_sub(cast(s.days_dt as date), 30)
-          and rep.days_dt_zx <= cast(s.days_dt as date) then 1 else 0 end as flg_win_1m,
-    case when rep.days_dt_zx > date_sub(cast(s.days_dt as date), 180)
-          and rep.days_dt_zx <= cast(s.days_dt as date) then 1 else 0 end as flg_win_6m,
-    case when rep.days_dt_zx > date_sub(cast(s.days_dt as date), 365)
-          and rep.days_dt_zx <= cast(s.days_dt as date) then 1 else 0 end as flg_win_1y,
-    case when cast(rep.days_dt_zx as date) between cast(s.days_dt as date)
-                                              and date_add(cast(s.days_dt as date), 60)
+    case when rep.days_dt_zx > date_sub(cast(s.days_dt_1 as date), 30)
+          and rep.days_dt_zx <= cast(s.days_dt_1 as date) then 1 else 0 end as flg_win_1m,
+    case when rep.days_dt_zx > date_sub(cast(s.days_dt_1 as date), 180)
+          and rep.days_dt_zx <= cast(s.days_dt_1 as date) then 1 else 0 end as flg_win_6m,
+    case when rep.days_dt_zx > date_sub(cast(s.days_dt_1 as date), 365)
+          and rep.days_dt_zx <= cast(s.days_dt_1 as date) then 1 else 0 end as flg_win_1y,
+    case when cast(rep.days_dt_zx as date) between cast(s.days_dt_1 as date)
+                                              and date_add(cast(s.days_dt_1 as date), 60)
          then 1 else 0 end as flg_fwd_60d,
 
     row_number() over (
         partition by s.uuid, s.dt
-        order by case when rep.days_dt_zx <= s.days_dt then 0 else 1 end,
+        order by case when rep.days_dt_zx <= s.days_dt_1 then 0 else 1 end,
                  rep.days_dt_zx desc
     ) as latest_report_rn
 from (
@@ -452,9 +452,9 @@ left join (
     from lj_iceberg.ai_decision_dev.jcr_credit_report_agg_20260715
 ) rep
   on s.uuid = rep.id_unqp
- and s.days_dt is not null
- and cast(rep.days_dt_zx as date) > date_sub(cast(s.days_dt as date), 365)
- and cast(rep.days_dt_zx as date) <= date_add(cast(s.days_dt as date), 60)
+ and s.days_dt_1 is not null
+ and cast(rep.days_dt_zx as date) > date_sub(cast(s.days_dt_1 as date), 365)
+ and cast(rep.days_dt_zx as date) <= date_add(cast(s.days_dt_1 as date), 60)
 left join lj_iceberg.ai_decision_dev.jcr_credit_report_agg_20260715 r
   on rep.id_unqp = r.id_unqp and rep.id_unqf = r.id_unqf and rep.dt = r.dt
 left join lj_iceberg.ai_decision_dev.jcr_credit_report_ext_20260715 e
