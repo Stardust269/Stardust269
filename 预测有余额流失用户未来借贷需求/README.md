@@ -12,7 +12,7 @@
 | 版本 | 主脚本 | 场景 |
 |------|--------|------|
 | **20260623**（已验证） | `sql/run_all_20260623.sql` | 十月单 cohort **5401**；复制同事 `yye _2/_4` |
-| **20260715**（三月版） | `sql/run_all_20260715.sql` | **八月~十月** 全渠道 cohort（10 月预期 **~5401**） |
+| **20260715**（三月版） | `sql/run_all_20260715.sql` | **八月~十月** cohort（5103 入口 + **全渠道无余额**；10 月 ~5401） |
 
 ## 主要文档
 
@@ -34,12 +34,13 @@
 | `sql/drop_all_jcr_tables.sql` | 删除 jcr_*_20260623 表 |
 | `sql/verify_cohort_5401.sql` | 核验 5401 |
 
-### 三月样本（全渠道，10 月 ~5401）
+### 三月样本（全渠道无余额 cohort，10 月 ~5401）
 
 | 文件 | 说明 |
 |------|------|
-| `sql/run_all_20260715.sql` | **一键全量**（全渠道样本 + 征信特征 + 标签 + 马消关联） |
-| `sql/yye_pril_bal_sample_reference_20260715.sql` | 同事参考 SQL（**5103 单渠道**，马消用；勿与征信 cohort 混用） |
+| `sql/run_all_20260715.sql` | **一键全量**（样本 + 征信特征 + 标签；Part8 需先跑马消特征） |
+| `sql/run_mx_feature_20260715.sql` | **自建马消特征**（全渠道余额/提现，仅 cohort 子集） |
+| `sql/yye_pril_bal_sample_reference_20260715.sql` | 同事参考示例（含 `*_5103` 字段，我方不用） |
 | `sql/drop_all_jcr_tables_20260715.sql` | 删除本人 `jcr_*_20260715` 表（15 张） |
 | `sql/drop_all_jcr_tables.sql` | 删除本人 `jcr_*_20260623` 表（11 张） |
 | `sql/list_project_tables.sql` | 核验本人 `jcr%` 表残留 |
@@ -48,10 +49,13 @@
 
 ## 三月版执行顺序（20260715）
 
-1. **同事侧**（或对照参考 SQL）：跑 `yye_pril_bal_sample_reference_20260715.sql`  
-   → 产出 `ayh_feature_pril_bal_crdt_lim_yx`、`ayh_feature_wdraw_fq_suc`
-2. **我方征信侧**：跑 `run_all_20260715.sql`  
-   → 终表 `jcr_credit_feature_label_full_20260715`
+1. `drop_all_jcr_tables_20260715.sql`
+2. `run_part01_sample_cohort_20260715.sql`（验漏斗：10 月 ~5401）
+3. `run_all_20260715.sql` Part3~7（征信特征+标签）
+4. `run_mx_feature_20260715.sql`（马消特征，全渠道 cohort 子集）
+5. `run_all_20260715.sql` Part8（拼终表 `jcr_credit_feature_label_full_20260715`）
+
+**口径**：入口 5103 有余额；cohort 用 `no_balance_flg_60`（全渠道无余额）+ `with_0_30+with_31_60=0` + 征信 had。**不用** `*_5103` 后缀字段。
 
 ## 十月版 cohort（5401）
 

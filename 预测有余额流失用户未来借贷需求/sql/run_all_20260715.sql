@@ -1,5 +1,5 @@
 -- =============================================================================
--- 一键全量 v20260715：三月样本 + 征信特征 + 征信余额标签 + 马消特征关联
+-- 一键全量 v20260715：三月样本 + 征信特征 + 标签
 -- =============================================================================
 -- 【与 20260623 版区别】
 --   样本：202508~202510 三月，月内 rk=1，源表 base_df（T-1）
@@ -13,10 +13,9 @@
 --   lj_iceberg.ayh_mkt.ayh_mkt_yx_cust_type_base_df
 --   dec_intelligence_eng.dec_intel_eng_user_fact_wdraw_apply_df
 --   lj_iceberg.pboccr2d.*（9张征信表）
---   lj_iceberg.ai_decision_dev.ayh_feature_pril_bal_crdt_lim_yx（同事马消，跑本脚本前需已产出）
---   lj_iceberg.ai_decision_dev.ayh_feature_wdraw_fq_suc（同事马消，跑本脚本前需已产出）
 --
--- 【产出】jcr_credit_feature_label_full_20260715（征信+马消+双标签）
+-- 【产出】jcr_credit_feature_label_full_20260715（征信+自建马消特征+标签）
+-- 马消：先跑 sql/run_mx_feature_20260715.sql，再跑 Part8
 -- 十月单 cohort 5401 版见：run_all_20260623.sql（勿混用）
 -- =============================================================================
 
@@ -638,10 +637,31 @@ left join (
 ;
 
 
--- ########## Part 8：终表（马消特征请基于 jcr_pril_bal_info / cohort 自建，勿 join 同事 ayh_feature_*）##########
+-- ########## Part 8：关联自建马消特征（全渠道 cohort 子集）##########
+drop table if exists lj_iceberg.ai_decision_dev.jcr_mx_feature_pril_bal_20260715;
+drop table if exists lj_iceberg.ai_decision_dev.jcr_mx_feature_wdraw_20260715;
+-- 见 sql/run_mx_feature_20260715.sql（单独提交或内联执行下方两段 create）
+
 drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_full_20260715;
 create table lj_iceberg.ai_decision_dev.jcr_credit_feature_label_full_20260715 as
-select * from lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260715
+select
+    l.*,
+    mx.label as mx_cohort_label,
+    mx.pril_bal_1w, mx.crdt_lim_yx_1w, mx.pril_bal_rate_1w,
+    mx.pril_bal_1m, mx.crdt_lim_yx_1m, mx.pril_bal_rate_1m,
+    mx.pril_bal_3m, mx.crdt_lim_yx_3m, mx.pril_bal_rate_3m,
+    mx.pril_bal_6m, mx.crdt_lim_yx_6m, mx.pril_bal_rate_6m,
+    mx.pril_bal_1y, mx.crdt_lim_yx_1y, mx.pril_bal_rate_1y,
+    wd.fq_cnt_1w, wd.suc_cnt_1w, wd.pass_rate_1w,
+    wd.fq_cnt_1m, wd.suc_cnt_1m, wd.pass_rate_1m,
+    wd.fq_cnt_3m, wd.suc_cnt_3m, wd.pass_rate_3m,
+    wd.fq_cnt_6m, wd.suc_cnt_6m, wd.pass_rate_6m,
+    wd.fq_cnt_1y, wd.suc_cnt_1y, wd.pass_rate_1y
+from lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260715 l
+left join lj_iceberg.ai_decision_dev.jcr_mx_feature_pril_bal_20260715 mx
+  on l.uuid = mx.uuid and l.user_id = mx.user_id and l.dt = mx.dt and l.days_dt = mx.days_dt
+left join lj_iceberg.ai_decision_dev.jcr_mx_feature_wdraw_20260715 wd
+  on l.uuid = wd.uuid and l.user_id = wd.user_id and l.dt = wd.dt and l.days_dt = wd.days_dt
 ;
 
 
