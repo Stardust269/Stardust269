@@ -125,6 +125,8 @@ where had_0_30_zx = 1 and had_31_60_zx = 1
   and with_0_30 + with_31_60 = 0
 ;
 
-select count(1) as step1_cnt from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260715 where rk = 1;
-select count(1) as step2_cnt from lj_iceberg.ai_decision_dev.jcr_pril_bal_pf_20260715;
-select m, count(1) as step3_cnt from lj_iceberg.ai_decision_dev.jcr_cohort_20260715 group by m order by m;
+-- 漏斗核验（十月为例，三步人数应对齐 5022793 / 386311 / 5401）
+-- 详见 sql/verify_funnel_oct_20260715.sql
+select count(1) as step1_oct from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260715 where rk = 1 and m = '202510';
+select count(1) as step2_oct from lj_iceberg.ai_decision_dev.jcr_pril_bal_pf_20260715 where m = '202510';
+select count(1) as step3_oct from lj_iceberg.ai_decision_dev.jcr_cohort_20260715 where m = '202510';
