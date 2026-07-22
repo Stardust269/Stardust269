@@ -41,7 +41,8 @@ from (
     from (
         select
             p.uuid, p.user_id, p.pril_bal, p.crdt_lim_yx, p.pril_bal_rate, p.dt, p.days_dt,
-            if(p.no_balance_flg_60 = 1 and p.with_0_30 + p.with_31_60 = 0, 1, 0) as label
+            if(p.no_balance_flg_60 = 1 and p.no_balance_flg_60_5103 = 1
+               and p.with_0_30 + p.with_31_60 = 0, 1, 0) as label
         from lj_iceberg.ai_decision_dev.jcr_cohort_20260715 c
         inner join lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260715 p
           on c.uuid = p.uuid and c.dt = p.dt
@@ -90,7 +91,8 @@ from (
         t1.dt, t1.days_dt
     from (
         select p.uuid, p.user_id, p.dt, p.days_dt,
-               if(p.no_balance_flg_60 = 1 and p.with_0_30 + p.with_31_60 = 0, 1, 0) as label
+               if(p.no_balance_flg_60 = 1 and p.no_balance_flg_60_5103 = 1
+               and p.with_0_30 + p.with_31_60 = 0, 1, 0) as label
         from lj_iceberg.ai_decision_dev.jcr_cohort_20260715 c
         inner join lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260715 p
           on c.uuid = p.uuid and c.dt = p.dt

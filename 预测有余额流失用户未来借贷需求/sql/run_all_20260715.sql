@@ -5,7 +5,7 @@
 --   样本：202508~202510 三月，月内 rk=1，源表 base_df（T-1）
 --   三步漏斗（10月为例）：
 --     ① 5103有余额且crdt>=2w，月内最低额度利用率日 rk=1（~502w）
---     ② 全渠道60天无余额 + 未提现(with_0_30+with_31_60=0)（~38.6w；全渠道无余额已含5103）
+--     ② 非5103全渠道60天无余额 + 5103无余额 + 未提现(with_0_30+with_31_60=0)（~38.6w）
 --     ③ had_0_30+had_31_60（锚点 days_dt_1）→ 10月 ~5401
 --   锚点：no_balance→days_dt；had/with/特征/标签→days_dt_1
 --
@@ -59,15 +59,19 @@ where dt >= '20250801' and dt <= '20251031'
   and crdt_lim_yx >= 20000
 ;
 
--- Step 0b：全渠道无余额标识（锚点 days_dt；全渠道无余额即含5103无余额）
---   用户-日所有产品均无「复贷+有余额」，且至少一条「复贷+无余额」
+-- Step 0b：无余额标识（锚点 days_dt）
+--   no_balance_flg_*     ：非5103产品（prod_cd<>5103）全渠道无余额
+--   no_balance_flg_*_5103：5103 产品变无余额（与同事 _1 表一致）
 drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260715;
 create table lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260715 as
 select
     t1.uuid, t1.user_id, t1.pril_bal, t1.crdt_lim_yx, t1.pril_bal_rate, t1.dt, t1.days_dt, t1.m,
-    max(t2.no_balance_flg) as no_balance_flg_90,
-    max(if(t2.days_dt between t1.days_dt and date_add(t1.days_dt, 30), t2.no_balance_flg, 0)) as no_balance_flg_30,
-    max(if(t2.days_dt between t1.days_dt and date_add(t1.days_dt, 60), t2.no_balance_flg, 0)) as no_balance_flg_60
+    max(coalesce(t2.no_balance_flg, 1)) as no_balance_flg_90,
+    max(if(t2.days_dt between t1.days_dt and date_add(t1.days_dt, 30), coalesce(t2.no_balance_flg, 1), 0)) as no_balance_flg_30,
+    max(if(t2.days_dt between t1.days_dt and date_add(t1.days_dt, 60), coalesce(t2.no_balance_flg, 1), 0)) as no_balance_flg_60,
+    max(coalesce(t3.no_balance_flg, 0)) as no_balance_flg_90_5103,
+    max(if(t3.days_dt between t1.days_dt and date_add(t1.days_dt, 30), coalesce(t3.no_balance_flg, 0), 0)) as no_balance_flg_30_5103,
+    max(if(t3.days_dt between t1.days_dt and date_add(t1.days_dt, 60), coalesce(t3.no_balance_flg, 0), 0)) as no_balance_flg_60_5103
 from (
     select uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt, m
     from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260715
@@ -78,17 +82,29 @@ left join (
         uuid, user_id,
         concat(substr(dt, 1, 4), '-', substr(dt, 5, 2), '-', substr(dt, 7, 2)) as days_dt,
         case
-            when max(if(if_lend = '复贷' and cust_types_01 = '有余额', 1, 0)) = 0
-             and max(if(if_lend = '复贷' and cust_types_01 = '无余额', 1, 0)) = 1
-            then 1 else 0
+            when max(if(if_lend = '复贷' and cust_types_01 = '有余额', 1, 0)) > 0 then 0
+            when max(if(if_lend = '复贷' and cust_types_01 = '无余额', 1, 0)) > 0 then 1
+            else 1
         end as no_balance_flg
     from lj_iceberg.ayh_mkt.ayh_mkt_yx_cust_type_base_df
     where dt >= '20250831' and dt <= '20260201'
       and sx_rowid = 1
+      and prod_cd <> '5103'
     group by uuid, user_id, dt
 ) t2
   on t1.uuid = t2.uuid and t1.user_id = t2.user_id
-where t2.days_dt between t1.days_dt and date_add(t1.days_dt, 90)
+left join (
+    select
+        uuid, user_id,
+        if(if_lend = '复贷' and cust_types_01 = '无余额', 1, 0) as no_balance_flg,
+        concat(substr(dt, 1, 4), '-', substr(dt, 5, 2), '-', substr(dt, 7, 2)) as days_dt
+    from lj_iceberg.ayh_mkt.ayh_mkt_yx_cust_type_base_df
+    where dt >= '20250831' and dt <= '20260201'
+      and sx_rowid = 1
+      and prod_cd = '5103'
+) t3
+  on t1.uuid = t3.uuid and t1.user_id = t3.user_id
+where coalesce(t2.days_dt, t3.days_dt) between t1.days_dt and date_add(t1.days_dt, 90)
 group by t1.uuid, t1.user_id, t1.pril_bal, t1.crdt_lim_yx, t1.pril_bal_rate, t1.dt, t1.days_dt, t1.m
 ;
 
@@ -105,6 +121,7 @@ from (
     select uuid, user_id, dt, days_dt
     from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260715
     where no_balance_flg_60 = 1
+      and no_balance_flg_60_5103 = 1
 ) t1
 left join (
     select unique_id,
@@ -120,18 +137,20 @@ left join (
 group by t1.uuid, t1.dt
 ;
 
--- Step 0pf：漏斗② — 全渠道60天无余额 + 60天内未提现
+-- Step 0pf：漏斗② — 非5103全渠道无余额 + 5103无余额 + 60天内未提现
 drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_pf_20260715;
 create table lj_iceberg.ai_decision_dev.jcr_pril_bal_pf_20260715 as
 select
     nb.uuid, nb.user_id, nb.pril_bal, nb.crdt_lim_yx, nb.pril_bal_rate, nb.dt, nb.days_dt, nb.m,
     nb.no_balance_flg_30, nb.no_balance_flg_60, nb.no_balance_flg_90,
+    nb.no_balance_flg_30_5103, nb.no_balance_flg_60_5103, nb.no_balance_flg_90_5103,
     date_sub(nb.days_dt, 1) as days_dt_1,
     w.with_0_30, w.with_31_60, w.with_61_90, w.with_91_120
 from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260715 nb
 inner join lj_iceberg.ai_decision_dev.jcr_pril_bal_with_20260715 w
   on nb.uuid = w.uuid and nb.dt = w.dt
 where nb.no_balance_flg_60 = 1
+  and nb.no_balance_flg_60_5103 = 1
   and w.with_0_30 + w.with_31_60 = 0
 ;
 
@@ -162,6 +181,7 @@ create table lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260715 as
 select
     pf.uuid, pf.user_id, pf.pril_bal, pf.crdt_lim_yx, pf.pril_bal_rate, pf.dt, pf.days_dt, pf.m,
     pf.no_balance_flg_30, pf.no_balance_flg_60, pf.no_balance_flg_90,
+    pf.no_balance_flg_30_5103, pf.no_balance_flg_60_5103, pf.no_balance_flg_90_5103,
     pf.days_dt_1,
     h.had_0_30_zx, h.had_31_60_zx, h.had_61_90_zx, h.had_91_120_zx,
     pf.with_0_30, pf.with_31_60, pf.with_61_90, pf.with_91_120
@@ -402,6 +422,7 @@ select
     s.uuid, s.user_id, s.pril_bal, s.crdt_lim_yx, s.pril_bal_rate,
     s.dt, s.days_dt, s.m,
     s.no_balance_flg_30, s.no_balance_flg_60, s.no_balance_flg_90,
+    s.no_balance_flg_30_5103, s.no_balance_flg_60_5103, s.no_balance_flg_90_5103,
     s.days_dt_1, s.had_0_30_zx, s.had_31_60_zx, s.had_61_90_zx, s.had_91_120_zx,
     s.with_0_30, s.with_31_60, s.with_61_90, s.with_91_120,
 
@@ -438,6 +459,7 @@ select
 from (
     select s.uuid, s.user_id, s.pril_bal, s.crdt_lim_yx, s.pril_bal_rate, s.dt, s.days_dt, s.m,
            s.no_balance_flg_30, s.no_balance_flg_60, s.no_balance_flg_90,
+           s.no_balance_flg_30_5103, s.no_balance_flg_60_5103, s.no_balance_flg_90_5103,
            s.days_dt_1, s.had_0_30_zx, s.had_31_60_zx, s.had_61_90_zx, s.had_91_120_zx,
            s.with_0_30, s.with_31_60, s.with_61_90, s.with_91_120
     from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260715 s
@@ -469,6 +491,7 @@ create table lj_iceberg.ai_decision_dev.jcr_credit_feature_20260715 as
 select
     uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt, m,
     no_balance_flg_30, no_balance_flg_60, no_balance_flg_90,
+    no_balance_flg_30_5103, no_balance_flg_60_5103, no_balance_flg_90_5103,
     days_dt_1,
     had_0_30_zx, had_31_60_zx, had_61_90_zx, had_91_120_zx,
     with_0_30, with_31_60, with_61_90, with_91_120,
@@ -576,6 +599,7 @@ from lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260715
 group by
     uuid, user_id, pril_bal, crdt_lim_yx, pril_bal_rate, dt, days_dt, m,
     no_balance_flg_30, no_balance_flg_60, no_balance_flg_90,
+    no_balance_flg_30_5103, no_balance_flg_60_5103, no_balance_flg_90_5103,
     days_dt_1,
     had_0_30_zx, had_31_60_zx, had_61_90_zx, had_91_120_zx,
     with_0_30, with_31_60, with_61_90, with_91_120
@@ -608,7 +632,8 @@ select
         when coalesce(c.m, f.m) in ('202508', '202509') then 'val'
         else 'other'
     end as dataset_split,
-    if(f.no_balance_flg_60 = 1 and f.with_0_30 + f.with_31_60 = 0, 1, 0) as mx_cohort_flg
+    if(f.no_balance_flg_60 = 1 and f.no_balance_flg_60_5103 = 1
+       and f.with_0_30 + f.with_31_60 = 0, 1, 0) as mx_cohort_flg
 from lj_iceberg.ai_decision_dev.jcr_credit_feature_20260715 f
 left join lj_iceberg.ai_decision_dev.jcr_cohort_20260715 c
   on f.uuid = c.uuid and f.dt = c.dt

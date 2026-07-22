@@ -10,30 +10,39 @@ select
     count(distinct concat(uuid, '|', user_id)) as step1_uuid_user
 from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260715
 where rk = 1 and m = '202510';
--- 若 step1_rows(5085241) > step1_uuid(≈5022793)，差额来自同一 uuid 多个 user_id
+-- 若 step1_rows > step1_uuid，差额来自同一 uuid 多个 user_id
 
--- ---------- Step2：pf = 无余额60天 + 未提现（一步到位，对齐同事 386311）----------
+-- ---------- Step2：双无余额 + 未提现（对齐同事 386311）----------
 select
-    count(1) as s2_pf_nb_and_no_with,
+    count(1) as s2_pf_all_conditions,
     count(distinct uuid) as s2_pf_uuid
 from lj_iceberg.ai_decision_dev.jcr_pril_bal_pf_20260715
 where m = '202510';
--- 预期 ≈ 386,311（全渠道无余额已含5103无余额，无需单独筛5103）
+-- 预期 ≈ 386,311
 
--- 拆因：仅无余额、未加未提现时会多出多少人
+-- 拆因：两个无余额条件各自贡献
 select
-    count(1) as s2_nb_only_without_with_filter
+    count(1) as s2a_non5103_nb60_only,
+    sum(if(no_balance_flg_60_5103 = 1, 1, 0)) as s2b_also_5103_nb60
 from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260715
 where m = '202510' and no_balance_flg_60 = 1;
 
 select
-    count(1) as s2_nb_with_withdraw_in_60d
+    count(1) as s2c_5103_nb60_only,
+    sum(if(no_balance_flg_60 = 1, 1, 0)) as s2d_also_non5103_nb60
+from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260715
+where m = '202510' and no_balance_flg_60_5103 = 1;
+
+-- 拆因：双无余额后，未提现筛掉多少人
+select
+    count(1) as s2e_nb_both_no_withdraw,
+    sum(if(w.with_0_30 + w.with_31_60 = 0, 1, 0)) as s2f_pf_final
 from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_nb_20260715 nb
 inner join lj_iceberg.ai_decision_dev.jcr_pril_bal_with_20260715 w
   on nb.uuid = w.uuid and nb.dt = w.dt
 where nb.m = '202510'
   and nb.no_balance_flg_60 = 1
-  and w.with_0_30 + w.with_31_60 > 0;
+  and nb.no_balance_flg_60_5103 = 1;
 
 -- ---------- Step3：完整 cohort vs 权威 5401 ----------
 select
