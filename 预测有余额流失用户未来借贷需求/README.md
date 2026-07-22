@@ -55,7 +55,7 @@
 4. `run_mx_feature_20260715.sql`（马消特征，全渠道 cohort 子集）
 5. `run_all_20260715.sql` Part8（拼终表 `jcr_credit_feature_label_full_20260715`）
 
-**口径**：入口 5103 有余额；cohort 用 `no_balance_flg_60`（全渠道无余额）+ `with_0_30+with_31_60=0` + 征信 had。**不用** `*_5103` 后缀字段。
+**口径**：入口 5103 有余额；**Step② pf** = 全渠道无余额（已含5103）+ 60天未提现；**Step③ cohort** = 征信 had。**不用** `*_5103` 后缀字段。
 
 ## 十月版 cohort（5401）
 
