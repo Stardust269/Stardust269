@@ -1,5 +1,5 @@
 -- =============================================================================
--- 删除本人产出的 jcr_*_20260715 表（三月样本版，共 15 张）
+-- 删除本人产出的 jcr_*_20260715 表（三月样本版，共 17 张）
 -- 十月版本人表见：sql/drop_all_jcr_tables.sql
 -- 核验残留：sql/list_project_tables.sql
 -- 注意：yye_* / ayh_* 为同事表，请勿删除
@@ -13,12 +13,16 @@
 -- order by table_name;
 
 -- =============================================================================
--- A. 全量删除（15 张，重跑完整链路前执行）
+-- A. 全量删除（17 张，重跑完整链路前执行）
 -- 顺序：先下游后上游（Part 8 → Part 0）
 -- =============================================================================
 
 -- Part 8  征信 + 马消终表
 drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_full_20260715 purge;
+
+-- Part 8  自建马消特征
+drop table if exists lj_iceberg.ai_decision_dev.jcr_mx_feature_wdraw_20260715 purge;
+drop table if exists lj_iceberg.ai_decision_dev.jcr_mx_feature_pril_bal_20260715 purge;
 
 -- Part 7  征信特征 + 标签
 drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_20260715 purge;
@@ -66,12 +70,13 @@ drop table if exists lj_iceberg.ai_decision_dev.jcr_pril_bal_info_raw_20260715 p
 -- drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_20260715 purge;
 -- drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260715 purge;
 
--- B2. 仅重跑 Part 8（马消关联；需同事 ayh_feature_* 表已存在）
+-- B2. 仅重跑 Part 8（需先跑 run_mx_feature_20260715.sql）
 -- drop table if exists lj_iceberg.ai_decision_dev.jcr_credit_feature_label_full_20260715 purge;
 
 -- =============================================================================
 -- C. 删后重跑指引
 -- =============================================================================
--- 1. 同事先跑：sql/yye_pril_bal_sample_reference_20260715.sql（样本 + 马消特征）
--- 2. 我方再跑：sql/run_all_20260715.sql（征信特征 + 标签 + 关联马消）
--- 核验：run_all_20260715.sql 末尾 Part 9 统计 SQL
+-- 1. run_part01_sample_cohort_20260715.sql（样本 + cohort）
+-- 2. run_all_20260715.sql Part3~7（征信特征 + 标签）
+-- 3. run_mx_feature_20260715.sql（马消特征，全渠道 cohort）
+-- 4. run_all_20260715.sql Part8（拼终表）
