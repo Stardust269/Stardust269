@@ -50,12 +50,18 @@ def main() -> None:
     x_val, y_val = to_xy(val_df, feature_columns, cfg["data"]["label_col"])
 
     train_cfg = cfg["training"]
+    params = dict(train_cfg["params"])
+    pos = int((y_train == 1).sum())
+    neg = int((y_train == 0).sum())
+    if pos > 0 and "scale_pos_weight" not in params:
+        params["scale_pos_weight"] = neg / pos
+
     booster, metrics = train_lightgbm(
         x_train=x_train,
         y_train=y_train,
         x_val=x_val,
         y_val=y_val,
-        params=train_cfg["params"],
+        params=params,
         num_boost_round=int(train_cfg["num_boost_round"]),
         early_stopping_rounds=int(train_cfg["early_stopping_rounds"]),
     )
