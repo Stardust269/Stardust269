@@ -8,6 +8,7 @@
 | `sql/yye_pril_bal_sample_reference_20260715.sql` | 同事 reference（产出 `yye_pril_bal_info_20260715_1`） |
 | `sql/drop_all_jcr_tables_20260715.sql` | 清表重建时用 |
 | `sql/list_project_tables.sql` | 查看 `jcr_*` 表 |
+| `sql/preview_output_20260715.sql` | **预览产出**：行数、样例行、缺失率（只读） |
 
 ## 执行顺序
 
@@ -41,6 +42,8 @@ where crdt_lim_yx >= 20000
 ## 产出表
 
 终表：`jcr_credit_feature_label_full_20260715`
+
+**查看实际数据**：跑完 `run_all_20260715.sql` 后，在数据平台执行 `sql/preview_output_20260715.sql`（分段执行即可），可看到各表行数、终表样例、train/val 划分与标签分布。
 
 ## 文档
 
