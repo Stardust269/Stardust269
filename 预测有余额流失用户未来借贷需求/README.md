@@ -9,6 +9,7 @@
 | `sql/drop_all_jcr_tables_20260715.sql` | 清表重建时用 |
 | `sql/list_project_tables.sql` | 查看 `jcr_*` 表 |
 | `sql/preview_output_20260715.sql` | **预览产出**：行数、样例行、缺失率（只读） |
+| `sql/diagnose_one_user_20260715.sql` | 单用户征信挂载 / 标签 / 缺失原因诊断 |
 
 ## 执行顺序
 
