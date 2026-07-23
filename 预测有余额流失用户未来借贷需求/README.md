@@ -27,8 +27,8 @@
 | 左表 | `yye_pril_bal_info_20260715_1` |
 | 我方加工 | had/with → `jcr_pril_bal_info_20260715` → cohort 五条件 |
 | 锚点 | 全部 `days_dt`（无 `days_dt_1`） |
-| 训练样本 | `m ∈ {202508, 202509, 202510}`，约 15836 人 |
-| 划分 | `dataset_split`：train / val（hash 8:2），**无离线 test** |
+| 训练样本 | **仅** `m ∈ {202508, 202509, 202510}`，约 15836 人 |
+| 划分 | `dataset_split`：train / val（仅 8/9/10 月，hash 8:2），**无 11 月、无 test** |
 
 ## cohort 五条件
 

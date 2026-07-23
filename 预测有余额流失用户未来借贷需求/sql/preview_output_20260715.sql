@@ -63,6 +63,7 @@ order by zx_balance_label;
 
 select m, dataset_split, count(1) as num
 from lj_iceberg.ai_decision_dev.jcr_credit_feature_label_full_20260715
+where m in ('202508', '202509', '202510')
 group by m, dataset_split
 order by m, dataset_split;
 

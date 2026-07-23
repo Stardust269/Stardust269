@@ -8,7 +8,7 @@
 -- 流水线：
 --   Part 1~2 yye _1 → info → cohort（锚点 days_dt；cohort=info 五条件）
 --   Part 3~6 征信账户→聚合→扩展→挂样本→特征宽表
---   Part 7   标签 zx_balance_label + train/val 划分（8/9/10 月，hash 8:2）
+--   Part 7   标签 zx_balance_label + train/val 划分（仅 202508/202509/202510，hash 8:2）
 --   Part 7b  马消特征
 --   Part 8   终表 jcr_credit_feature_label_full_20260715
 --   Part 9   核验
@@ -46,6 +46,7 @@ left join (
     group by unique_id, user_id, bhv_time, event, aprv_status, day_time,
              instal_terms, wdraw_apply_amt, final_loan_amt, prod_cd
 ) t3 on t1.uuid = t3.unique_id
+where t1.m in ('202508', '202509', '202510')
 group by
     t1.uuid, t1.user_id, t1.pril_bal, t1.crdt_lim_yx, t1.pril_bal_rate, t1.dt, t1.days_dt, t1.m,
     t1.no_balance_flg_30, t1.no_balance_flg_60, t1.no_balance_flg_90
@@ -55,6 +56,7 @@ insert overwrite table lj_iceberg.ai_decision_dev.jcr_cohort_20260715
 select uuid, user_id, dt, days_dt, m
 from lj_iceberg.ai_decision_dev.jcr_pril_bal_info_20260715
 where crdt_lim_yx >= 20000
+  and m in ('202508', '202509', '202510')
   and had_0_30_zx = 1
   and had_31_60_zx = 1
   and no_balance_flg_60 = 1
@@ -369,8 +371,12 @@ select
          when l.fwd_max_balance is not null then 0
          else null end as zx_balance_label,
     case when l.fwd_max_balance is not null then 1 else 0 end as label_eligible,
-    case when abs(hash(concat(f.uuid, f.dt))) % 10 < 8 then 'train' else 'val' end as dataset_split
+    case when f.m in ('202508', '202509', '202510')
+              and abs(hash(concat(f.uuid, f.dt))) % 10 < 8 then 'train'
+         when f.m in ('202508', '202509', '202510') then 'val'
+         else null end as dataset_split
 from lj_iceberg.ai_decision_dev.jcr_credit_feature_20260715 f
+where f.m in ('202508', '202509', '202510')
 left join (
     select uuid, dt,
            max(if(zx_rank = 1, balance, null)) as fwd_first_balance,
@@ -493,4 +499,5 @@ group by zx_balance_label order by zx_balance_label;
 
 select m, dataset_split, count(1) as num
 from lj_iceberg.ai_decision_dev.jcr_credit_feature_label_full_20260715
+where m in ('202508', '202509', '202510')
 group by m, dataset_split order by m, dataset_split;
