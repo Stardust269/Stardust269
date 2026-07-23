@@ -27,7 +27,11 @@ select
     max(if(t3.wday between date_add(t1.days_dt, 31) and date_add(t1.days_dt, 60), 1, 0)) as with_31_60,
     max(if(t3.wday between date_add(t1.days_dt, 61) and date_add(t1.days_dt, 90), 1, 0)) as with_61_90,
     max(if(t3.wday between date_add(t1.days_dt, 91) and date_add(t1.days_dt, 120), 1, 0)) as with_91_120
-from lj_iceberg.ai_decision_dev.yye_pril_bal_info_20260715_1 t1
+from (
+    select *
+    from lj_iceberg.ai_decision_dev.yye_pril_bal_info_20260715_1
+    where m in ('202508', '202509', '202510')
+) t1
 left join (
     select id_unqp, dt,
            concat(substr(dt, 1, 4), '-', substr(dt, 5, 2), '-', substr(dt, 7, 2)) as days_dt_zx
@@ -46,7 +50,6 @@ left join (
     group by unique_id, user_id, bhv_time, event, aprv_status, day_time,
              instal_terms, wdraw_apply_amt, final_loan_amt, prod_cd
 ) t3 on t1.uuid = t3.unique_id
-where t1.m in ('202508', '202509', '202510')
 group by
     t1.uuid, t1.user_id, t1.pril_bal, t1.crdt_lim_yx, t1.pril_bal_rate, t1.dt, t1.days_dt, t1.m,
     t1.no_balance_flg_30, t1.no_balance_flg_60, t1.no_balance_flg_90
@@ -371,12 +374,8 @@ select
          when l.fwd_max_balance is not null then 0
          else null end as zx_balance_label,
     case when l.fwd_max_balance is not null then 1 else 0 end as label_eligible,
-    case when f.m in ('202508', '202509', '202510')
-              and abs(hash(concat(f.uuid, f.dt))) % 10 < 8 then 'train'
-         when f.m in ('202508', '202509', '202510') then 'val'
-         else null end as dataset_split
+    case when abs(hash(concat(f.uuid, f.dt))) % 10 < 8 then 'train' else 'val' end as dataset_split
 from lj_iceberg.ai_decision_dev.jcr_credit_feature_20260715 f
-where f.m in ('202508', '202509', '202510')
 left join (
     select uuid, dt,
            max(if(zx_rank = 1, balance, null)) as fwd_first_balance,
@@ -393,6 +392,7 @@ left join (
     ) t
     group by uuid, dt
 ) l on f.uuid = l.uuid and f.dt = l.dt
+where f.m in ('202508', '202509', '202510')
 ;
 
 -- ########## Part 7b：马消特征（cohort 子集，全渠道 base_df + 提现）##########

@@ -31,7 +31,7 @@ select
     pos_bal_acct_cnt, bal_sum, crdt_sum, util_sum,
     credit_account_num, credit_amount, credit_used_amount, credit_util_rate,
     has_house_loan_flg, has_gjj_loan_flg, org_type,
-    hard_query_num_1m, org_type
+    hard_query_num_1m
 from lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260715
 where uuid = '09330a2442714daaae4fb66cdd6beca4'
   and dt = '20251122'
