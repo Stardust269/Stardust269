@@ -44,6 +44,7 @@ where crdt_lim_yx >= 20000
 
 ## 文档
 
-- `notion_schema/项目说明_三月样本20260715.md` — 样本口径
-- `notion_schema/需要加工的数据.md` — 特征清单
-- `notion_schema/项目说明_特征覆盖与运行.md` — 特征对照
+- `项目说明_三月样本20260715.md` — 样本口径
+- `项目说明_标签构建.md` — 标签与 train/val 划分
+- `notion_schema/需要加工的数据.md` — 特征清单（Notion 原始）
+- `项目说明_特征覆盖与运行.md` — 特征对照与运行记录
