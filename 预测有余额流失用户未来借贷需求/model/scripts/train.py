@@ -46,6 +46,14 @@ def main() -> None:
     train_df, val_df, feature_columns = prepare_splits(df, cfg)
     print(f"train={len(train_df)}, val={len(val_df)}, features={len(feature_columns)}")
 
+    from dataset import feature_group_summary
+
+    groups = feature_group_summary(feature_columns)
+    print(
+        f"特征分组: 征信={len(groups['credit_bureau'])}, "
+        f"马消={len(groups['maxiao_behavior'])}, 派生={len(groups['derived'])}"
+    )
+
     x_train, y_train = to_xy(train_df, feature_columns, cfg["data"]["label_col"])
     x_val, y_val = to_xy(val_df, feature_columns, cfg["data"]["label_col"])
 

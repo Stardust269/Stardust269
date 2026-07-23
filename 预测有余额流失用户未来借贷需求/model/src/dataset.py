@@ -68,3 +68,9 @@ def to_xy(
     x = build_model_matrix(df, feature_columns)
     y = df[label_col].astype(int)
     return x, y
+
+
+def feature_group_summary(feature_columns: list[str]) -> dict[str, list[str]]:
+    from features import summarize_feature_groups
+
+    return summarize_feature_groups(feature_columns)
