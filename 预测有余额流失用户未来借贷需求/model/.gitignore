@@ -1,0 +1,9 @@
+*.parquet
+*.csv
+!data/.gitkeep
+artifacts/*
+!artifacts/.gitkeep
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/

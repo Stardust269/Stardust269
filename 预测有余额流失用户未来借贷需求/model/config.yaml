@@ -1,0 +1,37 @@
+# LightGBM 二分类训练配置
+
+data:
+  # 从 Hive 导出后的本地路径（parquet 或 csv）
+  input_path: data/training_full.parquet
+  label_col: zx_balance_label
+  split_col: dataset_split
+  train_split_value: train
+  val_split_value: val
+  # 仅使用可标注样本 & 8/9/10 月
+  filter:
+    label_eligible: 1
+    months: ["202508", "202509", "202510"]
+
+training:
+  random_seed: 42
+  num_boost_round: 500
+  early_stopping_rounds: 50
+  params:
+    objective: binary
+    metric: auc
+    boosting_type: gbdt
+    learning_rate: 0.05
+    num_leaves: 31
+    max_depth: -1
+    min_data_in_leaf: 20
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    bagging_freq: 5
+    lambda_l1: 0.0
+    lambda_l2: 1.0
+    verbosity: -1
+    seed: 42
+
+output:
+  artifacts_dir: artifacts
+  model_name: lgbm_zx_balance_label
