@@ -10,6 +10,7 @@ select
     latest_pos_bal_acct_cnt, latest_bal_sum, latest_crdt_sum, latest_util_sum,
     avg_1m_bal_sum, avg_6m_bal_sum, avg_1y_bal_sum,
     latest_credit_account_num, latest_credit_amount, latest_credit_used_amount,
+    latest_has_house_loan_flg, latest_has_gjj_loan_flg, latest_org_type,
     latest_hard_query_num_1m, latest_dt_zx,
     zx_report_cnt_1m, zx_report_cnt_6m, zx_report_cnt_1y, zx_report_cnt_fwd_60d
 from lj_iceberg.ai_decision_dev.jcr_credit_feature_label_full_20260715
@@ -29,6 +30,7 @@ select
     latest_report_rn,
     pos_bal_acct_cnt, bal_sum, crdt_sum, util_sum,
     credit_account_num, credit_amount, credit_used_amount, credit_util_rate,
+    has_house_loan_flg, has_gjj_loan_flg, org_type,
     hard_query_num_1m, org_type
 from lj_iceberg.ai_decision_dev.jcr_credit_report_with_sample_20260715
 where uuid = '09330a2442714daaae4fb66cdd6beca4'
@@ -49,7 +51,19 @@ where c.uuid = '09330a2442714daaae4fb66cdd6beca4'
 group by c.uuid, c.dt, c.days_dt, b.days_dt_zx
 order by b.days_dt_zx;
 
--- ⑤ 全表征信特征填充率（label_eligible=1，仅 8/9/10 月）
+-- ⑥ 资质类字段填充率（8/9/10 月，可标注样本）
+select
+    count(1) as n,
+    round(avg(if(latest_has_house_loan_flg is not null, 1, 0)), 4) as rate_house_flg,
+    round(avg(if(latest_has_gjj_loan_flg is not null, 1, 0)), 4) as rate_gjj_flg,
+    round(avg(if(latest_org_type is not null, 1, 0)), 4) as rate_org_type,
+    round(avg(latest_has_house_loan_flg), 4) as pct_has_house,
+    round(avg(latest_has_gjj_loan_flg), 4) as pct_has_gjj
+from lj_iceberg.ai_decision_dev.jcr_credit_feature_label_full_20260715
+where m in ('202508', '202509', '202510')
+  and label_eligible = 1;
+
+-- ⑦ 全表征信特征填充率（label_eligible=1，仅 8/9/10 月）
 select
     count(1) as n,
     round(avg(if(latest_bal_sum is not null, 1, 0)), 4) as rate_latest_bal,
