@@ -485,7 +485,15 @@ left join lj_iceberg.ai_decision_dev.jcr_mx_feature_wdraw_20260715 wd
 
 -- ########## Part 9：核验 ##########
 select m, count(1) as cohort_cnt, count(distinct uuid) as cohort_uuid
-from lj_iceberg.ai_decision_dev.jcr_cohort_20260715 group by m order by m;
+from lj_iceberg.ai_decision_dev.jcr_cohort_20260715
+where m in ('202508', '202509', '202510')
+group by m order by m;
+
+-- 应为 0：11 月不应进入 cohort
+select m, count(1) as should_be_zero
+from lj_iceberg.ai_decision_dev.jcr_cohort_20260715
+where m not in ('202508', '202509', '202510')
+group by m order by m;
 
 select
     (select count(1) from lj_iceberg.ai_decision_dev.jcr_cohort_20260715) as cohort_cnt,
