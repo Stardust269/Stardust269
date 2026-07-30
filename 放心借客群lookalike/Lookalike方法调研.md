@@ -4,7 +4,12 @@
 >
 > 更新日期：2026-07-30
 >
-> **公式说明（飞书云文档）**：行内公式使用 `$...$`，独立公式块使用 `$$...$$`（单独占行）。粘贴到飞书后，选中公式内容可切换为「公式」块，或直接输入 `/公式` 插入。
+> **公式说明（飞书云文档）**
+>
+> 1. 在飞书文档中输入 `/gs` 或 `/eq` 打开公式编辑器。
+> 2. 将下方 **LaTeX 代码块**（` ```latex `）中的内容复制粘贴到公式框（**不要**带 `$` 或 `$$`）。
+> 3. 正文中的 `$...$` / `$$...$$` 供 Markdown 阅读；若整段粘贴到飞书后反斜杠丢失，请改用 LaTeX 代码块。
+> 4. 规范约定：下标用 `_`；求和写 `\sum_{i \in S}`；指示函数写 `\mathbf{1}\{ 条件 \}`（花括号包裹条件，不用方括号）。
 >
 
 ---
@@ -29,7 +34,7 @@
 | $C = U \setminus S$ | 候选用户池 |
 | $\mathbf{x}_u \in \mathbb{R}^d$ | 用户 $u$ 的特征向量（自有特征 D101–D402、征信、外部字典等） |
 | $s(u)$ | 用户 $u$ 的 lookalike 分数，分数越高越像种子 |
-| $L \subset C$ | 最终扩展人群，如 $L = \text{TopK}_{u \in C}(s(u))$ |
+| $L \subset C$ | 最终扩展人群，如 $L = \mathrm{TopK}_{u \in C}(s(u))$ |
 
 ### 1.3 通用建模流程
 
@@ -80,13 +85,13 @@ Lookalike 本质是**单类学习**或**弱监督学习**：
 对离散特征 $f$：
 
 $$
-P_{\text{seed}}(f=v) = \frac{1}{|S|}\sum_{u \in S} \mathbb{1}[x_{u,f}=v]
+P_{\mathrm{seed}}(f = v) = \frac{1}{|S|} \sum_{u \in S} \mathbf{1}\{ x_{u,f} = v \}
 $$
 
 对连续特征 $f$：
 
 $$
-\mu_f = \frac{1}{|S|}\sum_{u \in S} x_{u,f}, \quad \sigma_f = \text{std}(x_{u,f})
+\mu_f = \frac{1}{|S|} \sum_{u \in S} x_{u,f}, \quad \sigma_f = \operatorname{std}(x_{u,f})
 $$
 
 **Step 2：候选用户打分**
@@ -94,16 +99,16 @@ $$
 离散特征重叠得分（分布相似）：
 
 $$
-s_{\text{disc}}(u) = \sum_f w_f \cdot P_{\text{seed}}(f = x_{u,f})
+s_{\mathrm{disc}}(u) = \sum_f w_f \cdot P_{\mathrm{seed}}(f = x_{u,f})
 $$
 
 连续特征高斯匹配：
 
 $$
-s_{\text{cont}}(u) = \sum_f w_f \cdot \exp\left(-\frac{(x_{u,f}-\mu_f)^2}{2\sigma_f^2}\right)
+s_{\mathrm{cont}}(u) = \sum_f w_f \cdot \exp\left(-\frac{(x_{u,f}-\mu_f)^2}{2\sigma_f^2}\right)
 $$
 
-综合：$s(u) = \alpha s_{\text{disc}} + (1-\alpha) s_{\text{cont}}$
+综合：$s(u) = \alpha s_{\mathrm{disc}} + (1-\alpha) s_{\mathrm{cont}}$
 
 **Step 3：规则过滤 + 排序**
 
@@ -151,19 +156,19 @@ LIMIT K
 #### （1）余弦相似度
 
 $$
-\text{sim}(\mathbf{x}, \mathbf{y}) = \frac{\mathbf{x}^\top \mathbf{y}}{\|\mathbf{x}\|_2 \|\mathbf{y}\|_2}
+\mathrm{sim}(\mathbf{x}, \mathbf{y}) = \frac{\mathbf{x}^\top \mathbf{y}}{\lVert \mathbf{x} \rVert_2 \lVert \mathbf{y} \rVert_2}
 $$
 
 #### （2）欧氏距离（转化为相似度）
 
 $$
-\text{sim}(\mathbf{x}, \mathbf{y}) = \frac{1}{1 + \|\mathbf{x} - \mathbf{y}\|_2}
+\mathrm{sim}(\mathbf{x}, \mathbf{y}) = \frac{1}{1 + \lVert \mathbf{x} - \mathbf{y} \rVert_2}
 $$
 
 #### （3）Jaccard 相似度（集合/多值标签）
 
 $$
-J(A,B) = \frac{|A \cap B|}{|A \cup B|}
+J(A, B) = \frac{|A \cap B|}{|A \cup B|}
 $$
 
 适用于用户兴趣标签、产品持有集合等。
@@ -171,17 +176,17 @@ $$
 #### （4）汉明距离（二值特征）
 
 $$
-d_H(\mathbf{x}, \mathbf{y}) = \sum_{i=1}^{d} \mathbb{1}[x_i \neq y_i]
+d_H(\mathbf{x}, \mathbf{y}) = \sum_{i=1}^{d} \mathbf{1}\{ x_i \neq y_i \}
 $$
 
 ### 4.3 种子聚合策略
 
 | 策略 | 公式 | 说明 |
 | --- | --- | --- |
-| 质心法 | $\bar{\mathbf{x}}_S = \frac{1}{|S|}\sum_{u \in S}\mathbf{x}_u$，$s(u)=\text{sim}(\mathbf{x}_u, \bar{\mathbf{x}}_S)$ | 最快，适合大规模 |
-| 最大相似 | $s(u) = \max_{v \in S}\text{sim}(\mathbf{x}_u, \mathbf{x}_v)$ | 更精细，计算贵 |
-| 平均相似 | $s(u) = \frac{1}{|S|}\sum_{v \in S}\text{sim}(\mathbf{x}_u, \mathbf{x}_v)$ | 折中方案 |
-| 加权相似 | $s(u) = \sum_{v \in S} w_v \cdot \text{sim}(\mathbf{x}_u, \mathbf{x}_v)$ | 种子可按价值加权 |
+| 质心法 | $\bar{\mathbf{x}}_S = \frac{1}{|S|} \sum_{u \in S}\mathbf{x}_u$，$s(u)=\mathrm{sim}(\mathbf{x}_u, \bar{\mathbf{x}}_S)$ | 最快，适合大规模 |
+| 最大相似 | $s(u) = \max_{v \in S}\mathrm{sim}(\mathbf{x}_u, \mathbf{x}_v)$ | 更精细，计算贵 |
+| 平均相似 | $s(u) = \frac{1}{|S|} \sum_{v \in S}\mathrm{sim}(\mathbf{x}_u, \mathbf{x}_v)$ | 折中方案 |
+| 加权相似 | $s(u) = \sum_{v \in S} w_v \cdot \mathrm{sim}(\mathbf{x}_u, \mathbf{x}_v)$ | 种子可按价值加权 |
 
 ### 4.4 KNN Lookalike 算法
 
@@ -229,7 +234,7 @@ $$
 **目标函数：**
 
 $$
-\min_{\{C_k\}} \sum_{k=1}^{K}\sum_{u \in C_k} \|\mathbf{x}_u - \boldsymbol{\mu}_k\|^2
+\min_{\{C_k\}} \sum_{k=1}^{K} \sum_{u \in C_k} \lVert \mathbf{x}_u - \boldsymbol{\mu}_k \rVert^2
 $$
 
 ### 5.2 高斯混合模型（GMM）
@@ -237,13 +242,13 @@ $$
 假设数据来自 $K$ 个高斯分布的混合：
 
 $$
-p(\mathbf{x}) = \sum_{k=1}^{K} \pi_k \mathcal{N}(\mathbf{x} \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)
+p(\mathbf{x}) = \sum_{k=1}^{K} \pi_k \mathcal{N}(\mathbf{x}; \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)
 $$
 
 **Lookalike 打分：**
 
 $$
-s(u) = \sum_{k: p_k > \tau} p_k \cdot \mathcal{N}(\mathbf{x}_u \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)
+s(u) = \sum_{k: p_k > \tau} p_k \cdot \mathcal{N}(\mathbf{x}_u; \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)
 $$
 
 GMM 比 K-Means 更适合椭圆簇、特征间有相关性的场景。
@@ -292,7 +297,7 @@ $$
 **损失函数（交叉熵）：**
 
 $$
-\mathcal{L} = -\frac{1}{N}\sum_{i=1}^{N}\left[y_i \log \hat{p}_i + (1-y_i)\log(1-\hat{p}_i)\right] + \lambda\|\mathbf{w}\|_2^2
+\mathcal{L} = -\frac{1}{N} \sum_{i=1}^{N}\left[y_i \log \hat{p}_i + (1-y_i)\log(1-\hat{p}_i)\right] + \lambda \lVert \mathbf{w} \rVert_2^2
 $$
 
 **Lookalike 分数：** $s(u) = P(y=1 \mid \mathbf{x}_u)$
@@ -344,7 +349,7 @@ $$
 多棵决策树 Bagging 投票：
 
 $$
-\hat{p}(u) = \frac{1}{T}\sum_{t=1}^{T} p_t(\mathbf{x}_u)
+\hat{p}(u) = \frac{1}{T} \sum_{t=1}^{T} p_t(\mathbf{x}_u)
 $$
 
 优点：鲁棒、无需太多调参；缺点：大数据下不如 GBDT 高效。
@@ -454,7 +459,7 @@ $$
 **损失：**
 
 $$
-\mathcal{L} = \sum_{(u,i) \in \mathcal{O}} (r_{ui} - \mathbf{p}_u^\top \mathbf{q}_i)^2 + \lambda(\|P\|^2 + \|Q\|^2)
+\mathcal{L} = \sum_{(u,i) \in \mathcal{O}} (r_{ui} - \mathbf{p}_u^\top \mathbf{q}_i)^2 + \lambda(\lVert P \rVert^2 + \lVert Q \rVert^2)
 $$
 
 用户 embedding $\mathbf{p}_u$ 用于计算种子质心相似度或训练下游分类器。
@@ -507,7 +512,7 @@ Lookalike：计算候选用户 embedding 与种子 embedding 质心的余弦相�
 构建图 $G = (V, E)$，节点为用户，边权重为相似度：
 
 $$
-w_{uv} = \text{sim}(\mathbf{x}_u, \mathbf{x}_v) \cdot \mathbb{1}[\text{sim} > \theta]
+w_{uv} = \mathrm{sim}(\mathbf{x}_u, \mathbf{x}_v) \cdot \mathbf{1}\{ \mathrm{sim} > \theta \}
 $$
 
 或用共同行为定义边：共同设备、共同联系人、共同 APP 等。
@@ -517,7 +522,7 @@ $$
 **核心公式：**
 
 $$
-s(u) = \sum_{v \in S} w_{uv} \cdot \text{sim}(\mathbf{x}_u, \mathbf{x}_v)
+s(u) = \sum_{v \in S} w_{uv} \cdot \mathrm{sim}(\mathbf{x}_u, \mathbf{x}_v)
 $$
 
 在全局用户相似图上，对每个候选用户聚合与种子的边权，实现亚线性查询（通过图索引/局部搜索）。
@@ -574,7 +579,7 @@ $$
 ### 10.1 MLP 分类器
 
 $$
-\mathbf{h}^{(l)} = \text{ReLU}(\mathbf{W}^{(l)}\mathbf{h}^{(l-1)} + \mathbf{b}^{(l)}), \quad \hat{p} = \sigma(\mathbf{w}^\top \mathbf{h}^{(L)})
+\mathbf{h}^{(l)} = \mathrm{ReLU}(\mathbf{W}^{(l)}\mathbf{h}^{(l-1)} + \mathbf{b}^{(l)}), \quad \hat{p} = \sigma(\mathbf{w}^\top \mathbf{h}^{(L)})
 $$
 
 与 LR 流程相同，用种子/负例训练，输出概率打分。适合高维稀疏特征（配合 Embedding 层处理类别特征）。
@@ -585,7 +590,7 @@ $$
 - **Deep**：MLP（泛化）
 
 $$
-P(y=1) = \sigma(\mathbf{w}_{\text{wide}}^\top [\mathbf{x}, \phi(\mathbf{x})] + \text{MLP}(\mathbf{x}))
+P(y=1) = \sigma(\mathbf{w}_{\mathrm{wide}}^\top [\mathbf{x}, \phi(\mathbf{x})] + \mathrm{MLP}(\mathbf{x}))
 $$
 
 ### 10.3 DeepFM
@@ -593,11 +598,11 @@ $$
 结合 FM 二阶交叉与 Deep 网络：
 
 $$
-\hat{y} = \text{sigmoid}\left(y_{\text{FM}} + y_{\text{Deep}}\right)
+\hat{y} = \mathrm{sigmoid}\left(y_{\mathrm{FM}} + y_{\mathrm{Deep}}\right)
 $$
 
 $$
-y_{\text{FM}} = w_0 + \sum_i w_i x_i + \sum_{i<j} \langle \mathbf{v}_i, \mathbf{v}_j \rangle x_i x_j
+y_{\mathrm{FM}} = w_0 + \sum_i w_i x_i + \sum_{i<j} \langle \mathbf{v}_i, \mathbf{v}_j \rangle x_i x_j
 $$
 
 ### 10.4 对抗因子分解自编码器（Adversarial FA）
@@ -833,6 +838,180 @@ Phase 3 — 规模化（按需）
 10. Kiryo et al., *Positive-Unlabeled Learning with Non-Negative Risk Estimator (nnPU)*, NIPS 2017.
 
 ---
+
+
+
+## 附录 C：飞书公式 LaTeX 原文（可直接复制）
+
+> 在飞书输入 `/gs`，将下方代码块内容粘贴到公式编辑器（**不要**包含 `$` 或 `$$`）。
+
+### 3.2 种子画像（离散特征）
+
+```latex
+P_{\mathrm{seed}}(f = v) = \frac{1}{|S|} \sum_{u \in S} \mathbf{1}\{ x_{u,f} = v \}
+```
+
+### 3.2 种子画像（连续特征）
+
+```latex
+\mu_f = \frac{1}{|S|} \sum_{u \in S} x_{u,f}, \quad \sigma_f = \operatorname{std}(x_{u,f})
+```
+
+### 3.2 离散重叠得分
+
+```latex
+s_{\mathrm{disc}}(u) = \sum_f w_f \cdot P_{\mathrm{seed}}(f = x_{u,f})
+```
+
+### 3.2 连续高斯匹配
+
+```latex
+s_{\mathrm{cont}}(u) = \sum_f w_f \cdot \exp\left(-\frac{(x_{u,f}-\mu_f)^2}{2\sigma_f^2}\right)
+```
+
+### 4.2 余弦相似度
+
+```latex
+\mathrm{sim}(\mathbf{x}, \mathbf{y}) = \frac{\mathbf{x}^\top \mathbf{y}}{\lVert \mathbf{x} \rVert_2 \lVert \mathbf{y} \rVert_2}
+```
+
+### 4.2 欧氏距离相似度
+
+```latex
+\mathrm{sim}(\mathbf{x}, \mathbf{y}) = \frac{1}{1 + \lVert \mathbf{x} - \mathbf{y} \rVert_2}
+```
+
+### 4.2 Jaccard
+
+```latex
+J(A, B) = \frac{|A \cap B|}{|A \cup B|}
+```
+
+### 4.2 汉明距离
+
+```latex
+d_H(\mathbf{x}, \mathbf{y}) = \sum_{i=1}^{d} \mathbf{1}\{ x_i \neq y_i \}
+```
+
+### 5.1 K-Means 目标
+
+```latex
+\min_{\{C_k\}} \sum_{k=1}^{K} \sum_{u \in C_k} \lVert \mathbf{x}_u - \boldsymbol{\mu}_k \rVert^2
+```
+
+### 5.2 GMM 密度
+
+```latex
+p(\mathbf{x}) = \sum_{k=1}^{K} \pi_k \mathcal{N}(\mathbf{x}; \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)
+```
+
+### 5.2 GMM 打分
+
+```latex
+s(u) = \sum_{k: p_k > \tau} p_k \cdot \mathcal{N}(\mathbf{x}_u; \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)
+```
+
+### 6.2 LR 模型
+
+```latex
+P(y=1 \mid \mathbf{x}) = \sigma(\mathbf{w}^\top \mathbf{x} + b) = \frac{1}{1 + e^{-(\mathbf{w}^\top \mathbf{x} + b)}}
+```
+
+### 6.2 LR 损失
+
+```latex
+\mathcal{L} = -\frac{1}{N} \sum_{i=1}^{N}\left[y_i \log \hat{p}_i + (1-y_i)\log(1-\hat{p}_i)\right] + \lambda \lVert \mathbf{w} \rVert_2^2
+```
+
+### 6.3 GBDT 加法模型
+
+```latex
+\hat{y} = \sum_{m=1}^{M} \eta \cdot h_m(\mathbf{x})
+```
+
+### 6.3 LightGBM 损失
+
+```latex
+\mathcal{L} = \sum_i \left[ -y_i \log p_i - (1-y_i)\log(1-p_i) \right] + \sum_m \Omega(h_m)
+```
+
+### 6.4 RF 投票
+
+```latex
+\hat{p}(u) = \frac{1}{T} \sum_{t=1}^{T} p_t(\mathbf{x}_u)
+```
+
+### 7.5 nnPU 风险
+
+```latex
+\hat{R}(f) = \pi \hat{R}_P^+(f) + \max\left(0, \hat{R}_U^-(f) - \pi \hat{R}_P^-(f)\right)
+```
+
+### 8.1 MF 分解
+
+```latex
+R \approx PQ^\top, \quad P \in \mathbb{R}^{|U| \times k}, Q \in \mathbb{R}^{|I| \times k}
+```
+
+### 8.1 MF 损失
+
+```latex
+\mathcal{L} = \sum_{(u,i) \in \mathcal{O}} (r_{ui} - \mathbf{p}_u^\top \mathbf{q}_i)^2 + \lambda(\lVert P \rVert^2 + \lVert Q \rVert^2)
+```
+
+### 9.1 图边权
+
+```latex
+w_{uv} = \mathrm{sim}(\mathbf{x}_u, \mathbf{x}_v) \cdot \mathbf{1}\{ \mathrm{sim} > \theta \}
+```
+
+### 9.2 Yahoo 打分
+
+```latex
+s(u) = \sum_{v \in S} w_{uv} \cdot \mathrm{sim}(\mathbf{x}_u, \mathbf{x}_v)
+```
+
+### 9.4 GCN 传播
+
+```latex
+\mathbf{H}^{(l+1)} = \sigma\left(\tilde{D}^{-1/2}\tilde{A}\tilde{D}^{-1/2}\mathbf{H}^{(l)}\mathbf{W}^{(l)}\right)
+```
+
+### 10.1 MLP
+
+```latex
+\mathbf{h}^{(l)} = \mathrm{ReLU}(\mathbf{W}^{(l)}\mathbf{h}^{(l-1)} + \mathbf{b}^{(l)}), \quad \hat{p} = \sigma(\mathbf{w}^\top \mathbf{h}^{(L)})
+```
+
+### 10.2 Wide&Deep
+
+```latex
+P(y=1) = \sigma(\mathbf{w}_{\mathrm{wide}}^\top [\mathbf{x}, \phi(\mathbf{x})] + \mathrm{MLP}(\mathbf{x}))
+```
+
+### 10.3 DeepFM
+
+```latex
+\hat{y} = \mathrm{sigmoid}\left(y_{\mathrm{FM}} + y_{\mathrm{Deep}}\right)
+```
+
+### 10.3 DeepFM-FM项
+
+```latex
+y_{\mathrm{FM}} = w_0 + \sum_i w_i x_i + \sum_{i<j} \langle \mathbf{v}_i, \mathbf{v}_j \rangle x_i x_j
+```
+
+### 12.2 倾向性得分
+
+```latex
+e(\mathbf{x}) = P(T=1 \mid \mathbf{x})
+```
+
+### 12.3 Uplift
+
+```latex
+\tau(\mathbf{x}) = P(Y=1 \mid T=1, \mathbf{x}) - P(Y=1 \mid T=0, \mathbf{x})
+```
 
 ## 附录 A：LightGBM Lookalike 最小可行实现（伪代码）
 
