@@ -168,6 +168,8 @@
 
 ### 3.6 图上的 PU 学习：GPL（ICML 2024）
 
+> **专文精讲**见 **《GPL模型精读.md》**（方法、理论、实验、lookalike 映射）。
+
 | 项目 | 内容 |
 | --- | --- |
 | 论文 | Wu et al., *Unraveling the Impact of Heterophilic Structures on Graph Positive-Unlabeled Learning*（GPL）, ICML 2024 |
