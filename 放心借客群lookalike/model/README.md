@@ -41,7 +41,7 @@ model/
 # model/sql/export_training_data.sql → 下载为 data/training_pu.parquet
 ```
 
-若宽表无 `y_loan_base_rate` / `lend_date_sj`（纯背景表），请在 `build_pu_training_table.sql` 中改为 join 种子清单表打 `pu_label`。
+扩量宽表**不含** `y_loan_base_rate` / `lend_date_sj`：`build_pu_training_table.sql` 已 join `zxt_5789_cust_detail_0630` 打 `pu_label`，并 join MS13（`standard_score` → `ms13_score`）。宽表里的 `label` 列**不是** PU 正类标签，请用 `pu_label`。字段核验见 `sql/verify_wide_table_columns.sql`。
 
 ## 2. 本地训练
 

@@ -12,7 +12,8 @@ data:
     zx_report_col: zx_has_report_flg
     # 背景人群 ms13 下限（Notion：可剔 630 以下）；仅对 pu_label=0 生效，0 表示不筛
     unlabeled_ms13_min: 0
-    ms13_col: ms13_score       # 若宽表列名不同请在 SQL 导出层对齐
+    # 宽表无 ms13；build_pu_training_table.sql 从 m1_mgt_master_score_model_13_1.standard_score 对齐 days_dt_zx
+    ms13_col: ms13_score
 
 pu:
   method: elkanoto             # elkanoto | weighted_naive
