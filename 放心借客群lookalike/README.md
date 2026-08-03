@@ -20,3 +20,7 @@
 | --- | --- |
 | `sql/同事样例_安逸花放心借分析.sql` | 同事探索用 SQL 归档 |
 | `sql/fxj_seed_users_attach_credit_feature.sql` | 样本表挂最近一次征信特征（正式加工） |
+
+## Notion 镜像
+
+同事发布的 Notion 说明已导出至 [`notion/`](notion/INDEX.md)（含子页面「提额降价项目测试」及五份嵌入字典 Markdown 快照）。
