@@ -24,3 +24,9 @@
 ## Notion 镜像
 
 同事发布的 Notion 说明已导出至 [`notion/`](notion/INDEX.md)（含子页面「提额降价项目测试」及五份嵌入字典 Markdown 快照）。
+
+## 建模
+
+| 路径 | 说明 |
+| --- | --- |
+| [`model/README.md`](model/README.md) | **LightGBM + PU** lookalike 训练、导出 SQL、打分 |
