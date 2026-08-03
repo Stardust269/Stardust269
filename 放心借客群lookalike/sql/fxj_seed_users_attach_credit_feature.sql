@@ -1,35 +1,62 @@
 -- =============================================================================
 -- 放心借 lookalike：样本表挂征信特征（仅最近一次征信报告，不含马消特征）
 -- =============================================================================
--- 输入（已有腾讯/百行/朴道等）：
+-- 输入：
 --   lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature
 -- 约定：
---   - days_dt_zx、dt_zx 为样本侧已算好的「最近一次征信报告」日期（勿再 row_number 选报告）
---   - 征信特征逻辑对齐 jcr 项目 run_all_20260715 Part 3~4（剔马消机构码 T10156530H0001）
---   - 不挂马消（安逸花）余额/提现等特征
+--   - days_dt_zx、dt_zx：样本侧「最近一次征信报告」日期（不再 row_number 选报告）
+--   - 借贷账户：basic 中全部 account_type 参与加工，按类型拆列（宽表）+ 长表中间层
+--   - 0 / null：有报告且可从报告/账户明细推出「没有」→ 0；无法推出 → null（如 max/min/util）
+--   - 余额类 sum/count 在有报告 (zx_id_unqf 非空) 时对账户聚合 coalesce 为 0
+--   - 剔马消机构码 T10156530H0001（仅影响余额/额度类汇总，与 jcr 一致）
 -- 输出：
---   lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature_with_credit
+--   ..._feature_with_credit（样本 + 报告扩展 + 分类型账户宽表 + 全类型合计 latest_*）
+-- 中间表：
+--   fxj_seed_credit_report_agg_by_type（长表，按 account_type）
 -- =============================================================================
 
--- ########## 0. 探查（上线前在集群执行）##########
+-- ########## 0. 探查 ##########
 -- desc lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature;
--- select count(1), count(distinct unique_id),
---        sum(if(dt_zx is not null, 1, 0)) as has_dt_zx
--- from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature;
+-- select account_type, count(1) from lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info
+-- where dt >= '20240801' and dt < '20260701' group by account_type;
 
--- ########## 1. 征信报告锚点（样本已定的最近一份）##########
+-- ########## 1. 报告锚点 + summary 证件号 ##########
 drop table if exists lj_iceberg.ai_decision_dev.fxj_seed_zx_spine;
 create table if not exists lj_iceberg.ai_decision_dev.fxj_seed_zx_spine as
-select distinct
-    unique_id,
-    dt_zx,
-    days_dt_zx
-from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature
-where dt_zx is not null
-  and trim(cast(dt_zx as string)) <> ''
+select unique_id, dt_zx, days_dt_zx, id_unqf
+from (
+    select
+        sp.unique_id,
+        sp.dt_zx,
+        sp.days_dt_zx,
+        z.id_unqf,
+        row_number() over (
+            partition by sp.unique_id, sp.dt_zx
+            order by z.id_unqf
+        ) as rn
+    from (
+        select distinct
+            unique_id,
+            dt_zx,
+            days_dt_zx
+        from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature
+        where dt_zx is not null
+          and trim(cast(dt_zx as string)) <> ''
+    ) sp
+    left join (
+        select id_unqp, id_unqf, dt
+        from lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary
+        where dt >= '20240801'
+          and dt < '20260701'
+        group by id_unqp, id_unqf, dt
+    ) z
+        on sp.unique_id = z.id_unqp
+       and sp.dt_zx = z.dt
+) t
+where rn = 1
 ;
 
--- ########## 2. 循环贷账户明细（仅 spine 上的 uuid + dt_zx）##########
+-- ########## 2. 借贷账户明细（全部 account_type，仅 spine 上的 uuid + dt_zx）##########
 drop table if exists lj_iceberg.ai_decision_dev.fxj_seed_credit_account_base;
 create table if not exists lj_iceberg.ai_decision_dev.fxj_seed_credit_account_base as
 select
@@ -41,7 +68,7 @@ select
     t2.org_manage_type,
     t2.org_manage_code,
     coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0) as credit_grant_amount,
-    t2.account_type,
+    coalesce(nullif(trim(t2.account_type), ''), '_UNK') as account_type,
     t1.dt,
     concat(substr(t1.dt, 1, 4), '-', substr(t1.dt, 5, 2), '-', substr(t1.dt, 7, 2)) as days_dt_zx,
     case
@@ -55,7 +82,8 @@ select
              / coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0)
         else null
     end as util_rate,
-    case when coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0 then 1 else 0 end as is_pos_bal_acct
+    case when coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0 then 1 else 0 end as is_pos_bal_acct,
+    case when t2.org_manage_code <> 'T10156530H0001' then 1 else 0 end as is_non_mx
 from (
     select id_unqf, id_unqp, account_no, close_date, balance, dt
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_perform
@@ -72,7 +100,6 @@ inner join (
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_basic_info
     where dt >= '20240801'
       and dt < '20260701'
-      and account_type in ('R1', 'R2', 'R3')
 ) t2
     on t1.id_unqf = t2.id_unqf
    and t1.id_unqp = t2.id_unqp
@@ -95,7 +122,37 @@ left join (
    and t3.rn = 1
 ;
 
--- ########## 3. 报告级聚合（剔马消）##########
+-- ########## 3a. 按 account_type 报告级聚合（长表）##########
+drop table if exists lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg_by_type;
+create table if not exists lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg_by_type as
+select
+    id_unqp,
+    id_unqf,
+    dt,
+    days_dt_zx,
+    account_type,
+    count(1) as acct_cnt,
+    sum(if(is_pos_bal_acct = 1 and is_non_mx = 1, 1, 0)) as pos_bal_acct_cnt,
+    sum(if(is_non_mx = 1, balance, 0)) as bal_sum,
+    max(if(is_pos_bal_acct = 1 and is_non_mx = 1, balance, null)) as bal_max,
+    min(if(is_pos_bal_acct = 1 and is_non_mx = 1, balance, null)) as bal_min,
+    sum(if(is_non_mx = 1, credit_grant_amount, 0)) as crdt_sum,
+    max(if(is_pos_bal_acct = 1 and is_non_mx = 1, credit_grant_amount, null)) as crdt_max,
+    min(if(is_pos_bal_acct = 1 and is_non_mx = 1, credit_grant_amount, null)) as crdt_min,
+    max(if(is_pos_bal_acct = 1 and is_non_mx = 1, util_rate, null)) as util_max,
+    min(if(is_pos_bal_acct = 1 and is_non_mx = 1, util_rate, null)) as util_min,
+    case
+        when sum(if(is_non_mx = 1, credit_grant_amount, 0)) > 0
+        then sum(if(is_non_mx = 1, balance, 0))
+             / sum(if(is_non_mx = 1, credit_grant_amount, 0))
+        else null
+    end as util_sum,
+    count(distinct if(is_pos_bal_acct = 1 and is_non_mx = 1 and bill_day is not null, bill_day, null)) as bill_day_cnt
+from lj_iceberg.ai_decision_dev.fxj_seed_credit_account_base
+group by id_unqp, id_unqf, dt, days_dt_zx, account_type
+;
+
+-- ########## 3b. 全类型合计（兼容 latest_* 命名）##########
 drop table if exists lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg;
 create table if not exists lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg as
 select
@@ -103,23 +160,80 @@ select
     id_unqf,
     dt,
     days_dt_zx,
-    sum(if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001', 1, 0)) as pos_bal_acct_cnt,
-    sum(if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001', balance, 0)) as bal_sum,
-    max(if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001', balance, null)) as bal_max,
-    min(if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001', balance, null)) as bal_min,
-    sum(if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001', credit_grant_amount, 0)) as crdt_sum,
-    max(if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001', credit_grant_amount, null)) as crdt_max,
-    min(if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001', credit_grant_amount, null)) as crdt_min,
-    max(if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001', util_rate, null)) as util_max,
-    min(if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001', util_rate, null)) as util_min,
-    case
-        when sum(if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001', credit_grant_amount, 0)) > 0
-        then sum(if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001', balance, 0))
-             / sum(if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001', credit_grant_amount, 0))
-        else null
-    end as util_sum,
-    count(distinct if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001' and bill_day is not null, bill_day, null)) as bill_day_cnt
-from lj_iceberg.ai_decision_dev.fxj_seed_credit_account_base
+    sum(pos_bal_acct_cnt) as pos_bal_acct_cnt,
+    sum(bal_sum) as bal_sum,
+    max(bal_max) as bal_max,
+    min(bal_min) as bal_min,
+    sum(crdt_sum) as crdt_sum,
+    max(crdt_max) as crdt_max,
+    min(crdt_min) as crdt_min,
+    max(util_max) as util_max,
+    min(util_min) as util_min,
+    case when sum(crdt_sum) > 0 then sum(bal_sum) / sum(crdt_sum) else null end as util_sum,
+    sum(bill_day_cnt) as bill_day_cnt
+from lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg_by_type
+group by id_unqp, id_unqf, dt, days_dt_zx
+;
+
+-- ########## 3c. 按类型透视宽表（显式枚举 + OTHER；若集群出现新类型请补列或归入 OTHER）##########
+drop table if exists lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg_pivot;
+create table if not exists lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg_pivot as
+select
+    id_unqp,
+    id_unqf,
+    dt,
+    days_dt_zx,
+    max(case when account_type = 'D1' then pos_bal_acct_cnt else 0 end) as zx_D1_pos_bal_acct_cnt,
+    max(case when account_type = 'D1' then bal_sum else 0 end) as zx_D1_bal_sum,
+    max(case when account_type = 'D1' then bal_max else null end) as zx_D1_bal_max,
+    max(case when account_type = 'D1' then crdt_sum else 0 end) as zx_D1_crdt_sum,
+    max(case when account_type = 'D1' then acct_cnt else 0 end) as zx_D1_acct_cnt,
+    max(case when account_type = 'R1' then pos_bal_acct_cnt else 0 end) as zx_R1_pos_bal_acct_cnt,
+    max(case when account_type = 'R1' then bal_sum else 0 end) as zx_R1_bal_sum,
+    max(case when account_type = 'R1' then bal_max else null end) as zx_R1_bal_max,
+    max(case when account_type = 'R1' then crdt_sum else 0 end) as zx_R1_crdt_sum,
+    max(case when account_type = 'R1' then acct_cnt else 0 end) as zx_R1_acct_cnt,
+    max(case when account_type = 'R2' then pos_bal_acct_cnt else 0 end) as zx_R2_pos_bal_acct_cnt,
+    max(case when account_type = 'R2' then bal_sum else 0 end) as zx_R2_bal_sum,
+    max(case when account_type = 'R2' then bal_max else null end) as zx_R2_bal_max,
+    max(case when account_type = 'R2' then crdt_sum else 0 end) as zx_R2_crdt_sum,
+    max(case when account_type = 'R2' then acct_cnt else 0 end) as zx_R2_acct_cnt,
+    max(case when account_type = 'R3' then pos_bal_acct_cnt else 0 end) as zx_R3_pos_bal_acct_cnt,
+    max(case when account_type = 'R3' then bal_sum else 0 end) as zx_R3_bal_sum,
+    max(case when account_type = 'R3' then bal_max else null end) as zx_R3_bal_max,
+    max(case when account_type = 'R3' then crdt_sum else 0 end) as zx_R3_crdt_sum,
+    max(case when account_type = 'R3' then acct_cnt else 0 end) as zx_R3_acct_cnt,
+    max(case when account_type = 'R4' then pos_bal_acct_cnt else 0 end) as zx_R4_pos_bal_acct_cnt,
+    max(case when account_type = 'R4' then bal_sum else 0 end) as zx_R4_bal_sum,
+    max(case when account_type = 'R4' then bal_max else null end) as zx_R4_bal_max,
+    max(case when account_type = 'R4' then crdt_sum else 0 end) as zx_R4_crdt_sum,
+    max(case when account_type = 'R4' then acct_cnt else 0 end) as zx_R4_acct_cnt,
+    max(case when account_type = 'R5' then pos_bal_acct_cnt else 0 end) as zx_R5_pos_bal_acct_cnt,
+    max(case when account_type = 'R5' then bal_sum else 0 end) as zx_R5_bal_sum,
+    max(case when account_type = 'R5' then bal_max else null end) as zx_R5_bal_max,
+    max(case when account_type = 'R5' then crdt_sum else 0 end) as zx_R5_crdt_sum,
+    max(case when account_type = 'R5' then acct_cnt else 0 end) as zx_R5_acct_cnt,
+    max(case when account_type = 'D2' then pos_bal_acct_cnt else 0 end) as zx_D2_pos_bal_acct_cnt,
+    max(case when account_type = 'D2' then bal_sum else 0 end) as zx_D2_bal_sum,
+    max(case when account_type = 'D2' then bal_max else null end) as zx_D2_bal_max,
+    max(case when account_type = 'D2' then crdt_sum else 0 end) as zx_D2_crdt_sum,
+    max(case when account_type = 'D2' then acct_cnt else 0 end) as zx_D2_acct_cnt,
+    max(case when account_type = 'C1' then pos_bal_acct_cnt else 0 end) as zx_C1_pos_bal_acct_cnt,
+    max(case when account_type = 'C1' then bal_sum else 0 end) as zx_C1_bal_sum,
+    max(case when account_type = 'C1' then bal_max else null end) as zx_C1_bal_max,
+    max(case when account_type = 'C1' then crdt_sum else 0 end) as zx_C1_crdt_sum,
+    max(case when account_type = 'C1' then acct_cnt else 0 end) as zx_C1_acct_cnt,
+    max(case when account_type = 'C2' then pos_bal_acct_cnt else 0 end) as zx_C2_pos_bal_acct_cnt,
+    max(case when account_type = 'C2' then bal_sum else 0 end) as zx_C2_bal_sum,
+    max(case when account_type = 'C2' then bal_max else null end) as zx_C2_bal_max,
+    max(case when account_type = 'C2' then crdt_sum else 0 end) as zx_C2_crdt_sum,
+    max(case when account_type = 'C2' then acct_cnt else 0 end) as zx_C2_acct_cnt,
+    sum(case when account_type in ('D1','R1','R2','R3','R4','R5','D2','C1','C2') then 0 else pos_bal_acct_cnt end) as zx_OTH_pos_bal_acct_cnt,
+    sum(case when account_type in ('D1','R1','R2','R3','R4','R5','D2','C1','C2') then 0 else bal_sum end) as zx_OTH_bal_sum,
+    max(case when account_type not in ('D1','R1','R2','R3','R4','R5','D2','C1','C2') then bal_max else null end) as zx_OTH_bal_max,
+    sum(case when account_type in ('D1','R1','R2','R3','R4','R5','D2','C1','C2') then 0 else crdt_sum end) as zx_OTH_crdt_sum,
+    sum(case when account_type in ('D1','R1','R2','R3','R4','R5','D2','C1','C2') then 0 else acct_cnt end) as zx_OTH_acct_cnt
+from lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg_by_type
 group by id_unqp, id_unqf, dt, days_dt_zx
 ;
 
@@ -139,18 +253,18 @@ from (
         dt,
         days_dt_zx,
         bill_day,
-        sum(if(org_manage_code <> 'T10156530H0001', is_pos_bal_acct, 0)) as acct_cnt_same_billday,
-        sum(if(is_pos_bal_acct = 1 and org_manage_code <> 'T10156530H0001', balance, 0)) as bal_sum_same_billday
+        sum(if(is_non_mx = 1, is_pos_bal_acct, 0)) as acct_cnt_same_billday,
+        sum(if(is_pos_bal_acct = 1 and is_non_mx = 1, balance, 0)) as bal_sum_same_billday
     from lj_iceberg.ai_decision_dev.fxj_seed_credit_account_base
     where is_pos_bal_acct = 1
       and bill_day is not null
-      and org_manage_code <> 'T10156530H0001'
+      and is_non_mx = 1
     group by id_unqp, id_unqf, dt, days_dt_zx, bill_day
 ) t
 group by id_unqp, id_unqf, dt, days_dt_zx
 ;
 
--- ########## 4. 查询 / 逾期 / 信用卡 / 资质（报告扩展，剔马消无关表内逻辑同 jcr）##########
+-- ########## 4. 报告扩展（仅依赖 spine + summary，不依赖账户 agg）##########
 drop table if exists lj_iceberg.ai_decision_dev.fxj_seed_credit_report_ext;
 create table if not exists lj_iceberg.ai_decision_dev.fxj_seed_credit_report_ext as
 select
@@ -188,19 +302,7 @@ select
         else 0
     end as has_gjj_loan_flg,
     job.org_type
-from (
-    select sp.unique_id, sp.dt_zx, sp.days_dt_zx, z.id_unqf
-    from lj_iceberg.ai_decision_dev.fxj_seed_zx_spine sp
-    left join (
-        select id_unqp, id_unqf, dt
-        from lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary
-        where dt >= '20240801'
-          and dt < '20260701'
-        group by id_unqp, id_unqf, dt
-    ) z
-        on sp.unique_id = z.id_unqp
-       and sp.dt_zx = z.dt
-) spine
+from lj_iceberg.ai_decision_dev.fxj_seed_zx_spine spine
 left join lj_iceberg.pboccr2d.dsst_eds_gaa02_query_summary q
     on spine.id_unqf = q.id_unqf
    and spine.unique_id = q.id_unqp
@@ -273,25 +375,38 @@ left join (
    and spine.dt_zx = job.dt
 ;
 
--- ########## 5. 挂回样本宽表（字段名对齐 jcr_credit_feature 的 latest_* 单报告口径）##########
+-- 无账户明细时仍保留报告键，供终表填 0
+drop table if exists lj_iceberg.ai_decision_dev.fxj_seed_credit_report_shell;
+create table if not exists lj_iceberg.ai_decision_dev.fxj_seed_credit_report_shell as
+select
+    e.id_unqp,
+    e.id_unqf,
+    e.dt,
+    e.days_dt_zx
+from lj_iceberg.ai_decision_dev.fxj_seed_credit_report_ext e
+where e.id_unqf is not null
+;
+
+-- ########## 5. 挂回样本宽表 ##########
 drop table if exists lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature_with_credit;
 create table if not exists lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature_with_credit as
 select
     s.*,
-    r.id_unqf as zx_id_unqf,
-    r.pos_bal_acct_cnt as latest_pos_bal_acct_cnt,
-    r.bal_sum as latest_bal_sum,
-    r.bal_max as latest_bal_max,
-    r.bal_min as latest_bal_min,
-    r.crdt_sum as latest_crdt_sum,
-    r.crdt_max as latest_crdt_max,
-    r.crdt_min as latest_crdt_min,
-    r.util_sum as latest_util_sum,
-    r.util_max as latest_util_max,
-    r.util_min as latest_util_min,
-    r.bill_day_cnt as latest_bill_day_cnt,
-    b.same_billday_acct_cnt_max as latest_same_billday_acct_cnt_max,
-    b.same_billday_bal_sum_max as latest_same_billday_bal_sum_max,
+    sh.id_unqf as zx_id_unqf,
+    case when sh.id_unqf is not null then 1 else 0 end as zx_has_report_flg,
+    case when sh.id_unqf is not null then coalesce(r.pos_bal_acct_cnt, 0) else null end as latest_pos_bal_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(r.bal_sum, 0) else null end as latest_bal_sum,
+    case when sh.id_unqf is not null then r.bal_max else null end as latest_bal_max,
+    case when sh.id_unqf is not null then r.bal_min else null end as latest_bal_min,
+    case when sh.id_unqf is not null then coalesce(r.crdt_sum, 0) else null end as latest_crdt_sum,
+    case when sh.id_unqf is not null then r.crdt_max else null end as latest_crdt_max,
+    case when sh.id_unqf is not null then r.crdt_min else null end as latest_crdt_min,
+    case when sh.id_unqf is not null then r.util_sum else null end as latest_util_sum,
+    case when sh.id_unqf is not null then r.util_max else null end as latest_util_max,
+    case when sh.id_unqf is not null then r.util_min else null end as latest_util_min,
+    case when sh.id_unqf is not null then coalesce(r.bill_day_cnt, 0) else null end as latest_bill_day_cnt,
+    case when sh.id_unqf is not null then b.same_billday_acct_cnt_max else null end as latest_same_billday_acct_cnt_max,
+    case when sh.id_unqf is not null then b.same_billday_bal_sum_max else null end as latest_same_billday_bal_sum_max,
     e.credit_audit_query_org_num_1m as latest_credit_audit_query_org_num_1m,
     e.loan_audit_query_num_1m as latest_loan_audit_query_num_1m,
     e.credit_audit_query_num_1m as latest_credit_audit_query_num_1m,
@@ -310,19 +425,77 @@ select
     e.credit_amount as latest_credit_amount,
     e.credit_used_amount as latest_credit_used_amount,
     e.credit_util_rate as latest_credit_util_rate,
-    e.org_type as latest_org_type
+    e.org_type as latest_org_type,
+    case when sh.id_unqf is not null then coalesce(p.zx_D1_pos_bal_acct_cnt, 0) else null end as zx_D1_pos_bal_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_D1_bal_sum, 0) else null end as zx_D1_bal_sum,
+    case when sh.id_unqf is not null then p.zx_D1_bal_max else null end as zx_D1_bal_max,
+    case when sh.id_unqf is not null then coalesce(p.zx_D1_crdt_sum, 0) else null end as zx_D1_crdt_sum,
+    case when sh.id_unqf is not null then coalesce(p.zx_D1_acct_cnt, 0) else null end as zx_D1_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_R1_pos_bal_acct_cnt, 0) else null end as zx_R1_pos_bal_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_R1_bal_sum, 0) else null end as zx_R1_bal_sum,
+    case when sh.id_unqf is not null then p.zx_R1_bal_max else null end as zx_R1_bal_max,
+    case when sh.id_unqf is not null then coalesce(p.zx_R1_crdt_sum, 0) else null end as zx_R1_crdt_sum,
+    case when sh.id_unqf is not null then coalesce(p.zx_R1_acct_cnt, 0) else null end as zx_R1_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_R2_pos_bal_acct_cnt, 0) else null end as zx_R2_pos_bal_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_R2_bal_sum, 0) else null end as zx_R2_bal_sum,
+    case when sh.id_unqf is not null then p.zx_R2_bal_max else null end as zx_R2_bal_max,
+    case when sh.id_unqf is not null then coalesce(p.zx_R2_crdt_sum, 0) else null end as zx_R2_crdt_sum,
+    case when sh.id_unqf is not null then coalesce(p.zx_R2_acct_cnt, 0) else null end as zx_R2_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_R3_pos_bal_acct_cnt, 0) else null end as zx_R3_pos_bal_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_R3_bal_sum, 0) else null end as zx_R3_bal_sum,
+    case when sh.id_unqf is not null then p.zx_R3_bal_max else null end as zx_R3_bal_max,
+    case when sh.id_unqf is not null then coalesce(p.zx_R3_crdt_sum, 0) else null end as zx_R3_crdt_sum,
+    case when sh.id_unqf is not null then coalesce(p.zx_R3_acct_cnt, 0) else null end as zx_R3_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_R4_pos_bal_acct_cnt, 0) else null end as zx_R4_pos_bal_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_R4_bal_sum, 0) else null end as zx_R4_bal_sum,
+    case when sh.id_unqf is not null then p.zx_R4_bal_max else null end as zx_R4_bal_max,
+    case when sh.id_unqf is not null then coalesce(p.zx_R4_crdt_sum, 0) else null end as zx_R4_crdt_sum,
+    case when sh.id_unqf is not null then coalesce(p.zx_R4_acct_cnt, 0) else null end as zx_R4_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_R5_pos_bal_acct_cnt, 0) else null end as zx_R5_pos_bal_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_R5_bal_sum, 0) else null end as zx_R5_bal_sum,
+    case when sh.id_unqf is not null then p.zx_R5_bal_max else null end as zx_R5_bal_max,
+    case when sh.id_unqf is not null then coalesce(p.zx_R5_crdt_sum, 0) else null end as zx_R5_crdt_sum,
+    case when sh.id_unqf is not null then coalesce(p.zx_R5_acct_cnt, 0) else null end as zx_R5_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_D2_pos_bal_acct_cnt, 0) else null end as zx_D2_pos_bal_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_D2_bal_sum, 0) else null end as zx_D2_bal_sum,
+    case when sh.id_unqf is not null then p.zx_D2_bal_max else null end as zx_D2_bal_max,
+    case when sh.id_unqf is not null then coalesce(p.zx_D2_crdt_sum, 0) else null end as zx_D2_crdt_sum,
+    case when sh.id_unqf is not null then coalesce(p.zx_D2_acct_cnt, 0) else null end as zx_D2_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_C1_pos_bal_acct_cnt, 0) else null end as zx_C1_pos_bal_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_C1_bal_sum, 0) else null end as zx_C1_bal_sum,
+    case when sh.id_unqf is not null then p.zx_C1_bal_max else null end as zx_C1_bal_max,
+    case when sh.id_unqf is not null then coalesce(p.zx_C1_crdt_sum, 0) else null end as zx_C1_crdt_sum,
+    case when sh.id_unqf is not null then coalesce(p.zx_C1_acct_cnt, 0) else null end as zx_C1_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_C2_pos_bal_acct_cnt, 0) else null end as zx_C2_pos_bal_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_C2_bal_sum, 0) else null end as zx_C2_bal_sum,
+    case when sh.id_unqf is not null then p.zx_C2_bal_max else null end as zx_C2_bal_max,
+    case when sh.id_unqf is not null then coalesce(p.zx_C2_crdt_sum, 0) else null end as zx_C2_crdt_sum,
+    case when sh.id_unqf is not null then coalesce(p.zx_C2_acct_cnt, 0) else null end as zx_C2_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_OTH_pos_bal_acct_cnt, 0) else null end as zx_OTH_pos_bal_acct_cnt,
+    case when sh.id_unqf is not null then coalesce(p.zx_OTH_bal_sum, 0) else null end as zx_OTH_bal_sum,
+    case when sh.id_unqf is not null then p.zx_OTH_bal_max else null end as zx_OTH_bal_max,
+    case when sh.id_unqf is not null then coalesce(p.zx_OTH_crdt_sum, 0) else null end as zx_OTH_crdt_sum,
+    case when sh.id_unqf is not null then coalesce(p.zx_OTH_acct_cnt, 0) else null end as zx_OTH_acct_cnt
 from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature s
-left join lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg r
-    on s.unique_id = r.id_unqp
-   and s.dt_zx = r.dt
-left join lj_iceberg.ai_decision_dev.fxj_seed_credit_billday_agg b
-    on r.id_unqp = b.id_unqp
-   and r.id_unqf = b.id_unqf
-   and r.dt = b.dt
+left join lj_iceberg.ai_decision_dev.fxj_seed_credit_report_shell sh
+    on s.unique_id = sh.id_unqp
+   and s.dt_zx = sh.dt
 left join lj_iceberg.ai_decision_dev.fxj_seed_credit_report_ext e
-    on r.id_unqp = e.id_unqp
-   and r.id_unqf = e.id_unqf
-   and r.dt = e.dt
+    on sh.id_unqp = e.id_unqp
+   and sh.id_unqf = e.id_unqf
+   and sh.dt = e.dt
+left join lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg r
+    on sh.id_unqp = r.id_unqp
+   and sh.id_unqf = r.id_unqf
+   and sh.dt = r.dt
+left join lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg_pivot p
+    on sh.id_unqp = p.id_unqp
+   and sh.id_unqf = p.id_unqf
+   and sh.dt = p.dt
+left join lj_iceberg.ai_decision_dev.fxj_seed_credit_billday_agg b
+    on sh.id_unqp = b.id_unqp
+   and sh.id_unqf = b.id_unqf
+   and sh.dt = b.dt
 ;
 
 -- ########## 6. 核验 ##########
@@ -330,13 +503,19 @@ select
     count(1) as row_cnt,
     count(distinct unique_id) as usr_cnt,
     sum(if(dt_zx is not null, 1, 0)) as has_dt_zx_cnt,
-    sum(if(latest_bal_sum is not null, 1, 0)) as has_zx_feature_cnt
+    sum(if(zx_has_report_flg = 1, 1, 0)) as has_zx_report_cnt,
+    sum(if(zx_has_report_flg = 1 and latest_bal_sum is not null, 1, 0)) as has_bal_sum_known_cnt,
+    sum(if(zx_has_report_flg = 1 and latest_bal_sum = 0, 1, 0)) as bal_sum_zero_cnt,
+    sum(if(dt_zx is not null and zx_has_report_flg = 0, 1, 0)) as dt_zx_but_no_summary_cnt
 from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature_with_credit
 ;
 
--- 可选：与 jcr 流水线结果交叉验证（仅重叠 uuid+dt 应一致）
+-- 诊断：曾缺循环贷 agg、现应为 0 的人群
 -- select count(1)
--- from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature_with_credit a
--- inner join lj_iceberg.ai_decision_dev.jcr_credit_report_agg_20260715 j
---   on a.unique_id = j.id_unqp and a.dt_zx = j.dt
--- where abs(coalesce(a.latest_bal_sum, 0) - coalesce(j.bal_sum, 0)) > 0.01;
+-- from ..._with_credit
+-- where zx_has_report_flg = 1 and latest_bal_sum = 0 and zx_R1_bal_sum = 0 and zx_R2_bal_sum = 0 and zx_R3_bal_sum = 0;
+
+-- 新 account_type 发现（按需加宽表列）：
+-- select account_type, count(1)
+-- from lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg_by_type
+-- group by account_type order by count(1) desc;
