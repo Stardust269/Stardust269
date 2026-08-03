@@ -6,8 +6,8 @@
 
 | 角色 | 定义 |
 | --- | --- |
-| **P（pu_label=1）** | 利率 &lt; 18%，且**借款当日**有征信报告（`days_dt_zx = lend_date_sj`） |
-| **U（pu_label=0）** | 宽表中其余用户（背景约千万级；含隐藏正例） |
+| **P（pu_label=1）** | 扩量宽表 **`label=1`**（约 21.5 万；与 Notion 低定价种子+当日征信口径一致，由上游加工写入） |
+| **U（pu_label=0）** | **`label=0`**（背景约 984 万；含隐藏正例） |
 
 特征来源：Hive 宽表 `fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature_with_credit`（放心借 D 变量 + 腾讯/百行/朴道 + 征信 `latest_*` / `zx_*`）。**不入模**种子规则字段（如 `y_loan_base_rate`、`lend_date_sj`），避免标签泄漏。
 
@@ -41,7 +41,7 @@ model/
 # model/sql/export_training_data.sql → 下载为 data/training_pu.parquet
 ```
 
-扩量宽表**不含** `y_loan_base_rate` / `lend_date_sj`：`build_pu_training_table.sql` 已 join `zxt_5789_cust_detail_0630` 打 `pu_label`，并 join MS13（`standard_score` → `ms13_score`）。宽表里的 `label` 列**不是** PU 正类标签，请用 `pu_label`。字段核验见 `sql/verify_wide_table_columns.sql`。
+`build_pu_training_table.sql` 将宽表 **`label` 映射为 `pu_label`**（仅训练用列名；**`label` 不入模**），并 join MS13（`standard_score` → `ms13_score`）。训练前过滤 `zx_has_report_flg=1`。字段核验见 `sql/verify_wide_table_columns.sql`。
 
 ## 2. 本地训练
 

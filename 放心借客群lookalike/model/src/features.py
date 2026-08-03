@@ -15,6 +15,7 @@ LABEL_AND_SPLIT = frozenset({"pu_label", "dataset_split", "is_seed", "label"})
 # 用于定义 pu_label=1，不可入模（否则等价于记忆种子规则）
 SEED_DEFINITION_LEAKAGE = frozenset(
     {
+        "label",
         "y_loan_base_rate",
         "lend_date_sj",
         "lend_amt",
