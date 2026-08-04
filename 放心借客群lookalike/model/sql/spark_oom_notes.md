@@ -84,7 +84,7 @@ WHERE dataset_split IN ('train', 'val')
 2. `CREATE TABLE ... AS SELECT` 只选：必带字段 + 保留的特征列（用 `DESC TABLE` + `features.EXCLUDE_FROM_FEATURES` 规则在本地生成列清单，再贴进 SQL）。
 3. dtools：`SELECT * FROM lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_narrow WHERE ...` —— 此时的 `*` 列数已少很多。
 
-窄表可与 PU 表同库不同名，训练逻辑不变，只改导出用的表名。
+窄表可与 PU 表同库不同名，训练逻辑不变，只改导出用的表名。详见 `sql/build_pu_training_narrow_table.sql` 与 `scripts/spark_build_narrow_pu_table.py`。
 
 ### 做法 C：Spark 侧按列模式裁剪（不维护全量列名）
 
