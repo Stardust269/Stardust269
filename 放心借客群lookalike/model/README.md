@@ -23,7 +23,10 @@ model/
 ├── scripts/
 │   ├── train.py
 │   ├── predict.py
-│   └── generate_demo_data.py
+│   ├── generate_demo_data.py
+│   └── export_training_data_cloud.py
+├── notebooks/
+│   └── export_training_data.ipynb   # 云分析机 dtools 导出
 ├── data/          # 本地数据（gitignore）
 └── artifacts/     # 模型输出（gitignore）
 ```
@@ -39,7 +42,7 @@ model/
 # 可选 MS13：model/sql/build_pu_training_table_attach_ms13.sql
 
 # 3) 导出
-# model/sql/export_training_data.sql → 下载为 data/training_pu.parquet
+# model/sql/export_training_data.sql → 集群侧也可用 notebooks/export_training_data.ipynb（dtools）
 ```
 
 `build_pu_training_table.sql` 将宽表 **`label` 映射为 `pu_label`**，并划分 `dataset_split`；**默认不 join MS13**（避免宽表作业 OOM）。需要 ms13 筛背景时再跑 `build_pu_training_table_attach_ms13.sql`。训练前过滤 `zx_has_report_flg=1`。
