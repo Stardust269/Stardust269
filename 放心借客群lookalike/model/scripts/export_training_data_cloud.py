@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""云分析机导出 fxj_lookalike_pu_training（与 notebooks/export_training_data.ipynb 主流程一致）。"""
+"""云分析机导出 fxj_lookalike_pu_training。
+
+请在终端执行: python scripts/export_training_data_cloud.py
+不要在 Jupyter 里 %run 本脚本（会带上 -f kernel.json 导致 argparse 报错）。
+请改用 notebooks/fxj_lookalike_cloud_train.ipynb。
+"""
 from __future__ import annotations
 
 import argparse

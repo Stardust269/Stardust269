@@ -26,7 +26,8 @@ model/
 │   ├── generate_demo_data.py
 │   └── export_training_data_cloud.py
 ├── notebooks/
-│   └── export_training_data.ipynb   # 云分析机 dtools 导出
+│   └── fxj_lookalike_cloud_train.ipynb   # 云分析机：导出+训练（推荐）
+│   └── export_training_data.ipynb      # 仅导出（旧版，可选）
 ├── data/          # 本地数据（gitignore）
 └── artifacts/     # 模型输出（gitignore）
 ```
