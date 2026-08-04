@@ -24,8 +24,9 @@ training:
   random_seed: 42
   num_boost_round: 800
   early_stopping_rounds: 80
-  # 未标注过多时，训练可对 U 下采样以控制内存（1.0=全量）
-  unlabeled_subsample_ratio: 0.2
+  # label=0 / pu_label=0 负采样：背景约千万级，训练集内对 U 随机保留该比例（P 全保留；val 不采样）
+  # 0.15 ≈ 训练 U 约 118 万 + P 约 17 万，兼顾 PU 排序与内存
+  unlabeled_subsample_ratio: 0.15
   params:
     objective: binary
     metric: auc
@@ -40,6 +41,14 @@ training:
     lambda_l2: 2.0
     verbosity: -1
     seed: 42
+
+# 在 train 划分上统计缺失率，剔除缺失过高的列（同事建议）
+features:
+  max_missing_rate: 0.90
+
+# 从 Hive 导出时可选：与 training.unlabeled_subsample_ratio 对齐，减轻 dtools OOM
+export:
+  unlabeled_sample_frac: 0.15
 
 output:
   artifacts_dir: artifacts

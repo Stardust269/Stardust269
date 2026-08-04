@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from features import get_model_feature_columns
+from features import get_model_feature_columns, prune_features_by_missing_rate
 from preprocess import build_model_matrix
 
 
@@ -48,6 +48,7 @@ def apply_filters(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 
 
 def subsample_unlabeled(df: pd.DataFrame, label_col: str, ratio: float, seed: int) -> pd.DataFrame:
+    """对 label/pu_label=0 负采样；正类行全部保留。"""
     if ratio >= 1.0:
         return df
     pos = df[df[label_col] == 1]
@@ -67,6 +68,14 @@ def prepare_splits(
     if train_df.empty or val_df.empty:
         raise ValueError("train 或 val 为空，请检查 dataset_split")
     return train_df, val_df, feature_columns
+
+
+def apply_feature_missing_filter(
+    train_df: pd.DataFrame, feature_columns: list[str], cfg: dict
+) -> tuple[list[str], list[dict]]:
+    feat_cfg = cfg.get("features") or {}
+    max_rate = float(feat_cfg.get("max_missing_rate", 1.0))
+    return prune_features_by_missing_rate(train_df, feature_columns, max_rate)
 
 
 def to_xy(df: pd.DataFrame, feature_columns: list[str], label_col: str):

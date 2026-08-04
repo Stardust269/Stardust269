@@ -13,6 +13,7 @@ sys.path.insert(0, str(MODEL_ROOT / "src"))
 
 from config_loader import load_config, resolve_path  # noqa: E402
 from dataset import (  # noqa: E402
+    apply_feature_missing_filter,
     apply_filters,
     feature_group_summary,
     load_table,
@@ -46,10 +47,15 @@ def main() -> None:
     print(f"过滤后: {len(df)}，正类={int((df[label_col]==1).sum())}，未标注={int((df[label_col]==0).sum())}")
 
     train_df, val_df, feature_columns = prepare_splits(df, cfg)
+    feature_columns, dropped_feats = apply_feature_missing_filter(train_df, feature_columns, cfg)
+    if dropped_feats:
+        print(f"高缺失特征剔除: {len(dropped_feats)} 列 (阈值>{cfg.get('features', {}).get('max_missing_rate')})")
     ratio = float(cfg["training"].get("unlabeled_subsample_ratio", 1.0))
     seed = int(cfg["training"]["random_seed"])
     train_df = subsample_unlabeled(train_df, label_col, ratio, seed)
-    print(f"train={len(train_df)} (下采样后), val={len(val_df)}, features={len(feature_columns)}")
+    print(
+        f"train={len(train_df)} (U负采样后), val={len(val_df)}, features={len(feature_columns)}"
+    )
 
     groups = feature_group_summary(feature_columns)
     print(
@@ -97,6 +103,12 @@ def main() -> None:
         )
     else:
         raise ValueError(f"未知 pu.method: {method}")
+
+    if dropped_feats:
+        ts = manifest.get("timestamp", "run")
+        drop_path = Path(manifest["model_path"]).parent / f"{cfg['output']['model_name']}_{ts}_dropped_features.json"
+        drop_path.write_text(json.dumps(dropped_feats, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"剔除特征列表: {drop_path}")
 
     print("\n=== 验证集 PU 监控指标 ===")
     print(json.dumps(metrics["val"], ensure_ascii=False, indent=2))
