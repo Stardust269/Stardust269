@@ -5,8 +5,10 @@
 -- 目标：lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_narrow
 --
 -- 极宽表（数千列）无法在 SQL 里手写每一列的缺失率，请用 PySpark 脚本（推荐）：
---   scripts/spark_build_narrow_pu_table.py
--- 在 Spark 任务 / Notebook（已有 spark 会话）中 %run 或 spark-submit。
+--   bash scripts/spark_submit_narrow_pu_table.sh
+-- 或 spark-submit 时必须指定队列（sta_ai_decision 项目）：
+--   --queue root.ai.dev  --conf spark.yarn.queue=root.ai.dev
+-- 若报错「当前正在使用的队列为 root.default」= 未走项目允许队列 root.ai.dev。
 --
 -- 下面给出「原理等价」的纯 SQL 片段，便于理解或与脚本对照。
 -- =============================================================================

@@ -8,12 +8,13 @@
   - 入模候选列规则同 src/features.py
 
 运行方式（任选其一）：
-  1) 云分析机 / Notebook 里已有 SparkSession `spark`：
-       %run ../scripts/spark_build_narrow_pu_table.py
-  2) spark-submit（需把 model 目录加入 PYTHONPATH）：
-       spark-submit scripts/spark_build_narrow_pu_table.py \\
-         --source lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training \\
-         --target lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_narrow
+  1) 云分析机 Notebook 里已有 SparkSession（队列已配好）：
+       import sys; sys.argv = ["", "--yarn-queue", "root.ai.dev"]
+       %run scripts/spark_build_narrow_pu_table.py
+  2) spark-submit（马消 sta_ai_decision 必须用 root.ai.dev，见 scripts/spark_submit_narrow_pu_table.sh）：
+       bash scripts/spark_submit_narrow_pu_table.sh
+
+若报错「当前正在使用的队列为 root.default」：未指定 YARN 队列，请加 --queue root.ai.dev。
 
 完成后 dtools 导出改为读 target 表，仍可 SELECT *（列已变少）。
 """
@@ -22,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -43,7 +45,7 @@ DEFAULT_SOURCE = "lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training"
 DEFAULT_TARGET = "lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_narrow"
 
 
-def _get_spark():
+def _get_spark(yarn_queue: str | None = None):
     try:
         from pyspark.sql import SparkSession
     except ImportError as e:
@@ -52,11 +54,11 @@ def _get_spark():
     active = SparkSession.getActiveSession()
     if active is not None:
         return active
-    return (
-        SparkSession.builder.appName("fxj_pu_narrow_table")
-        .enableHiveSupport()
-        .getOrCreate()
-    )
+
+    builder = SparkSession.builder.appName("fxj_pu_narrow_table").enableHiveSupport()
+    if yarn_queue:
+        builder = builder.config("spark.yarn.queue", yarn_queue)
+    return builder.getOrCreate()
 
 
 def _missing_rate_expr(col_name: str):
@@ -139,9 +141,15 @@ def main(argv: list[str] | None = None) -> None:
         default=MODEL_ROOT / "artifacts" / "narrow_table_dropped_features.json",
     )
     p.add_argument("--dry-run", action="store_true", help="只打印保留/剔除列数，不写表")
+    p.add_argument(
+        "--yarn-queue",
+        default=os.environ.get("SPARK_YARN_QUEUE", "root.ai.dev"),
+        help="YARN 队列。马消 sta_ai_decision 仅允许 root.ai.dev（勿用 root.default）",
+    )
     args = p.parse_args(argv)
 
-    spark = _get_spark()
+    print(f"YARN 队列: {args.yarn_queue}")
+    spark = _get_spark(yarn_queue=args.yarn_queue)
     df = spark.table(args.source)
     all_columns = df.columns
     print(f"源表: {args.source}，列数={len(all_columns)}")
