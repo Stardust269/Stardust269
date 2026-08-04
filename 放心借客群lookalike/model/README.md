@@ -34,14 +34,15 @@ model/
 # 1) 征信特征宽表（若未跑）
 # 放心借客群lookalike/sql/fxj_seed_users_attach_credit_feature.sql
 
-# 2) PU 训练表
+# 2) PU 训练表（先跑轻量版；OOM 见 sql/spark_oom_notes.md）
 # model/sql/build_pu_training_table.sql
+# 可选 MS13：model/sql/build_pu_training_table_attach_ms13.sql
 
 # 3) 导出
 # model/sql/export_training_data.sql → 下载为 data/training_pu.parquet
 ```
 
-`build_pu_training_table.sql` 将宽表 **`label` 映射为 `pu_label`**（仅训练用列名；**`label` 不入模**），并 join MS13（`standard_score` → `ms13_score`）。训练前过滤 `zx_has_report_flg=1`。字段核验见 `sql/verify_wide_table_columns.sql`。
+`build_pu_training_table.sql` 将宽表 **`label` 映射为 `pu_label`**，并划分 `dataset_split`；**默认不 join MS13**（避免宽表作业 OOM）。需要 ms13 筛背景时再跑 `build_pu_training_table_attach_ms13.sql`。训练前过滤 `zx_has_report_flg=1`。
 
 ## 2. 本地训练
 
