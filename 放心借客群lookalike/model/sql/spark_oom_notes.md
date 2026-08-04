@@ -41,4 +41,70 @@ Consider boosting spark.executor.memoryOverhead.
 ## 仍失败时
 
 - 向同事确认是否有**已物化的 PU 训练中间表**或导出到 OBS/HDFS 再本地训练。
-- 导出时不要 `select *`：只选建模列 + `pu_label` + `dataset_split`（及可选 `ms13_score`），减小单次作业宽度。
+- 导出时不要 `select *`：只选建模列 + `pu_label` + `dataset_split`（及可选 `ms13_score`），减小单次作业宽度（见下一节）。
+
+## 减单次宽度：具体怎么做、能不能这么干
+
+**可以。**「宽度」= 单次 SQL 读写的**列数 × 行数**。减宽度 = 让这次作业少带一些列（或先物化一张更窄的 Iceberg 表，再 dtools 拉数）。与「特征很多、只剔高缺失」不矛盾：业务特征仍保留，去掉的是**不入模**或**缺失过高**的列。
+
+### 和 `train.py` 的关系
+
+- 训练侧：`get_model_feature_columns` 对 parquet 里**存在的列**自动入模，并排除 `src/features.py` 里的 `EXCLUDE_FROM_FEATURES`（id、`label`、`rnk`、`time_inst`、原始日期等）。
+- 导出 parquet **必须带**：`pu_label`、`dataset_split`、`unique_id`（配置里的 `id_col`）。
+- 若 `config.yaml` 里 `require_zx_report: true`，需带 `zx_has_report_flg`，否则过滤会把表滤空。
+- 若要用 `unlabeled_ms13_min > 0`，需带 `ms13_score`。
+- 在 Spark 导出阶段就删掉的高缺失列，**不会**出现在 parquet 里；`train.py` 里 `max_missing_rate` 仍可在剩余列上再剔一遍（双重剔同一列无害）。
+
+### 做法 A：dtools 里不用 `SELECT *`，写显式列清单
+
+适合：列名已稳定，或已从 `DESC TABLE` 拷好清单。
+
+```sql
+SELECT
+  unique_id,
+  pu_label,
+  dataset_split,
+  zx_has_report_flg,
+  ms13_score,          -- 不用 ms13 筛背景时可省略
+  d101, d102, ...      -- 放心借 D 段
+  , latest_xxx, zx_xxx -- 征信
+  , bh_xxx, risk_score_xxx  -- 外部
+FROM lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training
+WHERE dataset_split IN ('train', 'val')
+  AND (pu_label = 1 OR rand() < 0.15)
+```
+
+**不要指望**只删 `rnk`/`time_inst` 就能从 OOM 里救出来（通常只少几十列）。明显减负的是：**在清单里不写** id 重复列、泄漏列（`label`、`lend_date_sj` 等），以及同事认定要剔的**高缺失列**。
+
+### 做法 B（推荐）：Spark 先建「窄表」，dtools 只读窄表
+
+适合：宽表几千列、dtools 一次拉不动。重活在 Spark 集群分区内完成，导出作业只扫窄表。
+
+1. 在 Spark 上对 `fxj_lookalike_pu_training` 的 **train 划分**算各列缺失率（或抽样算），得到要删的列名列表（阈值与训练一致，如缺失率 > 0.9）。
+2. `CREATE TABLE ... AS SELECT` 只选：必带字段 + 保留的特征列（用 `DESC TABLE` + `features.EXCLUDE_FROM_FEATURES` 规则在本地生成列清单，再贴进 SQL）。
+3. dtools：`SELECT * FROM lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_narrow WHERE ...` —— 此时的 `*` 列数已少很多。
+
+窄表可与 PU 表同库不同名，训练逻辑不变，只改导出用的表名。
+
+### 做法 C：Spark 侧按列模式裁剪（不维护全量列名）
+
+若表结构前缀稳定，可在建窄表时用「反选」思路（平台支持时）：
+
+- 保留：`pu_label`、`dataset_split`、`unique_id`、`zx_has_report_flg`、`ms13_score`
+- 保留：列名 like `d%`（注意过滤掉 `days_dt_zx` 若不想带出）、`latest_%`、`zx_%`、`bh_%`、`risk_score_%` 等业务前缀
+- 排除：`rnk%`、`time_inst`、`label`、种子定义泄漏字段等
+
+具体语法因 Hive/Spark 版本而异；没有通用 `SELECT * EXCEPT` 时，仍建议用 **B：缺失率统计 + 生成列清单**。
+
+### 和「分 100/200 桶」怎么配合
+
+- **减宽度**和**分桶**可同时用：窄表 + `pu_label=0 AND pmod(hash(unique_id), N)=k`；种子单独导一次。
+- 若仍是 `SELECT *` 且列数未减，分再多个桶也可能 OOM（列宽不变）。
+
+### 小结
+
+| 手段 | 减的是什么 | 能否操作 |
+|------|------------|----------|
+| 显式列清单 / 窄表 | 元数据、泄漏列、高缺失列 | 可以，与训练兼容 |
+| 仅 train.py 剔高缺失 | 训练内存 | **不减** Spark/dtools 导出宽度 |
+| 分桶 | 单次行数 | 可以；列仍宽时可能不够 |
