@@ -66,12 +66,16 @@ where rn = 1
 ;
 
 -- ########## 2. 借贷账户明细（全部 account_type，仅 spine 上的 uuid + dt_zx）##########
--- 易 OOM（exit 137）：勿先扫全量 PBOC perform 再 join spine；勿在全表 1m_perform 上做 row_number。
--- 顺序：spine 驱动 perform+basic → staging → 仅对 staging 账户键过滤 1m 取 bill_day → account_base。
--- 本段建议单独提交 Spark，并加大 executor memoryOverhead（见 model/sql/spark_oom_notes.md）。
+-- 无法调 executor 内存时：勿跑下面整段，改用
+--   sql/fxj_seed_credit_account_part2_light.sql  或
+--   bash scripts/run_part2_account_batches.sh（推荐，默认 64 批各起一个 Spark）
+-- bill_day 默认 null（不做 1m_perform 开窗）；latest_same_billday_* 可能为空，其余征信特征正常。
 
 drop table if exists lj_iceberg.ai_decision_dev.fxj_seed_credit_account_stg;
-create table if not exists lj_iceberg.ai_decision_dev.fxj_seed_credit_account_stg as
+drop table if exists lj_iceberg.ai_decision_dev.fxj_seed_credit_account_base;
+create table lj_iceberg.ai_decision_dev.fxj_seed_credit_account_base
+using iceberg
+as
 select
     t1.id_unqf,
     t1.id_unqp,
@@ -102,6 +106,7 @@ select
     coalesce(nullif(trim(t2.account_type), ''), '_UNK') as account_type,
     t1.dt,
     concat(substr(t1.dt, 1, 4), '-', substr(t1.dt, 5, 2), '-', substr(t1.dt, 7, 2)) as days_dt_zx,
+    cast(null as int) as bill_day,
     case
         when coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0) > 0
          and coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0
@@ -135,61 +140,6 @@ inner join (
    and t1.id_unqp = t2.id_unqp
    and t1.account_no = t2.account_no
    and t1.dt = t2.dt
-;
-
-drop table if exists lj_iceberg.ai_decision_dev.fxj_seed_credit_account_base;
-create table if not exists lj_iceberg.ai_decision_dev.fxj_seed_credit_account_base as
-select
-    s.id_unqf,
-    s.id_unqp,
-    s.account_no,
-    s.account_id,
-    s.balance,
-    s.org_manage_type,
-    s.org_manage_code,
-    s.credit_grant_amount,
-    s.account_type,
-    s.dt,
-    s.days_dt_zx,
-    case
-        when t3.settle_date is null or cast(t3.settle_date as string) = '' then null
-        else cast(day(cast(t3.settle_date as date)) as int)
-    end as bill_day,
-    s.util_rate,
-    s.is_pos_bal_acct,
-    s.is_non_mx
-from lj_iceberg.ai_decision_dev.fxj_seed_credit_account_stg s
-left join (
-    select id_unqf, id_unqp, account_no, dt, settle_date
-    from (
-        select
-            m.id_unqf,
-            m.id_unqp,
-            m.account_no,
-            m.dt,
-            m.settle_date,
-            row_number() over (
-                partition by m.id_unqf, m.id_unqp, m.account_no, m.dt
-                order by coalesce(m.info_dt, m.settle_date) desc, m.month desc
-            ) as rn
-        from lj_iceberg.pboccr2d.dsst_eds_gaa02_loan_account_latest_1m_perform m
-        inner join (
-            select distinct id_unqf, id_unqp, account_no, dt
-            from lj_iceberg.ai_decision_dev.fxj_seed_credit_account_stg
-        ) k
-            on m.id_unqf = k.id_unqf
-           and m.id_unqp = k.id_unqp
-           and m.account_no = k.account_no
-           and m.dt = k.dt
-        where m.dt >= '20240801'
-          and m.dt < '20260701'
-    ) x
-    where rn = 1
-) t3
-    on s.id_unqf = t3.id_unqf
-   and s.id_unqp = t3.id_unqp
-   and s.account_no = t3.account_no
-   and s.dt = t3.dt
 ;
 
 -- ########## 3a. 按 account_type 报告级聚合（长表）##########
