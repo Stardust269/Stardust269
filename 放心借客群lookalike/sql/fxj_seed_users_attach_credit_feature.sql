@@ -650,7 +650,9 @@ select
     sum(if(zx_has_report_flg = 1, 1, 0)) as has_zx_report_cnt,
     sum(if(zx_has_report_flg = 1 and latest_bal_sum is not null, 1, 0)) as has_bal_sum_known_cnt,
     sum(if(zx_has_report_flg = 1 and latest_bal_sum = 0, 1, 0)) as bal_sum_zero_cnt,
-    sum(if(dt_zx is not null and zx_has_report_flg = 0, 1, 0)) as dt_zx_but_no_summary_cnt
+    sum(if(dt_zx is not null and zx_has_report_flg = 0, 1, 0)) as dt_zx_but_no_summary_cnt,
+    sum(if(zx_has_report_flg = 1 and latest_credit_amount > cast(9999999 as decimal(18, 2)), 1, 0)) as cap_credit_amount_cnt,
+    sum(if(zx_has_report_flg = 1 and latest_bal_sum > cast(9999999 as decimal(18, 2)), 1, 0)) as cap_bal_sum_cnt
 from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature_with_credit
 ;
 
