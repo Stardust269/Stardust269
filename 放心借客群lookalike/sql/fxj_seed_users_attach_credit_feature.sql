@@ -9,6 +9,9 @@
 --   - 0 / null：有报告且可从报告/账户明细推出「没有」→ 0；无法推出 → null（如 max/min/util）
 --   - 余额类 sum/count 在有报告 (zx_id_unqf 非空) 时对账户聚合 coalesce 为 0
 --   - 剔马消机构码 T10156530H0001（仅影响余额/额度类汇总，与 jcr 一致）
+-- 数值类型约定（避免 Spark/Hive 除法把比例升成 decimal(38,20) 撑大宽表）：
+--   - 金额（元）：decimal(18, 2)（credit_amount / balance / 额度汇总等）
+--   - 比例（使用率、余额/额度比，无量纲，通常 0~1）：decimal(10, 6)
 -- 输出：
 --   ..._feature_with_credit（样本 + 报告扩展 + 分类型账户宽表 + 全类型合计 latest_*）
 -- 中间表：
@@ -78,8 +81,11 @@ select
     case
         when coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0) > 0
          and coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0
-        then coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0)
-             / coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0)
+        then cast(
+            coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0)
+            / coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0)
+            as decimal(10, 6)
+        )
         else null
     end as util_rate,
     case when coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0 then 1 else 0 end as is_pos_bal_acct,
@@ -141,12 +147,14 @@ select
     min(if(is_pos_bal_acct = 1 and is_non_mx = 1, credit_grant_amount, null)) as crdt_min,
     max(if(is_pos_bal_acct = 1 and is_non_mx = 1, util_rate, null)) as util_max,
     min(if(is_pos_bal_acct = 1 and is_non_mx = 1, util_rate, null)) as util_min,
-    case
-        when sum(if(is_non_mx = 1, credit_grant_amount, 0)) > 0
-        then sum(if(is_non_mx = 1, balance, 0))
-             / sum(if(is_non_mx = 1, credit_grant_amount, 0))
-        else null
-    end as util_sum,
+    cast(
+        case
+            when sum(if(is_non_mx = 1, credit_grant_amount, 0)) > 0
+            then sum(if(is_non_mx = 1, balance, 0))
+                 / sum(if(is_non_mx = 1, credit_grant_amount, 0))
+            else null
+        end as decimal(10, 6)
+    ) as util_sum,
     count(distinct if(is_pos_bal_acct = 1 and is_non_mx = 1 and bill_day is not null, bill_day, null)) as bill_day_cnt
 from lj_iceberg.ai_decision_dev.fxj_seed_credit_account_base
 group by id_unqp, id_unqf, dt, days_dt_zx, account_type
@@ -169,7 +177,10 @@ select
     min(crdt_min) as crdt_min,
     max(util_max) as util_max,
     min(util_min) as util_min,
-    case when sum(crdt_sum) > 0 then sum(bal_sum) / sum(crdt_sum) else null end as util_sum,
+    cast(
+        case when sum(crdt_sum) > 0 then sum(bal_sum) / sum(crdt_sum) else null end
+        as decimal(10, 6)
+    ) as util_sum,
     sum(bill_day_cnt) as bill_day_cnt
 from lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg_by_type
 group by id_unqp, id_unqf, dt, days_dt_zx
@@ -288,12 +299,14 @@ select
     cast(nullif(cls.credit_account_num, '') as int) as credit_account_num,
     cast(nullif(cls.credit_amount, '') as decimal(18, 2)) as credit_amount,
     cast(nullif(cls.credit_used_amount, '') as decimal(18, 2)) as credit_used_amount,
-    case
-        when coalesce(cast(nullif(cls.credit_amount, '') as decimal(18, 2)), 0) > 0
-        then cast(nullif(cls.credit_used_amount, '') as decimal(18, 2))
-             / cast(nullif(cls.credit_amount, '') as decimal(18, 2))
-        else null
-    end as credit_util_rate,
+    cast(
+        case
+            when coalesce(cast(nullif(cls.credit_amount, '') as decimal(18, 2)), 0) > 0
+            then cast(nullif(cls.credit_used_amount, '') as decimal(18, 2))
+                 / cast(nullif(cls.credit_amount, '') as decimal(18, 2))
+            else null
+        end as decimal(10, 6)
+    ) as credit_util_rate,
     case when coalesce(tip.has_house_loan_flg, 0) > 0 or coalesce(bi.has_house_loan_flg, 0) > 0 then 1 else 0 end as has_house_loan_flg,
     case
         when coalesce(tip.has_gjj_loan_flg, 0) > 0 or coalesce(phf.has_gjj_record_flg, 0) > 0
