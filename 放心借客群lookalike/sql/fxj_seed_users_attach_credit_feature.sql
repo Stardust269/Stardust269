@@ -15,6 +15,9 @@
 -- 比例列清单（凡除法结果均 cast，勿依赖引擎默认精度）：
 --   util_rate → util_max / util_min / util_sum → latest_util_* ；
 --   credit_util_rate → latest_credit_util_rate
+-- 特征金额盖帽（建模用，非人行真值回显；同事约定）：
+--   整数部分超过 7 位（|金额| > 9_999_999）→ 1_000_000 元；null 仍为 null
+--   适用于余额/授信/逾期金额等；计数、比例、flag 不盖帽
 -- 输出：
 --   ..._feature_with_credit（样本 + 报告扩展 + 分类型账户宽表 + 全类型合计 latest_*）
 -- 中间表：
@@ -70,10 +73,28 @@ select
     t1.id_unqp,
     t1.account_no,
     t2.account_id,
-    coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) as balance,
+    coalesce(
+        cast(
+            case
+                when abs(coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0)) > cast(9999999 as decimal(18, 2))
+                then cast(1000000 as decimal(18, 2))
+                else coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0)
+            end as decimal(18, 2)
+        ),
+        0
+    ) as balance,
     t2.org_manage_type,
     t2.org_manage_code,
-    coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0) as credit_grant_amount,
+    coalesce(
+        cast(
+            case
+                when abs(coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0)) > cast(9999999 as decimal(18, 2))
+                then cast(1000000 as decimal(18, 2))
+                else coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0)
+            end as decimal(18, 2)
+        ),
+        0
+    ) as credit_grant_amount,
     coalesce(nullif(trim(t2.account_type), ''), '_UNK') as account_type,
     t1.dt,
     concat(substr(t1.dt, 1, 4), '-', substr(t1.dt, 5, 2), '-', substr(t1.dt, 7, 2)) as days_dt_zx,
@@ -142,12 +163,52 @@ select
     account_type,
     count(1) as acct_cnt,
     sum(if(is_pos_bal_acct = 1 and is_non_mx = 1, 1, 0)) as pos_bal_acct_cnt,
-    sum(if(is_non_mx = 1, balance, 0)) as bal_sum,
-    max(if(is_pos_bal_acct = 1 and is_non_mx = 1, balance, null)) as bal_max,
-    min(if(is_pos_bal_acct = 1 and is_non_mx = 1, balance, null)) as bal_min,
-    sum(if(is_non_mx = 1, credit_grant_amount, 0)) as crdt_sum,
-    max(if(is_pos_bal_acct = 1 and is_non_mx = 1, credit_grant_amount, null)) as crdt_max,
-    min(if(is_pos_bal_acct = 1 and is_non_mx = 1, credit_grant_amount, null)) as crdt_min,
+    cast(
+        case
+            when abs(sum(if(is_non_mx = 1, balance, 0))) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else sum(if(is_non_mx = 1, balance, 0))
+        end as decimal(18, 2)
+    ) as bal_sum,
+    cast(
+        case
+            when max(if(is_pos_bal_acct = 1 and is_non_mx = 1, balance, null)) is null then null
+            when abs(max(if(is_pos_bal_acct = 1 and is_non_mx = 1, balance, null))) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else max(if(is_pos_bal_acct = 1 and is_non_mx = 1, balance, null))
+        end as decimal(18, 2)
+    ) as bal_max,
+    cast(
+        case
+            when min(if(is_pos_bal_acct = 1 and is_non_mx = 1, balance, null)) is null then null
+            when abs(min(if(is_pos_bal_acct = 1 and is_non_mx = 1, balance, null))) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else min(if(is_pos_bal_acct = 1 and is_non_mx = 1, balance, null))
+        end as decimal(18, 2)
+    ) as bal_min,
+    cast(
+        case
+            when abs(sum(if(is_non_mx = 1, credit_grant_amount, 0))) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else sum(if(is_non_mx = 1, credit_grant_amount, 0))
+        end as decimal(18, 2)
+    ) as crdt_sum,
+    cast(
+        case
+            when max(if(is_pos_bal_acct = 1 and is_non_mx = 1, credit_grant_amount, null)) is null then null
+            when abs(max(if(is_pos_bal_acct = 1 and is_non_mx = 1, credit_grant_amount, null))) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else max(if(is_pos_bal_acct = 1 and is_non_mx = 1, credit_grant_amount, null))
+        end as decimal(18, 2)
+    ) as crdt_max,
+    cast(
+        case
+            when min(if(is_pos_bal_acct = 1 and is_non_mx = 1, credit_grant_amount, null)) is null then null
+            when abs(min(if(is_pos_bal_acct = 1 and is_non_mx = 1, credit_grant_amount, null))) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else min(if(is_pos_bal_acct = 1 and is_non_mx = 1, credit_grant_amount, null))
+        end as decimal(18, 2)
+    ) as crdt_min,
     cast(max(if(is_pos_bal_acct = 1 and is_non_mx = 1, util_rate, null)) as decimal(10, 6)) as util_max,
     cast(min(if(is_pos_bal_acct = 1 and is_non_mx = 1, util_rate, null)) as decimal(10, 6)) as util_min,
     cast(
@@ -172,12 +233,52 @@ select
     dt,
     days_dt_zx,
     sum(pos_bal_acct_cnt) as pos_bal_acct_cnt,
-    sum(bal_sum) as bal_sum,
-    max(bal_max) as bal_max,
-    min(bal_min) as bal_min,
-    sum(crdt_sum) as crdt_sum,
-    max(crdt_max) as crdt_max,
-    min(crdt_min) as crdt_min,
+    cast(
+        case
+            when abs(sum(bal_sum)) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else sum(bal_sum)
+        end as decimal(18, 2)
+    ) as bal_sum,
+    cast(
+        case
+            when max(bal_max) is null then null
+            when abs(max(bal_max)) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else max(bal_max)
+        end as decimal(18, 2)
+    ) as bal_max,
+    cast(
+        case
+            when min(bal_min) is null then null
+            when abs(min(bal_min)) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else min(bal_min)
+        end as decimal(18, 2)
+    ) as bal_min,
+    cast(
+        case
+            when abs(sum(crdt_sum)) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else sum(crdt_sum)
+        end as decimal(18, 2)
+    ) as crdt_sum,
+    cast(
+        case
+            when max(crdt_max) is null then null
+            when abs(max(crdt_max)) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else max(crdt_max)
+        end as decimal(18, 2)
+    ) as crdt_max,
+    cast(
+        case
+            when min(crdt_min) is null then null
+            when abs(min(crdt_min)) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else min(crdt_min)
+        end as decimal(18, 2)
+    ) as crdt_min,
     cast(max(util_max) as decimal(10, 6)) as util_max,
     cast(min(util_min) as decimal(10, 6)) as util_min,
     cast(
@@ -259,7 +360,13 @@ select
     dt,
     days_dt_zx,
     max(acct_cnt_same_billday) as same_billday_acct_cnt_max,
-    max(bal_sum_same_billday) as same_billday_bal_sum_max
+    cast(
+        case
+            when abs(max(bal_sum_same_billday)) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else max(bal_sum_same_billday)
+        end as decimal(18, 2)
+    ) as same_billday_bal_sum_max
 from (
     select
         id_unqp,
@@ -300,8 +407,22 @@ select
     pd.pd_max_overdue_months,
     pd.pd_max_overdue_amt,
     cast(nullif(cls.credit_account_num, '') as int) as credit_account_num,
-    cast(nullif(cls.credit_amount, '') as decimal(18, 2)) as credit_amount,
-    cast(nullif(cls.credit_used_amount, '') as decimal(18, 2)) as credit_used_amount,
+    cast(
+        case
+            when cast(nullif(cls.credit_amount, '') as decimal(18, 2)) is null then null
+            when abs(cast(nullif(cls.credit_amount, '') as decimal(18, 2))) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else cast(nullif(cls.credit_amount, '') as decimal(18, 2))
+        end as decimal(18, 2)
+    ) as credit_amount,
+    cast(
+        case
+            when cast(nullif(cls.credit_used_amount, '') as decimal(18, 2)) is null then null
+            when abs(cast(nullif(cls.credit_used_amount, '') as decimal(18, 2))) > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else cast(nullif(cls.credit_used_amount, '') as decimal(18, 2))
+        end as decimal(18, 2)
+    ) as credit_used_amount,
     cast(
         case
             when coalesce(cast(nullif(cls.credit_amount, '') as decimal(18, 2)), 0) > 0
@@ -328,7 +449,14 @@ left join (
            max(cast(nullif(num_month, '') as int)) as pd_num_month_max,
            sum(cast(nullif(num_month, '') as int)) as pd_num_month_sum,
            max(cast(nullif(max_amt_pd, '') as int)) as pd_max_overdue_months,
-           max(cast(nullif(amt_pdtotal, '') as decimal(18, 2))) as pd_max_overdue_amt
+           cast(
+               case
+                   when max(cast(nullif(amt_pdtotal, '') as decimal(18, 2))) is null then null
+                   when abs(max(cast(nullif(amt_pdtotal, '') as decimal(18, 2)))) > cast(9999999 as decimal(18, 2))
+                   then cast(1000000 as decimal(18, 2))
+                   else max(cast(nullif(amt_pdtotal, '') as decimal(18, 2)))
+               end as decimal(18, 2)
+           ) as pd_max_overdue_amt
     from lj_iceberg.pboccr2d.dsst_eds_gaa02_credit_loan_summary_pd_summary
     where dt >= '20240801'
       and dt < '20260701'
