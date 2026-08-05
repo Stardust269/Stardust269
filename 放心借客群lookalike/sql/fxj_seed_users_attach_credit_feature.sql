@@ -12,6 +12,9 @@
 -- 数值类型约定（避免 Spark/Hive 除法把比例升成 decimal(38,20) 撑大宽表）：
 --   - 金额（元）：decimal(18, 2)（credit_amount / balance / 额度汇总等）
 --   - 比例（使用率、余额/额度比，无量纲，通常 0~1）：decimal(10, 6)
+-- 比例列清单（凡除法结果均 cast，勿依赖引擎默认精度）：
+--   util_rate → util_max / util_min / util_sum → latest_util_* ；
+--   credit_util_rate → latest_credit_util_rate
 -- 输出：
 --   ..._feature_with_credit（样本 + 报告扩展 + 分类型账户宽表 + 全类型合计 latest_*）
 -- 中间表：
@@ -145,8 +148,8 @@ select
     sum(if(is_non_mx = 1, credit_grant_amount, 0)) as crdt_sum,
     max(if(is_pos_bal_acct = 1 and is_non_mx = 1, credit_grant_amount, null)) as crdt_max,
     min(if(is_pos_bal_acct = 1 and is_non_mx = 1, credit_grant_amount, null)) as crdt_min,
-    max(if(is_pos_bal_acct = 1 and is_non_mx = 1, util_rate, null)) as util_max,
-    min(if(is_pos_bal_acct = 1 and is_non_mx = 1, util_rate, null)) as util_min,
+    cast(max(if(is_pos_bal_acct = 1 and is_non_mx = 1, util_rate, null)) as decimal(10, 6)) as util_max,
+    cast(min(if(is_pos_bal_acct = 1 and is_non_mx = 1, util_rate, null)) as decimal(10, 6)) as util_min,
     cast(
         case
             when sum(if(is_non_mx = 1, credit_grant_amount, 0)) > 0
@@ -175,8 +178,8 @@ select
     sum(crdt_sum) as crdt_sum,
     max(crdt_max) as crdt_max,
     min(crdt_min) as crdt_min,
-    max(util_max) as util_max,
-    min(util_min) as util_min,
+    cast(max(util_max) as decimal(10, 6)) as util_max,
+    cast(min(util_min) as decimal(10, 6)) as util_min,
     cast(
         case when sum(crdt_sum) > 0 then sum(bal_sum) / sum(crdt_sum) else null end
         as decimal(10, 6)
@@ -414,9 +417,9 @@ select
     case when sh.id_unqf is not null then coalesce(r.crdt_sum, 0) else null end as latest_crdt_sum,
     case when sh.id_unqf is not null then r.crdt_max else null end as latest_crdt_max,
     case when sh.id_unqf is not null then r.crdt_min else null end as latest_crdt_min,
-    case when sh.id_unqf is not null then r.util_sum else null end as latest_util_sum,
-    case when sh.id_unqf is not null then r.util_max else null end as latest_util_max,
-    case when sh.id_unqf is not null then r.util_min else null end as latest_util_min,
+    case when sh.id_unqf is not null then cast(r.util_sum as decimal(10, 6)) else null end as latest_util_sum,
+    case when sh.id_unqf is not null then cast(r.util_max as decimal(10, 6)) else null end as latest_util_max,
+    case when sh.id_unqf is not null then cast(r.util_min as decimal(10, 6)) else null end as latest_util_min,
     case when sh.id_unqf is not null then coalesce(r.bill_day_cnt, 0) else null end as latest_bill_day_cnt,
     case when sh.id_unqf is not null then b.same_billday_acct_cnt_max else null end as latest_same_billday_acct_cnt_max,
     case when sh.id_unqf is not null then b.same_billday_bal_sum_max else null end as latest_same_billday_bal_sum_max,
@@ -437,7 +440,7 @@ select
     e.credit_account_num as latest_credit_account_num,
     e.credit_amount as latest_credit_amount,
     e.credit_used_amount as latest_credit_used_amount,
-    e.credit_util_rate as latest_credit_util_rate,
+    cast(e.credit_util_rate as decimal(10, 6)) as latest_credit_util_rate,
     e.org_type as latest_org_type,
     case when sh.id_unqf is not null then coalesce(p.zx_D1_pos_bal_acct_cnt, 0) else null end as zx_D1_pos_bal_acct_cnt,
     case when sh.id_unqf is not null then coalesce(p.zx_D1_bal_sum, 0) else null end as zx_D1_bal_sum,
