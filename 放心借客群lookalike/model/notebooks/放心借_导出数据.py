@@ -2,27 +2,45 @@ import os
 
 import dtools
 
-# 与 config.yaml export.unlabeled_sample_frac 一致；1.0 表示不抽背景
-UNLABELED_SAMPLE_FRAC = 0.15
+# 同事预采样表（约 50 万负样本 + 正类），dtools 可整表加载
+TABLE_NAME = "lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_samples"
 
-table_name = "lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training"
+# 全量 PU 表过大时用下面表名，并设 UNLABELED_SAMPLE_FRAC = 0.15
+# TABLE_NAME = "lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training"
+
+UNLABELED_SAMPLE_FRAC = 1.0
 data_file = "data/training_pu.parquet"
 
-sample_sql = ""
+# 若无 dataset_split 列，设 False，并在 config 中调整划分逻辑
+FILTER_TRAIN_VAL_SPLIT = True
+
+where_parts = []
+if FILTER_TRAIN_VAL_SPLIT:
+    where_parts.append("dataset_split IN ('train', 'val')")
 if UNLABELED_SAMPLE_FRAC < 1.0:
-    sample_sql = f"\n  AND (pu_label = 1 OR rand() < {UNLABELED_SAMPLE_FRAC})"
+    where_parts.append(f"(pu_label = 1 OR rand() < {UNLABELED_SAMPLE_FRAC})")
+
+where_sql = ""
+if where_parts:
+    where_sql = "\nWHERE " + "\n  AND ".join(where_parts)
 
 query = f"""
 SELECT *
-FROM {table_name}
-WHERE dataset_split IN ('train', 'val')
-{sample_sql}
+FROM {TABLE_NAME}
+{where_sql}
 """
 
 df_data = dtools.get_as_frame(query)
 print(f"行数: {len(df_data)}, 列数: {len(df_data.columns)}")
-print(df_data["pu_label"].value_counts())
+
+if "pu_label" not in df_data.columns and "label" in df_data.columns:
+    df_data["pu_label"] = df_data["label"].astype(int)
+    print("已从 label 生成 pu_label")
+
+label_col = "pu_label" if "pu_label" in df_data.columns else "label"
+print(df_data[label_col].value_counts())
 
 os.makedirs(os.path.dirname(data_file) or ".", exist_ok=True)
 df_data.to_parquet(data_file, index=False)
 print("已保存", data_file)
+print("提示: 预采样表训练时建议 config.yaml 设 training.unlabeled_subsample_ratio: 1.0")

@@ -24,9 +24,8 @@ training:
   random_seed: 42
   num_boost_round: 800
   early_stopping_rounds: 80
-  # label=0 / pu_label=0 负采样：背景约千万级，训练集内对 U 随机保留该比例（P 全保留；val 不采样）
-  # 0.15 ≈ 训练 U 约 118 万 + P 约 17 万，兼顾 PU 排序与内存
-  unlabeled_subsample_ratio: 0.15
+  # 使用同事预采样表导出时设为 1.0，避免对 U 再抽一层
+  unlabeled_subsample_ratio: 1.0
   params:
     objective: binary
     metric: auc
@@ -48,7 +47,9 @@ features:
 
 # 从 Hive 导出时可选：与 training.unlabeled_subsample_ratio 对齐，减轻 dtools OOM
 export:
-  unlabeled_sample_frac: 0.15
+  # 同事预采样（约 50w 负样本）：lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_samples
+  table_name: lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_samples
+  unlabeled_sample_frac: 1.0
 
 output:
   artifacts_dir: artifacts

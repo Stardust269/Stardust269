@@ -12,7 +12,8 @@ import os
 
 import dtools
 
-DEFAULT_TABLE = "ai_decision_dev.fxj_lookalike_pu_training"
+DEFAULT_TABLE = "lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_samples"
+# DEFAULT_TABLE = "lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training"
 DEFAULT_OUT = "model/data/training_pu.parquet"
 
 
