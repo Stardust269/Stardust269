@@ -344,9 +344,23 @@ select
     max(case when account_type = 'C2' then crdt_sum else 0 end) as zx_C2_crdt_sum,
     max(case when account_type = 'C2' then acct_cnt else 0 end) as zx_C2_acct_cnt,
     sum(case when account_type in ('D1','R1','R2','R3','R4','R5','D2','C1','C2') then 0 else pos_bal_acct_cnt end) as zx_OTH_pos_bal_acct_cnt,
-    sum(case when account_type in ('D1','R1','R2','R3','R4','R5','D2','C1','C2') then 0 else bal_sum end) as zx_OTH_bal_sum,
+    cast(
+        case
+            when abs(sum(case when account_type in ('D1','R1','R2','R3','R4','R5','D2','C1','C2') then 0 else bal_sum end))
+                > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else sum(case when account_type in ('D1','R1','R2','R3','R4','R5','D2','C1','C2') then 0 else bal_sum end)
+        end as decimal(18, 2)
+    ) as zx_OTH_bal_sum,
     max(case when account_type not in ('D1','R1','R2','R3','R4','R5','D2','C1','C2') then bal_max else null end) as zx_OTH_bal_max,
-    sum(case when account_type in ('D1','R1','R2','R3','R4','R5','D2','C1','C2') then 0 else crdt_sum end) as zx_OTH_crdt_sum,
+    cast(
+        case
+            when abs(sum(case when account_type in ('D1','R1','R2','R3','R4','R5','D2','C1','C2') then 0 else crdt_sum end))
+                > cast(9999999 as decimal(18, 2))
+            then cast(1000000 as decimal(18, 2))
+            else sum(case when account_type in ('D1','R1','R2','R3','R4','R5','D2','C1','C2') then 0 else crdt_sum end)
+        end as decimal(18, 2)
+    ) as zx_OTH_crdt_sum,
     sum(case when account_type in ('D1','R1','R2','R3','R4','R5','D2','C1','C2') then 0 else acct_cnt end) as zx_OTH_acct_cnt
 from lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg_by_type
 group by id_unqp, id_unqf, dt, days_dt_zx
