@@ -47,8 +47,8 @@ features:
 
 # 从 Hive 导出时可选：与 training.unlabeled_subsample_ratio 对齐，减轻 dtools OOM
 export:
-  # 同事预采样（约 50w 负样本）：lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_samples
-  table_name: lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_samples
+  # 先 Spark 执行 sql/build_pu_training_table.sql（源：zyy_fxj_ayh_seed_users_expansion_samples）
+  table_name: lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training
   unlabeled_sample_frac: 1.0
 
 output:
