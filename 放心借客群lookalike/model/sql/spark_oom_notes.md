@@ -42,6 +42,7 @@ Consider boosting spark.executor.memoryOverhead.
 
 - 向同事确认是否有**已物化的 PU 训练中间表**或导出到 OBS/HDFS 再本地训练。
 - 导出时不要 `select *`：只选建模列 + `pu_label` + `dataset_split`（及可选 `ms13_score`），减小单次作业宽度（见下一节）。
+- **征信 Part 2**（`fxj_seed_credit_account_base`）exit **137**：多为全量 PBOC `row_number` 或 perform 先全表扫再 join。请用最新脚本（`spine` 驱动 + `account_stg` 两步），并**单独提交**该段且加大 `spark.executor.memoryOverhead`（建议 5g～6g）。
 
 ## 减单次宽度：具体怎么做、能不能这么干
 
