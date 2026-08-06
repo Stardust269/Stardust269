@@ -1,0 +1,56 @@
+# 放心借 lookalike：LightGBM + PU（正类=低定价种子，未标注=背景扩量人群）
+
+data:
+  input_path: data/training_pu.parquet
+  id_col: unique_id
+  label_col: pu_label          # 1=种子(Positive)，0=未标注(Unlabeled)
+  split_col: dataset_split
+  train_split_value: train
+  val_split_value: val
+  filter:
+    require_zx_report: true    # zx_has_report_flg == 1
+    zx_report_col: zx_has_report_flg
+    # 背景人群 ms13 下限（Notion：可剔 630 以下）；仅对 pu_label=0 生效，0 表示不筛
+    unlabeled_ms13_min: 0
+    # 宽表无 ms13；build_pu_training_table.sql 从 m1_mgt_master_score_model_13_1.standard_score 对齐 days_dt_zx
+    ms13_col: ms13_score
+
+pu:
+  method: elkanoto             # elkanoto | weighted_naive
+  hold_out_ratio: 0.1          # Elkanoto：从未标注集中留作 hold-out
+  unlabeled_weight: 0.05       # weighted_naive：未标注样本权重（<<1）
+
+training:
+  random_seed: 42
+  num_boost_round: 800
+  early_stopping_rounds: 80
+  # 使用同事预采样表导出时设为 1.0，避免对 U 再抽一层
+  unlabeled_subsample_ratio: 1.0
+  params:
+    objective: binary
+    metric: auc
+    boosting_type: gbdt
+    learning_rate: 0.05
+    num_leaves: 63
+    max_depth: 8
+    min_data_in_leaf: 200
+    feature_fraction: 0.7
+    bagging_fraction: 0.7
+    bagging_freq: 1
+    lambda_l2: 2.0
+    verbosity: -1
+    seed: 42
+
+# 在 train 划分上统计缺失率，剔除缺失过高的列（同事建议）
+features:
+  max_missing_rate: 0.90
+
+# 从 Hive 导出时可选：与 training.unlabeled_subsample_ratio 对齐，减轻 dtools OOM
+export:
+  # 先 Spark 执行 sql/build_pu_training_table.sql（源：zyy_fxj_ayh_seed_users_expansion_samples）
+  table_name: lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training
+  unlabeled_sample_frac: 1.0
+
+output:
+  artifacts_dir: artifacts
+  model_name: lgbm_fxj_lookalike_pu
