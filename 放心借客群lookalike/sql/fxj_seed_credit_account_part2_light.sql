@@ -53,7 +53,7 @@ select
         then cast(
             coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0)
             / coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0)
-            as decimal(10, 6)
+            as decimal(12, 6)
         )
         else null
     end as util_rate,
