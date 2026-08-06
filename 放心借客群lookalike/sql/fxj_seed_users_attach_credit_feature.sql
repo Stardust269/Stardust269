@@ -11,7 +11,7 @@
 --   - 剔马消机构码 T10156530H0001（仅影响余额/额度类汇总，与 jcr 一致）
 -- 数值类型约定（避免 Spark/Hive 除法把比例升成 decimal(38,20) 撑大宽表）：
 --   - 金额（元）：decimal(18, 2)（credit_amount / balance / 额度汇总等）
---   - 比例（余额/授信、已用/授信；可能 >1，脏数据或额度极小）：decimal(12, 6)，上限约 999999.999999
+--   - 比例（余额/授信、已用/授信）：decimal(18, 6)；特征上限 UTIL_CAP=9999.999999（非人行真值，避免极小授信导致比值百万级）
 -- 比例列清单（凡除法结果均 cast，勿依赖引擎默认精度）：
 --   util_rate → util_max / util_min / util_sum → latest_util_* ；
 --   credit_util_rate → latest_credit_util_rate
@@ -107,16 +107,18 @@ select
     t1.dt,
     concat(substr(t1.dt, 1, 4), '-', substr(t1.dt, 5, 2), '-', substr(t1.dt, 7, 2)) as days_dt_zx,
     cast(null as int) as bill_day,
-    case
-        when coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0) > 0
-         and coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0
-        then cast(
-            coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0)
-            / coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0)
-            as decimal(12, 6)
-        )
-        else null
-    end as util_rate,
+    cast(
+        least(
+            case
+                when coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0) > 0
+                 and coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0
+                then coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0)
+                     / coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0)
+                else null
+            end,
+            cast(9999.999999 as decimal(18, 6))
+        ) as decimal(18, 6)
+    ) as util_rate,
     case when coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0 then 1 else 0 end as is_pos_bal_acct,
     case when t2.org_manage_code <> 'T10156530H0001' then 1 else 0 end as is_non_mx
 from lj_iceberg.ai_decision_dev.fxj_seed_zx_spine sp
@@ -199,15 +201,28 @@ select
             else min(if(is_pos_bal_acct = 1 and is_non_mx = 1, credit_grant_amount, null))
         end as decimal(18, 2)
     ) as crdt_min,
-    cast(max(if(is_pos_bal_acct = 1 and is_non_mx = 1, util_rate, null)) as decimal(12, 6)) as util_max,
-    cast(min(if(is_pos_bal_acct = 1 and is_non_mx = 1, util_rate, null)) as decimal(12, 6)) as util_min,
     cast(
-        case
-            when sum(if(is_non_mx = 1, credit_grant_amount, 0)) > 0
-            then sum(if(is_non_mx = 1, balance, 0))
-                 / sum(if(is_non_mx = 1, credit_grant_amount, 0))
-            else null
-        end as decimal(12, 6)
+        least(
+            max(if(is_pos_bal_acct = 1 and is_non_mx = 1, util_rate, null)),
+            cast(9999.999999 as decimal(18, 6))
+        ) as decimal(18, 6)
+    ) as util_max,
+    cast(
+        least(
+            min(if(is_pos_bal_acct = 1 and is_non_mx = 1, util_rate, null)),
+            cast(9999.999999 as decimal(18, 6))
+        ) as decimal(18, 6)
+    ) as util_min,
+    cast(
+        least(
+            case
+                when sum(if(is_non_mx = 1, credit_grant_amount, 0)) > 0
+                then sum(if(is_non_mx = 1, balance, 0))
+                     / sum(if(is_non_mx = 1, credit_grant_amount, 0))
+                else null
+            end,
+            cast(9999.999999 as decimal(18, 6))
+        ) as decimal(18, 6)
     ) as util_sum,
     count(distinct if(is_pos_bal_acct = 1 and is_non_mx = 1 and bill_day is not null, bill_day, null)) as bill_day_cnt
 from lj_iceberg.ai_decision_dev.fxj_seed_credit_account_base
@@ -222,62 +237,81 @@ select
     id_unqf,
     dt,
     days_dt_zx,
-    sum(pos_bal_acct_cnt) as pos_bal_acct_cnt,
+    pos_bal_acct_cnt,
+    bal_sum,
+    bal_max,
+    bal_min,
+    crdt_sum,
+    crdt_max,
+    crdt_min,
+    cast(least(util_max, cast(9999.999999 as decimal(18, 6))) as decimal(18, 6)) as util_max,
+    cast(least(util_min, cast(9999.999999 as decimal(18, 6))) as decimal(18, 6)) as util_min,
     cast(
-        case
-            when abs(sum(bal_sum)) > cast(9999999 as decimal(18, 2))
-            then cast(1000000 as decimal(18, 2))
-            else sum(bal_sum)
-        end as decimal(18, 2)
-    ) as bal_sum,
-    cast(
-        case
-            when max(bal_max) is null then null
-            when abs(max(bal_max)) > cast(9999999 as decimal(18, 2))
-            then cast(1000000 as decimal(18, 2))
-            else max(bal_max)
-        end as decimal(18, 2)
-    ) as bal_max,
-    cast(
-        case
-            when min(bal_min) is null then null
-            when abs(min(bal_min)) > cast(9999999 as decimal(18, 2))
-            then cast(1000000 as decimal(18, 2))
-            else min(bal_min)
-        end as decimal(18, 2)
-    ) as bal_min,
-    cast(
-        case
-            when abs(sum(crdt_sum)) > cast(9999999 as decimal(18, 2))
-            then cast(1000000 as decimal(18, 2))
-            else sum(crdt_sum)
-        end as decimal(18, 2)
-    ) as crdt_sum,
-    cast(
-        case
-            when max(crdt_max) is null then null
-            when abs(max(crdt_max)) > cast(9999999 as decimal(18, 2))
-            then cast(1000000 as decimal(18, 2))
-            else max(crdt_max)
-        end as decimal(18, 2)
-    ) as crdt_max,
-    cast(
-        case
-            when min(crdt_min) is null then null
-            when abs(min(crdt_min)) > cast(9999999 as decimal(18, 2))
-            then cast(1000000 as decimal(18, 2))
-            else min(crdt_min)
-        end as decimal(18, 2)
-    ) as crdt_min,
-    cast(max(util_max) as decimal(12, 6)) as util_max,
-    cast(min(util_min) as decimal(12, 6)) as util_min,
-    cast(
-        case when sum(crdt_sum) > 0 then sum(bal_sum) / sum(crdt_sum) else null end
-        as decimal(12, 6)
+        least(
+            case when crdt_sum > 0 then bal_sum / crdt_sum else null end,
+            cast(9999.999999 as decimal(18, 6))
+        ) as decimal(18, 6)
     ) as util_sum,
-    sum(bill_day_cnt) as bill_day_cnt
-from lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg_by_type
-group by id_unqp, id_unqf, dt, days_dt_zx
+    bill_day_cnt
+from (
+    select
+        id_unqp,
+        id_unqf,
+        dt,
+        days_dt_zx,
+        sum(pos_bal_acct_cnt) as pos_bal_acct_cnt,
+        cast(
+            case
+                when abs(sum(bal_sum)) > cast(9999999 as decimal(18, 2))
+                then cast(1000000 as decimal(18, 2))
+                else sum(bal_sum)
+            end as decimal(18, 2)
+        ) as bal_sum,
+        cast(
+            case
+                when max(bal_max) is null then null
+                when abs(max(bal_max)) > cast(9999999 as decimal(18, 2))
+                then cast(1000000 as decimal(18, 2))
+                else max(bal_max)
+            end as decimal(18, 2)
+        ) as bal_max,
+        cast(
+            case
+                when min(bal_min) is null then null
+                when abs(min(bal_min)) > cast(9999999 as decimal(18, 2))
+                then cast(1000000 as decimal(18, 2))
+                else min(bal_min)
+            end as decimal(18, 2)
+        ) as bal_min,
+        cast(
+            case
+                when abs(sum(crdt_sum)) > cast(9999999 as decimal(18, 2))
+                then cast(1000000 as decimal(18, 2))
+                else sum(crdt_sum)
+            end as decimal(18, 2)
+        ) as crdt_sum,
+        cast(
+            case
+                when max(crdt_max) is null then null
+                when abs(max(crdt_max)) > cast(9999999 as decimal(18, 2))
+                then cast(1000000 as decimal(18, 2))
+                else max(crdt_max)
+            end as decimal(18, 2)
+        ) as crdt_max,
+        cast(
+            case
+                when min(crdt_min) is null then null
+                when abs(min(crdt_min)) > cast(9999999 as decimal(18, 2))
+                then cast(1000000 as decimal(18, 2))
+                else min(crdt_min)
+            end as decimal(18, 2)
+        ) as crdt_min,
+        max(util_max) as util_max,
+        min(util_min) as util_min,
+        sum(bill_day_cnt) as bill_day_cnt
+    from lj_iceberg.ai_decision_dev.fxj_seed_credit_report_agg_by_type
+    group by id_unqp, id_unqf, dt, days_dt_zx
+) capped
 ;
 
 -- ########## 3c. 按类型透视宽表（显式枚举 + OTHER；若集群出现新类型请补列或归入 OTHER）##########
@@ -428,12 +462,15 @@ select
         end as decimal(18, 2)
     ) as credit_used_amount,
     cast(
-        case
-            when coalesce(cast(nullif(cls.credit_amount, '') as decimal(18, 2)), 0) > 0
-            then cast(nullif(cls.credit_used_amount, '') as decimal(18, 2))
-                 / cast(nullif(cls.credit_amount, '') as decimal(18, 2))
-            else null
-        end as decimal(12, 6)
+        least(
+            case
+                when coalesce(cast(nullif(cls.credit_amount, '') as decimal(18, 2)), 0) > 0
+                then cast(nullif(cls.credit_used_amount, '') as decimal(18, 2))
+                     / cast(nullif(cls.credit_amount, '') as decimal(18, 2))
+                else null
+            end,
+            cast(9999.999999 as decimal(18, 6))
+        ) as decimal(18, 6)
     ) as credit_util_rate,
     case when coalesce(tip.has_house_loan_flg, 0) > 0 or coalesce(bi.has_house_loan_flg, 0) > 0 then 1 else 0 end as has_house_loan_flg,
     case
@@ -549,9 +586,9 @@ select
     case when sh.id_unqf is not null then coalesce(r.crdt_sum, 0) else null end as latest_crdt_sum,
     case when sh.id_unqf is not null then r.crdt_max else null end as latest_crdt_max,
     case when sh.id_unqf is not null then r.crdt_min else null end as latest_crdt_min,
-    case when sh.id_unqf is not null then cast(r.util_sum as decimal(12, 6)) else null end as latest_util_sum,
-    case when sh.id_unqf is not null then cast(r.util_max as decimal(12, 6)) else null end as latest_util_max,
-    case when sh.id_unqf is not null then cast(r.util_min as decimal(12, 6)) else null end as latest_util_min,
+    case when sh.id_unqf is not null then cast(r.util_sum as decimal(18, 6)) else null end as latest_util_sum,
+    case when sh.id_unqf is not null then cast(r.util_max as decimal(18, 6)) else null end as latest_util_max,
+    case when sh.id_unqf is not null then cast(r.util_min as decimal(18, 6)) else null end as latest_util_min,
     case when sh.id_unqf is not null then coalesce(r.bill_day_cnt, 0) else null end as latest_bill_day_cnt,
     case when sh.id_unqf is not null then b.same_billday_acct_cnt_max else null end as latest_same_billday_acct_cnt_max,
     case when sh.id_unqf is not null then b.same_billday_bal_sum_max else null end as latest_same_billday_bal_sum_max,
@@ -572,7 +609,7 @@ select
     e.credit_account_num as latest_credit_account_num,
     e.credit_amount as latest_credit_amount,
     e.credit_used_amount as latest_credit_used_amount,
-    cast(e.credit_util_rate as decimal(12, 6)) as latest_credit_util_rate,
+    cast(e.credit_util_rate as decimal(18, 6)) as latest_credit_util_rate,
     e.org_type as latest_org_type,
     case when sh.id_unqf is not null then coalesce(p.zx_D1_pos_bal_acct_cnt, 0) else null end as zx_D1_pos_bal_acct_cnt,
     case when sh.id_unqf is not null then coalesce(p.zx_D1_bal_sum, 0) else null end as zx_D1_bal_sum,

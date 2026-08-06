@@ -47,16 +47,18 @@ select
     t1.dt,
     concat(substr(t1.dt, 1, 4), '-', substr(t1.dt, 5, 2), '-', substr(t1.dt, 7, 2)) as days_dt_zx,
     cast(null as int) as bill_day,
-    case
-        when coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0) > 0
-         and coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0
-        then cast(
-            coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0)
-            / coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0)
-            as decimal(12, 6)
-        )
-        else null
-    end as util_rate,
+    cast(
+        least(
+            case
+                when coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0) > 0
+                 and coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0
+                then coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0)
+                     / coalesce(cast(nullif(t2.credit_grant_amount, '') as decimal(18, 2)), 0)
+                else null
+            end,
+            cast(9999.999999 as decimal(18, 6))
+        ) as decimal(18, 6)
+    ) as util_rate,
     case when coalesce(cast(nullif(t1.balance, '') as decimal(18, 2)), 0) > 0 then 1 else 0 end as is_pos_bal_acct,
     case when t2.org_manage_code <> 'T10156530H0001' then 1 else 0 end as is_non_mx
 from lj_iceberg.ai_decision_dev.fxj_seed_zx_spine sp
