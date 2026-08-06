@@ -48,15 +48,19 @@ model/
 
 `build_pu_training_table.sql` 将宽表 **`label` 映射为 `pu_label`**，并划分 `dataset_split`；**默认不 join MS13**（避免宽表作业 OOM）。需要 ms13 筛背景时再跑 `build_pu_training_table_attach_ms13.sql`。训练前过滤 `zx_has_report_flg=1`。
 
+训练阶段（`config.yaml`）：**`pu_label=0` 负采样** `training.unlabeled_subsample_ratio`（默认 0.15）；**高缺失特征剔除** `features.max_missing_rate`（默认 0.90，在 train 划分上统计）。导出可与 `export.unlabeled_sample_frac` 对齐以减轻 dtools 压力。
+
 ## 2. 本地训练
 
 ```bash
 cd model
-python -m venv .venv && source .venv/bin/activate
+python3.10 -m venv .venv && source .venv/bin/activate   # 推荐 3.10+
 pip install -r requirements.txt
 
 python scripts/train.py
 ```
+
+**云分析机 Python 3.8**：`pip install -r requirements-py38.txt`，并把 `config.yaml` 里 `pu.method` 设为 `weighted_naive`（3.8 无法安装新版 `pulearn`）。若要用 **Elkanoto**，请换 **Python ≥3.9** 的环境再装 `requirements.txt`。
 
 无集群数据时：
 
