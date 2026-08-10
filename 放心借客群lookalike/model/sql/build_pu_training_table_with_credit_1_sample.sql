@@ -7,6 +7,8 @@
 --
 -- 逻辑（与 build_pu_training_table.sql 一致）：
 --   pu_label=1：放心借利率 <18%，且借款当日有征信报告
+--   利率/首借日期来自客群明细表（宽表 multiloans_feature 本身无 y_loan_base_rate）
+--   客群明细：lj_iceberg.mkt_ayh_ana.zxt_5789_cust_detail_0630（见 客群及其他相关表.md）
 --   pu_label=0：从未标注池中随机抽取，抽取量 = 正样本行数（约 20 万）
 --   同事对照：负样本曾固定抽 50 万（本脚本默认与正样本对齐，见步骤 3 注释改 500000）
 --
@@ -20,15 +22,25 @@ create table if not exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_label_stg
 select
     t.*,
     case
-        when t.y_loan_base_rate is not null
-         and cast(t.y_loan_base_rate as double) < 0.18
-         and t.lend_date_sj is not null
+        when seed.y_loan_base_rate is not null
+         and cast(seed.y_loan_base_rate as double) < 0.18
+         and seed.lend_date_sj is not null
          and t.days_dt_zx is not null
-         and cast(t.days_dt_zx as date) = cast(t.lend_date_sj as date)
+         and cast(t.days_dt_zx as date) = cast(seed.lend_date_sj as date)
         then 1
         else 0
     end as is_positive
 from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature_with_credit_1 t
+left join (
+    select
+        unique_id,
+        lend_date_sj,
+        max(y_loan_base_rate) as y_loan_base_rate
+    from lj_iceberg.mkt_ayh_ana.zxt_5789_cust_detail_0630
+    group by unique_id, lend_date_sj
+) seed
+    on t.unique_id = seed.unique_id
+    and cast(t.days_dt_zx as date) = cast(seed.lend_date_sj as date)
 where t.zx_has_report_flg = 1
 ;
 
