@@ -1,3 +1,32 @@
 # 放心借客群 lookalike
 
-项目目录。
+放心借客群 lookalike 扩量项目资料库。
+
+## 文档
+
+| 文件 | 说明 |
+| --- | --- |
+| `Lookalike方法调研.md` | 常用 lookalike 方法调研 |
+| `客群及其他相关表.md` | 客群明细表、用户信息表、授信表等关联说明 |
+| `放心借特征变量.md` | 放心借特征变量定义（D101–D402） |
+| `朴道-外部字典.md` | 朴道外部数据字典 |
+| `百行-外部字典.md` | 百行外部数据字典 |
+| `腾讯-外部字典.md` | 腾讯外部数据字典 |
+| `数据加工说明_征信特征.md` | 样本表补征信特征（脚本说明与表名） |
+
+## SQL
+
+| 文件 | 说明 |
+| --- | --- |
+| `sql/同事样例_安逸花放心借分析.sql` | 同事探索用 SQL 归档 |
+| `sql/fxj_seed_users_attach_credit_feature.sql` | 样本表挂最近一次征信特征（正式加工） |
+
+## Notion 镜像
+
+同事发布的 Notion 说明已导出至 [`notion/`](notion/INDEX.md)（含子页面「提额降价项目测试」及五份嵌入字典 Markdown 快照）。
+
+## 建模
+
+| 路径 | 说明 |
+| --- | --- |
+| [`model/README.md`](model/README.md) | **LightGBM + PU** lookalike 训练、导出 SQL、打分 |
