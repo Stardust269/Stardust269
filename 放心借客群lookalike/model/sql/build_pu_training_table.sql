@@ -22,7 +22,7 @@ select
         else 0
     end as pu_label,
     case
-        when abs(hash(concat(t.unique_id, coalesce(t.dt_zx, ''))) % 10 < 8
+        when mod(abs(hash(concat(t.unique_id, coalesce(t.dt_zx, ''))), 10) < 8
         then 'train'
         else 'val'
     end as dataset_split

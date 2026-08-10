@@ -89,12 +89,13 @@ inner join lj_iceberg.ai_decision_dev.fxj_lookalike_pu_pos_cnt c
 ;
 
 -- ########## 4. 合并打 PU 标签 + train/val 划分 ##########
+-- dataset_split 用 mod() 而非 %，避免控制台把 % 当成参数占位符
 drop table if exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1;
 create table if not exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1 as
 select
     u.*,
     case
-        when abs(hash(concat(u.unique_id, coalesce(u.dt_zx, ''))) % 10 < 8
+        when mod(abs(hash(concat(u.unique_id, coalesce(u.dt_zx, ''))), 10) < 8
         then 'train'
         else 'val'
     end as dataset_split
