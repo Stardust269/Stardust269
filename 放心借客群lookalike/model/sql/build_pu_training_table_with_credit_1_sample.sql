@@ -88,28 +88,47 @@ inner join lj_iceberg.ai_decision_dev.fxj_lookalike_pu_pos_cnt c
 -- inner join (select 500000 as pos_cnt) c on pick.rn <= c.pos_cnt
 ;
 
--- ########## 4. 合并打 PU 标签 + train/val 划分 ##########
--- dataset_split 用 mod() 而非 %，避免控制台把 % 当成参数占位符
+-- ########## 4. 合并 PU 标签 + train/val（拆步，避免控制台解析 select t.*, case/mod 失败） ##########
+drop table if exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1_union;
+create table if not exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1_union as
+select
+    p.*,
+    1 as pu_label
+from lj_iceberg.ai_decision_dev.fxj_lookalike_pu_pos_rows p
+union all
+select
+    n.*,
+    0 as pu_label
+from lj_iceberg.ai_decision_dev.fxj_lookalike_pu_neg_sample_rows n
+;
+
+drop table if exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1_split;
+create table if not exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1_split as
+select
+    unique_id,
+    coalesce(cast(dt_zx as string), '') as dt_zx_key,
+    coalesce(cast(days_dt_zx as string), '') as days_dt_zx_key,
+    pmod(abs(hash(concat(unique_id, coalesce(cast(dt_zx as string), '')))), 10) as split_bucket
+from lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1_union
+;
+
 drop table if exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1;
 create table if not exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1 as
 select
-    u.*,
-    case
-        when mod(abs(hash(concat(u.unique_id, coalesce(u.dt_zx, ''))), 10) < 8
-        then 'train'
-        else 'val'
-    end as dataset_split
-from (
+    sp.dataset_split,
+    u.*
+from lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1_union u
+inner join (
     select
-        p.*,
-        1 as pu_label
-    from lj_iceberg.ai_decision_dev.fxj_lookalike_pu_pos_rows p
-    union all
-    select
-        n.*,
-        0 as pu_label
-    from lj_iceberg.ai_decision_dev.fxj_lookalike_pu_neg_sample_rows n
-) u
+        unique_id,
+        dt_zx_key,
+        days_dt_zx_key,
+        if(split_bucket < 8, 'train', 'val') as dataset_split
+    from lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1_split
+) sp
+    on u.unique_id = sp.unique_id
+    and coalesce(cast(u.dt_zx as string), '') = sp.dt_zx_key
+    and coalesce(cast(u.days_dt_zx as string), '') = sp.days_dt_zx_key
 ;
 
 -- ########## 5. 核验 ##########
