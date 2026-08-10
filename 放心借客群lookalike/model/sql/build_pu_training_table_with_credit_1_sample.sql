@@ -59,25 +59,33 @@ from lj_iceberg.ai_decision_dev.fxj_lookalike_pu_pos_rows
 ;
 
 -- ########## 3. 负样本随机抽取（行数 = 正样本行数） ##########
--- 随机序：hash(unique_id, dt_zx, 盐) ；与同事「先建池再按 hash 排序取前 N」思路一致，避免全表 order by rand()
+-- 随机序：hash + row_number；不用 SELECT * EXCEPT(rn)（部分引擎不支持）
+drop table if exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_neg_sample_rank;
+create table if not exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_neg_sample_rank as
+select
+    s.unique_id,
+    coalesce(cast(s.dt_zx as string), '') as dt_zx_key,
+    coalesce(cast(s.days_dt_zx as string), '') as days_dt_zx_key,
+    row_number() over (
+        order by hash(concat(s.unique_id, coalesce(s.dt_zx, ''), 'fxj_pu_neg_sample_v1'))
+    ) as rn
+from lj_iceberg.ai_decision_dev.fxj_lookalike_pu_label_stg s
+where s.is_positive = 0
+;
+
 drop table if exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_neg_sample_rows;
 create table if not exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_neg_sample_rows as
 select
-    t.* except (rn)
-from (
-    select
-        s.*,
-        row_number() over (
-            order by hash(concat(s.unique_id, coalesce(s.dt_zx, ''), 'fxj_pu_neg_sample_v1'))
-        ) as rn
-    from lj_iceberg.ai_decision_dev.fxj_lookalike_pu_label_stg s
-    where s.is_positive = 0
-) t
+    stg.*
+from lj_iceberg.ai_decision_dev.fxj_lookalike_pu_label_stg stg
+inner join lj_iceberg.ai_decision_dev.fxj_lookalike_pu_neg_sample_rank pick
+    on stg.unique_id = pick.unique_id
+    and coalesce(cast(stg.dt_zx as string), '') = pick.dt_zx_key
+    and coalesce(cast(stg.days_dt_zx as string), '') = pick.days_dt_zx_key
 inner join lj_iceberg.ai_decision_dev.fxj_lookalike_pu_pos_cnt c
-    on t.rn <= c.pos_cnt
--- 与同事 50 万负样本对齐时，改为：
--- inner join (select 500000 as pos_cnt) c on t.rn <= c.pos_cnt
--- 若引擎不支持 except(rn)，改为两步：先落带 rn 的临时表，再 select 除 rn 外全列 where rn <= pos_cnt
+    on pick.rn <= c.pos_cnt
+-- 与同事 50 万负样本对齐时，最后一行 join 改为：
+-- inner join (select 500000 as pos_cnt) c on pick.rn <= c.pos_cnt
 ;
 
 -- ########## 4. 合并打 PU 标签 + train/val 划分 ##########
