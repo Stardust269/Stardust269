@@ -119,13 +119,14 @@ inner join lj_iceberg.ai_decision_dev.zyy_fxj_expansion_samples_half_cnt c
 
 -- ########## 7. 核验 ##########
 select
-    'source_raw' as step,
-    cast(label as int) as label_side,
-    count(1) as cnt
-from lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_samples
-where cast(label as int) in (0, 1)
-group by cast(label as int)
-order by label_side
+    'label_stg' as step,
+    pu_label,
+    count(1) as cnt,
+    count(distinct unique_id) as usr
+from lj_iceberg.ai_decision_dev.zyy_fxj_expansion_samples_label_stg
+where pu_label in (0, 1)
+group by pu_label
+order by pu_label
 ;
 
 select
