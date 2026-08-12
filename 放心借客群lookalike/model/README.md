@@ -45,7 +45,7 @@ model/
 
 若宽表无 `y_loan_base_rate` / `lend_date_sj`（纯背景表），请在 `build_pu_training_table.sql` 中改为 join 种子清单表打 `pu_label`。
 
-`dataset_split` 在 SQL 中按 `hash(unique_id, dt_zx)` 分 10 桶：**9 桶 train、1 桶 val**（与同事一致）。
+**同事 50 万负样本表**（`zyy_fxj_ayh_seed_users_expansion_samples`）请用 `sql/zyy_fxj_expansion_samples_tagged.sql` 打 `pu_label` + **9:1** `dataset_split`；可选再跑 `sql/zyy_fxj_expansion_samples_half.sql` 做半量抽样。勿用 `build_pu_training_table*.sql`（那是全量背景未标注池）。
 
 ## 2. 本地训练
 

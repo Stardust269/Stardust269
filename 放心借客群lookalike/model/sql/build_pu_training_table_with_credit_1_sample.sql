@@ -88,7 +88,7 @@ inner join lj_iceberg.ai_decision_dev.fxj_lookalike_pu_pos_cnt c
 -- inner join (select 500000 as pos_cnt) c on pick.rn <= c.pos_cnt
 ;
 
--- ########## 4. 合并 PU 标签 + train/val（9:1；拆步，避免控制台解析 select t.*, case/mod 失败） ##########
+-- ########## 4. 合并 PU 标签 + train/val（拆步，避免控制台解析 select t.*, case/mod 失败） ##########
 drop table if exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1_union;
 create table if not exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1_union as
 select
@@ -123,7 +123,7 @@ inner join (
         unique_id,
         dt_zx_key,
         days_dt_zx_key,
-        if(split_bucket < 9, 'train', 'val') as dataset_split
+        if(split_bucket < 8, 'train', 'val') as dataset_split
     from lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1_split
 ) sp
     on u.unique_id = sp.unique_id
