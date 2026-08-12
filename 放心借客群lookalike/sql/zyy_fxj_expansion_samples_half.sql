@@ -46,17 +46,28 @@ left join (
 -- 若正负列是 is_seed 而非 label，把上面 case 第一行改为 cast(s.is_seed as int)
 ;
 
--- ########## 2. train/val 划分键（窄表，避免控制台解析失败） ##########
+-- ########## 2. train/val 划分键（9:1；窄表，避免控制台解析失败） ##########
 drop table if exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_samples_split_dim;
 create table if not exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_samples_split_dim as
 select
-    unique_id,
-    coalesce(cast(dt_zx as string), '') as dt_zx_key,
-    coalesce(cast(days_dt_zx as string), '') as days_dt_zx_key,
-    pu_label,
-    if(pmod(abs(hash(concat(unique_id, coalesce(cast(dt_zx as string), ''))), 10) < 8, 'train', 'val') as dataset_split
-from lj_iceberg.ai_decision_dev.zyy_fxj_expansion_samples_label_stg
-where pu_label in (0, 1)
+    k.unique_id,
+    k.dt_zx_key,
+    k.days_dt_zx_key,
+    k.pu_label,
+    case
+        when pmod(abs(hash(concat(k.unique_id, k.dt_zx_key))), 10) < 9
+        then 'train'
+        else 'val'
+    end as dataset_split
+from (
+    select
+        unique_id,
+        coalesce(cast(dt_zx as string), '') as dt_zx_key,
+        coalesce(cast(days_dt_zx as string), '') as days_dt_zx_key,
+        pu_label
+    from lj_iceberg.ai_decision_dev.zyy_fxj_expansion_samples_label_stg
+    where pu_label in (0, 1)
+) k
 ;
 
 -- ########## 3. 全量带标签表 ##########

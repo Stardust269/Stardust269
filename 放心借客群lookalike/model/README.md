@@ -18,7 +18,8 @@ model/
 ├── config.yaml
 ├── requirements.txt
 ├── sql/
-│   ├── build_pu_training_table.sql   # Hive 打 pu_label + split
+│   ├── build_pu_training_table.sql   # 全量 U 打 pu_label + split
+│   ├── build_pu_training_table_with_credit_1_sample.sql  # with_credit_1 + 负样本抽（量=正样本）
 │   └── export_training_data.sql
 ├── scripts/
 │   ├── train.py
@@ -34,14 +35,17 @@ model/
 # 1) 征信特征宽表（若未跑）
 # 放心借客群lookalike/sql/fxj_seed_users_attach_credit_feature.sql
 
-# 2) PU 训练表
-# model/sql/build_pu_training_table.sql
+# 2) PU 训练表（二选一）
+# 全量：model/sql/build_pu_training_table.sql
+# 抽样（推荐先训）：with_credit_1 脚本 + build_pu_training_table_with_credit_1_sample.sql
 
-# 3) 导出
-# model/sql/export_training_data.sql → 下载为 data/training_pu.parquet
+# 3) 导出 → data/training_pu.parquet（默认 fxj_lookalike_pu_training_1）
+# model/sql/export_training_data.sql
 ```
 
 若宽表无 `y_loan_base_rate` / `lend_date_sj`（纯背景表），请在 `build_pu_training_table.sql` 中改为 join 种子清单表打 `pu_label`。
+
+`dataset_split` 在 SQL 中按 `hash(unique_id, dt_zx)` 分 10 桶：**9 桶 train、1 桶 val**（与同事一致）。
 
 ## 2. 本地训练
 

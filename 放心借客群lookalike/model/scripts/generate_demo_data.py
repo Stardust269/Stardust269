@@ -31,7 +31,7 @@ def main() -> None:
                 "unique_id": f"u{i:08d}",
                 "pu_label": 1 if is_pos else 0,
                 "zx_has_report_flg": 1,
-                "dataset_split": "train" if rng.random() < 0.8 else "val",
+                "dataset_split": "train" if rng.random() < 0.9 else "val",
                 "latest_bal_sum": float(rng.exponential(5000 if is_pos else 2000)),
                 "latest_hard_query_num_1m": int(rng.poisson(2 if is_pos else 4)),
                 "latest_credit_util_rate": float(rng.uniform(0, 0.9)),

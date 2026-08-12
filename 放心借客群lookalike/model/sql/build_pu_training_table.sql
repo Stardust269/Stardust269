@@ -1,5 +1,5 @@
 -- =============================================================================
--- 构建 PU 学习用宽表（正类标签 + train/val 划分）
+-- 构建 PU 学习用宽表（正类标签 + train/val 划分，9:1）
 -- =============================================================================
 -- 正类（pu_label=1）：Notion 种子定义 — 放心借利率 <18%，且借款当日有征信报告
 -- 未标注（pu_label=0）：宽表中其余用户（背景扩量人群，含隐藏正例）
@@ -22,7 +22,7 @@ select
         else 0
     end as pu_label,
     case
-        when mod(abs(hash(concat(t.unique_id, coalesce(t.dt_zx, ''))), 10) < 8
+        when pmod(abs(hash(concat(t.unique_id, coalesce(t.dt_zx, '')))), 10) < 9
         then 'train'
         else 'val'
     end as dataset_split
