@@ -14,12 +14,13 @@ from metrics import precision_at_k, pu_ranking_metrics
 
 
 def _lgbm_estimator(params: dict, seed: int) -> LGBMClassifier:
-    p = {k: v for k, v in params.items() if k not in ("objective", "metric")}
+    p = {k: v for k, v in params.items() if k not in ("objective", "metric", "num_threads")}
+    n_jobs = int(params.get("num_threads", 1))
     return LGBMClassifier(
         objective="binary",
         n_estimators=500,
         random_state=seed,
-        n_jobs=-1,
+        n_jobs=n_jobs,
         verbose=-1,
         **p,
     )
@@ -83,8 +84,12 @@ def train_weighted_naive_pu(
         free_raw_data=False,
     )
 
+    train_params = {k: v for k, v in params.items() if k != "num_threads"}
+    if "num_threads" in params:
+        train_params["num_threads"] = int(params["num_threads"])
+
     booster = lgb.train(
-        params=params,
+        params=train_params,
         train_set=train_set,
         num_boost_round=num_boost_round,
         valid_sets=[train_set, val_set],

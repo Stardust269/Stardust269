@@ -20,7 +20,9 @@ model/
 ├── sql/
 │   ├── build_pu_training_table.sql   # 全量 U 打 pu_label + split
 │   ├── build_pu_training_table_with_credit_1_sample.sql  # with_credit_1 + 负样本抽（量=正样本）
-│   └── export_training_data.sql
+│   ├── export_training_data.sql
+│   └── export_training_data_tagged_half.sql   # 同事 tagged 半量 → training_pu_half.parquet
+├── config_half.yaml     # 半量训练配置（约 35 万行，省内存）
 ├── scripts/
 │   ├── train.py
 │   ├── predict.py
@@ -45,7 +47,16 @@ model/
 
 若宽表无 `y_loan_base_rate` / `lend_date_sj`（纯背景表），请在 `build_pu_training_table.sql` 中改为 join 种子清单表打 `pu_label`。
 
-**同事 50 万负样本表**（`zyy_fxj_ayh_seed_users_expansion_samples`）请用 `sql/zyy_fxj_expansion_samples_tagged.sql` 打 `pu_label` + **9:1** `dataset_split`；可选再跑 `sql/zyy_fxj_expansion_samples_half.sql` 做半量抽样。勿用 `build_pu_training_table*.sql`（那是全量背景未标注池）。
+**同事 50 万负样本表**（`zyy_fxj_ayh_seed_users_expansion_samples`）请用 `sql/zyy_fxj_expansion_samples_tagged.sql` 打 `pu_label` + **9:1** `dataset_split`。分析机内存不足时，再跑 **`sql/zyy_fxj_expansion_samples_tagged_half.sql`**（从 tagged 约 70 万行各抽 50% → 约 35 万行）。勿用 `build_pu_training_table*.sql`（那是全量背景未标注池）。
+
+半量导出与训练：
+
+```bash
+# Hive：model/sql/export_training_data_tagged_half.sql → 下载为 data/training_pu_half.parquet
+
+cd model
+python scripts/train.py --config config_half.yaml --data data/training_pu_half.parquet
+```
 
 ## 2. 本地训练
 

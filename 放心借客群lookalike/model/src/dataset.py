@@ -52,7 +52,7 @@ def subsample_unlabeled(df: pd.DataFrame, label_col: str, ratio: float, seed: in
         return df
     pos = df[df[label_col] == 1]
     unl = df[df[label_col] == 0]
-    n = max(int(len(unl) * ratio), len(pos) * 5)
+    n = max(int(len(unl) * ratio), 1)
     unl_sample = unl.sample(n=min(n, len(unl)), random_state=seed)
     return pd.concat([pos, unl_sample], ignore_index=True)
 
