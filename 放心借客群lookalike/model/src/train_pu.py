@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import json
 from datetime import datetime
 from pathlib import Path
@@ -10,11 +11,12 @@ import pandas as pd
 from lightgbm import LGBMClassifier
 from pulearn import ElkanotoPuClassifier
 
+from memory_utils import memory_cfg, release
 from metrics import precision_at_k, pu_ranking_metrics
 
 
 def _lgbm_estimator(params: dict, seed: int) -> LGBMClassifier:
-    p = {k: v for k, v in params.items() if k not in ("objective", "metric", "num_threads")}
+    p = {k: v for k, v in params.items() if k not in ("objective", "metric", "num_threads", "max_bin")}
     n_jobs = int(params.get("num_threads", 1))
     return LGBMClassifier(
         objective="binary",
@@ -26,15 +28,28 @@ def _lgbm_estimator(params: dict, seed: int) -> LGBMClassifier:
     )
 
 
+def _lgb_train_params(params: dict, mem: dict) -> dict:
+    train_params = {k: v for k, v in params.items() if k != "num_threads"}
+    if "num_threads" in params:
+        train_params["num_threads"] = int(params["num_threads"])
+    if mem.get("max_bin"):
+        train_params["max_bin"] = int(mem["max_bin"])
+    return train_params
+
+
 def train_elkanoto_pu(
-    x_train: pd.DataFrame,
-    y_train: pd.Series,
-    x_val: pd.DataFrame,
-    y_val: pd.Series,
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_val: np.ndarray,
+    y_val: np.ndarray,
+    feature_columns: list[str],
+    categorical_indices: list[int],
     params: dict,
     hold_out_ratio: float,
     seed: int,
+    mem: dict | None = None,
 ) -> tuple[ElkanotoPuClassifier, dict]:
+    mem = mem or {}
     clf = ElkanotoPuClassifier(
         estimator=_lgbm_estimator(params, seed),
         hold_out_ratio=hold_out_ratio,
@@ -42,72 +57,81 @@ def train_elkanoto_pu(
     )
     clf.fit(x_train, y_train)
 
-    train_prob = clf.predict_proba(x_train)[:, 1]
+    metrics: dict = {"method": "elkanoto"}
+    if not mem.get("skip_train_metrics", True):
+        train_prob = clf.predict_proba(x_train)[:, 1]
+        metrics["train"] = pu_ranking_metrics(y_train, train_prob)
     val_prob = clf.predict_proba(x_val)[:, 1]
-
-    metrics = {
-        "method": "elkanoto",
-        "train": pu_ranking_metrics(y_train.to_numpy(), train_prob),
-        "val": pu_ranking_metrics(y_val.to_numpy(), val_prob),
-    }
-    metrics["val"]["precision_at_1pct"] = precision_at_k(y_val.to_numpy(), val_prob, 0.01)
-    metrics["val"]["precision_at_5pct"] = precision_at_k(y_val.to_numpy(), val_prob, 0.05)
+    metrics["val"] = pu_ranking_metrics(y_val, val_prob)
+    metrics["val"]["precision_at_1pct"] = precision_at_k(y_val, val_prob, 0.01)
+    metrics["val"]["precision_at_5pct"] = precision_at_k(y_val, val_prob, 0.05)
     return clf, metrics
 
 
 def train_weighted_naive_pu(
-    x_train: pd.DataFrame,
-    y_train: pd.Series,
-    x_val: pd.DataFrame,
-    y_val: pd.Series,
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_val: np.ndarray,
+    y_val: np.ndarray,
+    categorical_indices: list[int],
     params: dict,
     unlabeled_weight: float,
     num_boost_round: int,
     early_stopping_rounds: int,
-    seed: int,
+    mem: dict | None = None,
 ) -> tuple[lgb.Booster, dict]:
-    w = np.where(y_train.to_numpy() == 1, 1.0, float(unlabeled_weight))
-    cat_cols = [c for c in x_train.columns if str(x_train[c].dtype) == "category"]
+    mem = mem or {}
+    free_raw = bool(mem.get("lgb_free_raw_data", True))
+    w = np.where(y_train == 1, 1.0, float(unlabeled_weight)).astype(np.float32)
 
+    cat_arg = categorical_indices if categorical_indices else "auto"
     train_set = lgb.Dataset(
         x_train,
         label=y_train,
         weight=w,
-        categorical_feature=cat_cols or "auto",
-        free_raw_data=False,
+        categorical_feature=cat_arg,
+        free_raw_data=free_raw,
     )
+    if free_raw and mem.get("skip_train_metrics", True):
+        release(x_train, w)
+
     val_set = lgb.Dataset(
         x_val,
         label=y_val,
-        categorical_feature=cat_cols or "auto",
+        categorical_feature=cat_arg,
         reference=train_set,
-        free_raw_data=False,
+        free_raw_data=free_raw,
     )
 
-    train_params = {k: v for k, v in params.items() if k != "num_threads"}
-    if "num_threads" in params:
-        train_params["num_threads"] = int(params["num_threads"])
+    train_params = _lgb_train_params(params, mem)
+    valid_sets = [val_set] if mem.get("valid_on_val_only", True) else [train_set, val_set]
+    valid_names = ["val"] if mem.get("valid_on_val_only", True) else ["train", "val"]
 
     booster = lgb.train(
         params=train_params,
         train_set=train_set,
         num_boost_round=num_boost_round,
-        valid_sets=[train_set, val_set],
-        valid_names=["train", "val"],
+        valid_sets=valid_sets,
+        valid_names=valid_names,
         callbacks=[
             lgb.early_stopping(stopping_rounds=early_stopping_rounds, verbose=True),
             lgb.log_evaluation(period=50),
         ],
     )
-    train_prob = booster.predict(x_train, num_iteration=booster.best_iteration)
-    val_prob = booster.predict(x_val, num_iteration=booster.best_iteration)
-    metrics = {
+    gc.collect()
+
+    metrics: dict = {
         "method": "weighted_naive",
         "best_iteration": int(booster.best_iteration),
-        "train": pu_ranking_metrics(y_train.to_numpy(), train_prob),
-        "val": pu_ranking_metrics(y_val.to_numpy(), val_prob),
     }
-    metrics["val"]["precision_at_1pct"] = precision_at_k(y_val.to_numpy(), val_prob, 0.01)
+    if not mem.get("skip_train_metrics", True):
+        train_prob = booster.predict(x_train, num_iteration=booster.best_iteration)
+        metrics["train"] = pu_ranking_metrics(y_train, train_prob)
+    val_prob = booster.predict(x_val, num_iteration=booster.best_iteration)
+    metrics["val"] = pu_ranking_metrics(y_val, val_prob)
+    metrics["val"]["precision_at_1pct"] = precision_at_k(y_val, val_prob, 0.01)
+    if free_raw:
+        release(x_val)
     return booster, metrics
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from features import (
@@ -10,7 +11,8 @@ from features import (
     resolve_model_feature_columns,
     summarize_feature_groups,
 )
-from preprocess import build_model_matrix
+from memory_utils import memory_cfg
+from preprocess import build_training_arrays
 
 
 def _parquet_column_names(path: Path) -> list[str]:
@@ -30,6 +32,18 @@ def _load_feature_whitelist_from_cfg(cfg: dict, config_path: Path | None) -> lis
     return load_feature_whitelist(resolve_path(rel, config_path))
 
 
+def _downcast_numeric(df: pd.DataFrame) -> pd.DataFrame:
+    float_cols = df.select_dtypes(include=["float64"]).columns
+    if len(float_cols):
+        df[float_cols] = df[float_cols].astype(np.float32)
+    int_cols = df.select_dtypes(include=["int64"]).columns
+    for col in int_cols:
+        if col in {"pu_label", "label", "dataset_split"}:
+            continue
+        df[col] = pd.to_numeric(df[col], downcast="integer")
+    return df
+
+
 def load_table(path: Path, cfg: dict | None = None, config_path: Path | None = None) -> pd.DataFrame:
     path = Path(path)
     if not path.exists():
@@ -44,41 +58,45 @@ def load_table(path: Path, cfg: dict | None = None, config_path: Path | None = N
             columns = get_required_load_columns(parquet_cols, cfg, whitelist)
 
     if path.suffix.lower() == ".parquet":
-        return pd.read_parquet(path, columns=columns)
-    if path.suffix.lower() == ".csv":
+        df = pd.read_parquet(path, columns=columns)
+    elif path.suffix.lower() == ".csv":
         df = pd.read_csv(path)
         if columns is not None:
             keep = [c for c in columns if c in df.columns]
             df = df[keep]
-        return df
-    raise ValueError("仅支持 .parquet / .csv")
+    else:
+        raise ValueError("仅支持 .parquet / .csv")
+
+    if cfg is not None and memory_cfg(cfg.get("training", {})).get("use_float32", True):
+        df = _downcast_numeric(df)
+    return df
 
 
 def apply_filters(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
-    out = df.copy()
     filt = cfg["data"].get("filter", {})
+    label_col = cfg["data"]["label_col"]
+    split_col = cfg["data"]["split_col"]
+    mask = pd.Series(True, index=df.index)
 
-    if filt.get("require_zx_report") and filt.get("zx_report_col") in out.columns:
+    if filt.get("require_zx_report") and filt.get("zx_report_col") in df.columns:
         col = filt["zx_report_col"]
-        out = out[out[col].fillna(0).astype(int) == 1]
+        mask &= df[col].fillna(0).astype(int) == 1
 
     ms13_min = float(filt.get("unlabeled_ms13_min") or 0)
     ms13_col = filt.get("ms13_col")
-    label_col = cfg["data"]["label_col"]
-    if ms13_min > 0 and ms13_col and ms13_col in out.columns:
-        is_pos = out[label_col] == 1
-        ms13 = pd.to_numeric(out[ms13_col], errors="coerce")
-        out = out[is_pos | (ms13 >= ms13_min)]
+    if ms13_min > 0 and ms13_col and ms13_col in df.columns:
+        is_pos = df[label_col] == 1
+        ms13 = pd.to_numeric(df[ms13_col], errors="coerce")
+        mask &= is_pos | (ms13 >= ms13_min)
 
-    if label_col in out.columns:
-        out = out[out[label_col].isin([0, 1])]
+    if label_col in df.columns:
+        mask &= df[label_col].isin([0, 1])
 
-    split_col = cfg["data"]["split_col"]
-    if split_col in out.columns:
+    if split_col in df.columns:
         allowed = {cfg["data"]["train_split_value"], cfg["data"]["val_split_value"]}
-        out = out[out[split_col].isin(allowed)]
+        mask &= df[split_col].isin(allowed)
 
-    return out.reset_index(drop=True)
+    return df.loc[mask].reset_index(drop=True)
 
 
 def subsample_unlabeled(df: pd.DataFrame, label_col: str, ratio: float, seed: int) -> pd.DataFrame:
@@ -89,6 +107,17 @@ def subsample_unlabeled(df: pd.DataFrame, label_col: str, ratio: float, seed: in
     n = max(int(len(unl) * ratio), 1)
     unl_sample = unl.sample(n=min(n, len(unl)), random_state=seed)
     return pd.concat([pos, unl_sample], ignore_index=True)
+
+
+def _slim_columns(
+    df: pd.DataFrame,
+    feature_columns: list[str],
+    label_col: str,
+    split_col: str,
+) -> pd.DataFrame:
+    keep = list(dict.fromkeys([*feature_columns, label_col, split_col]))
+    keep = [c for c in keep if c in df.columns]
+    return df[keep]
 
 
 def prepare_splits(
@@ -103,9 +132,14 @@ def prepare_splits(
     if not feature_columns:
         raise ValueError("入模特征为空，请检查 feature_list_path 或数据列名")
 
+    label_col = cfg["data"]["label_col"]
     split_col = cfg["data"]["split_col"]
-    train_df = df[df[split_col] == cfg["data"]["train_split_value"]].copy()
-    val_df = df[df[split_col] == cfg["data"]["val_split_value"]].copy()
+    slim = _slim_columns(df, feature_columns, label_col, split_col)
+
+    train_mask = slim[split_col] == cfg["data"]["train_split_value"]
+    val_mask = slim[split_col] == cfg["data"]["val_split_value"]
+    train_df = slim.loc[train_mask].reset_index(drop=True)
+    val_df = slim.loc[val_mask].reset_index(drop=True)
     if train_df.empty or val_df.empty:
         raise ValueError("train 或 val 为空，请检查 dataset_split")
 
@@ -117,10 +151,17 @@ def prepare_splits(
     return train_df, val_df, feature_columns, meta
 
 
-def to_xy(df: pd.DataFrame, feature_columns: list[str], label_col: str):
-    x = build_model_matrix(df, feature_columns)
-    y = df[label_col].astype(int)
-    return x, y
+def to_xy(
+    df: pd.DataFrame,
+    feature_columns: list[str],
+    label_col: str,
+    use_float32: bool = True,
+):
+    x, categorical_indices = build_training_arrays(
+        df, feature_columns, use_float32=use_float32
+    )
+    y = df[label_col].to_numpy(dtype=np.int8, copy=False)
+    return x, y, categorical_indices
 
 
 def feature_group_summary(feature_columns: list[str]) -> dict[str, list[str]]:

@@ -27,6 +27,13 @@ training:
   early_stopping_rounds: 80
   # 未标注过多时，训练可对 U 下采样以控制内存（1.0=全量）
   unlabeled_subsample_ratio: 0.2
+  memory:
+    use_float32: true
+    release_dataframes: true
+    lgb_free_raw_data: true
+    skip_train_metrics: true
+    valid_on_val_only: true
+    max_bin: 127
   params:
     objective: binary
     metric: auc
@@ -41,6 +48,7 @@ training:
     lambda_l2: 2.0
     verbosity: -1
     seed: 42
+    num_threads: 2
 
 output:
   artifacts_dir: artifacts

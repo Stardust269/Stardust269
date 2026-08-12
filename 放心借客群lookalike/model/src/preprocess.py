@@ -1,25 +1,50 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 from features import CATEGORICAL_COLUMNS
 
 
-def build_model_matrix(df: pd.DataFrame, feature_columns: list[str]) -> pd.DataFrame:
-    out = df.copy()
+def build_training_arrays(
+    df: pd.DataFrame,
+    feature_columns: list[str],
+    use_float32: bool = True,
+) -> tuple[np.ndarray, list[int]]:
+    """
+    构建 LightGBM 训练矩阵（numpy），避免 pandas 宽表副本。
+    数值列 float32；类别列编码为 float32 整数码（配合 categorical_feature 索引）。
+    """
+    n_rows = len(df)
+    n_cols = len(feature_columns)
+    dtype = np.float32 if use_float32 else np.float64
+    matrix = np.full((n_rows, n_cols), np.nan, dtype=dtype)
+    categorical_indices: list[int] = []
 
-    if "days_dt_zx" in out.columns:
-        anchor = pd.to_datetime(out["days_dt_zx"], errors="coerce")
-        out["days_anchor_to_zx"] = 0.0
-    else:
-        out["days_anchor_to_zx"] = 0.0
-
-    matrix = out.reindex(columns=feature_columns).copy()
-
-    for col in matrix.columns:
+    for j, col in enumerate(feature_columns):
+        if col not in df.columns:
+            continue
         if col in CATEGORICAL_COLUMNS:
-            matrix[col] = matrix[col].astype("string").fillna("__MISSING__").astype("category")
+            codes = pd.Categorical(df[col].astype("string").fillna("__MISSING__")).codes
+            matrix[:, j] = codes.astype(dtype, copy=False)
+            categorical_indices.append(j)
         else:
-            matrix[col] = pd.to_numeric(matrix[col], errors="coerce")
+            matrix[:, j] = pd.to_numeric(df[col], errors="coerce").to_numpy(
+                dtype=dtype, na_value=np.nan, copy=False
+            )
 
-    return matrix
+    return matrix, categorical_indices
+
+
+def build_model_matrix(
+    df: pd.DataFrame,
+    feature_columns: list[str],
+    use_float32: bool = True,
+) -> pd.DataFrame:
+    """预测/兼容接口：由 numpy 矩阵构造 float32 DataFrame（无整表 copy）。"""
+    matrix, cat_indices = build_training_arrays(df, feature_columns, use_float32=use_float32)
+    out = pd.DataFrame(matrix, columns=feature_columns)
+    for idx in cat_indices:
+        col = feature_columns[idx]
+        out[col] = out[col].astype("int32").astype("category")
+    return out
