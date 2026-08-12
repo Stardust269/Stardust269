@@ -66,6 +66,28 @@ cd model
 python scripts/train.py --config config_half.yaml --data data/training_pu_half.parquet
 ```
 
+**同事 TGI 时间切分**（train 窗 9:1 + test 按日期，不调参）：
+
+```bash
+# 1) Hive：sql/zyy_fxj_expansion_samples_train_val_test.sql
+#    train: days_dt_zx < 2026-06-22 → ..._train_tagged
+#    test:  days_dt_zx >= 2026-06-22 从 fxj_ayh_seed_users_expansion_tgi_result 直接筛选
+#           → fxj_ayh_seed_users_expansion_tgi_test（无需单独 tgi 过滤样本表）
+
+# 2) 导出
+# model/sql/export_training_data_train_window.sql → data/training_pu_train_window.parquet
+# model/sql/export_tgi_test_data.sql              → data/tgi_test.parquet
+
+cd model
+python scripts/train.py --config config_train_window.yaml --data data/training_pu_train_window.parquet
+
+# 3) test 评估（不参与 fit）
+python scripts/predict.py \
+  --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.joblib \
+  --data data/tgi_test.parquet \
+  --out data/tgi_test_scores.parquet
+```
+
 ## 2. 本地训练
 
 ```bash

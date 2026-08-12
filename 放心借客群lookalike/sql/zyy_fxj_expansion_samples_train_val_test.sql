@@ -3,7 +3,8 @@
 -- =============================================================================
 -- 背景（同事 TGI 方案，不调参）：
 --   训练窗：days_dt_zx < '2026-06-22'  → 再 hash 9:1 得 train / val
---   测试窗：days_dt_zx >= '2026-06-22' → 来自 tgi_result，不采样，仅评估
+--   测试窗：days_dt_zx >= '2026-06-22' → 直接从 tgi_result 按日期筛选，不采样，仅评估
+--   说明：无需等同事单独产出「tgi 过滤后样本表」，日期条件即 test 圈选口径
 --
 -- 前置（同事已建）：
 --   lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_samples_train
