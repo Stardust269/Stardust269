@@ -49,7 +49,13 @@ model/
 
 **同事 50 万负样本表**（`zyy_fxj_ayh_seed_users_expansion_samples`）请用 `sql/zyy_fxj_expansion_samples_tagged.sql` 打 `pu_label` + **9:1** `dataset_split`。分析机内存不足时，再跑 **`sql/zyy_fxj_expansion_samples_tagged_half.sql`**（从 tagged 约 70 万行各抽 50% → 约 35 万行）。
 
-训练默认仅使用同事筛选的 **4443 列**特征白名单（`features/colleague_selected_features.txt`，见 `config.yaml` → `data.feature_list_path`），parquet 加载时列裁剪，可显著降低内存。
+训练默认仅使用同事筛选的 **4443 列**特征白名单（`features/colleague_selected_features.txt`），parquet 加载时列裁剪。
+
+**内存优化**（`training.memory` 配置，见 `config_half.yaml`）：
+- `float32` 矩阵替代 pandas float64 宽表
+- 分步构建 `x_train` / `x_val` 后释放 DataFrame
+- LightGBM `free_raw_data`、仅 val early stopping、跳过 train 全量 predict
+- `max_bin: 127`、`num_threads: 2`
 
 半量导出与训练：
 
