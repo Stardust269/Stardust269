@@ -2,6 +2,8 @@
 
 data:
   input_path: data/training_pu.parquet
+  # 同事筛选 4443 列白名单；仅加载/入模这些列，其余宽表字段丢弃
+  feature_list_path: features/colleague_selected_features.txt
   id_col: unique_id
   label_col: pu_label          # 1=种子(Positive)，0=未标注(Unlabeled)
   split_col: dataset_split

@@ -2,21 +2,55 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
-from features import get_model_feature_columns
+from features import (
+    get_required_load_columns,
+    load_feature_whitelist,
+    resolve_model_feature_columns,
+    summarize_feature_groups,
+)
 from preprocess import build_model_matrix
 
 
-def load_table(path: Path) -> pd.DataFrame:
+def _parquet_column_names(path: Path) -> list[str]:
+    import pyarrow.parquet as pq
+
+    return pq.read_schema(path).names
+
+
+def _load_feature_whitelist_from_cfg(cfg: dict, config_path: Path | None) -> list[str] | None:
+    rel = cfg.get("data", {}).get("feature_list_path")
+    if not rel:
+        return None
+    if config_path is None:
+        raise ValueError("使用 feature_list_path 时必须提供 config_path")
+    from config_loader import resolve_path
+
+    return load_feature_whitelist(resolve_path(rel, config_path))
+
+
+def load_table(path: Path, cfg: dict | None = None, config_path: Path | None = None) -> pd.DataFrame:
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"数据文件不存在: {path}")
+
+    columns = None
+    whitelist = None
+    if cfg is not None:
+        whitelist = _load_feature_whitelist_from_cfg(cfg, config_path)
+        if whitelist is not None and path.suffix.lower() == ".parquet":
+            parquet_cols = _parquet_column_names(path)
+            columns = get_required_load_columns(parquet_cols, cfg, whitelist)
+
     if path.suffix.lower() == ".parquet":
-        return pd.read_parquet(path)
+        return pd.read_parquet(path, columns=columns)
     if path.suffix.lower() == ".csv":
-        return pd.read_csv(path)
+        df = pd.read_csv(path)
+        if columns is not None:
+            keep = [c for c in columns if c in df.columns]
+            df = df[keep]
+        return df
     raise ValueError("仅支持 .parquet / .csv")
 
 
@@ -58,15 +92,29 @@ def subsample_unlabeled(df: pd.DataFrame, label_col: str, ratio: float, seed: in
 
 
 def prepare_splits(
-    df: pd.DataFrame, cfg: dict
-) -> tuple[pd.DataFrame, pd.DataFrame, list[str]]:
-    feature_columns = get_model_feature_columns(df.columns.tolist())
+    df: pd.DataFrame,
+    cfg: dict,
+    config_path: Path | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, list[str], dict]:
+    whitelist = _load_feature_whitelist_from_cfg(cfg, config_path)
+    feature_columns, missing, excluded = resolve_model_feature_columns(
+        df.columns.tolist(), cfg, whitelist
+    )
+    if not feature_columns:
+        raise ValueError("入模特征为空，请检查 feature_list_path 或数据列名")
+
     split_col = cfg["data"]["split_col"]
     train_df = df[df[split_col] == cfg["data"]["train_split_value"]].copy()
     val_df = df[df[split_col] == cfg["data"]["val_split_value"]].copy()
     if train_df.empty or val_df.empty:
         raise ValueError("train 或 val 为空，请检查 dataset_split")
-    return train_df, val_df, feature_columns
+
+    meta = {
+        "whitelist_size": len(whitelist) if whitelist else None,
+        "missing_in_data": missing,
+        "excluded_id_label": excluded,
+    }
+    return train_df, val_df, feature_columns, meta
 
 
 def to_xy(df: pd.DataFrame, feature_columns: list[str], label_col: str):
@@ -76,6 +124,4 @@ def to_xy(df: pd.DataFrame, feature_columns: list[str], label_col: str):
 
 
 def feature_group_summary(feature_columns: list[str]) -> dict[str, list[str]]:
-    from features import summarize_feature_groups
-
     return summarize_feature_groups(feature_columns)

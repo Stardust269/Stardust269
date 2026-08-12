@@ -2,6 +2,7 @@
 
 data:
   input_path: data/training_pu_half.parquet
+  feature_list_path: features/colleague_selected_features.txt
   id_col: unique_id
   label_col: pu_label
   split_col: dataset_split

@@ -38,14 +38,23 @@ def main() -> None:
     data_path = Path(args.data) if args.data else resolve_path(cfg["data"]["input_path"], args.config)
 
     print(f"加载数据: {data_path}")
-    df = load_table(data_path)
-    print(f"原始行数: {len(df)}")
+    df = load_table(data_path, cfg, args.config)
+    print(f"原始行数: {len(df)}，列数: {len(df.columns)}")
 
     df = apply_filters(df, cfg)
     label_col = cfg["data"]["label_col"]
     print(f"过滤后: {len(df)}，正类={int((df[label_col]==1).sum())}，未标注={int((df[label_col]==0).sum())}")
 
-    train_df, val_df, feature_columns = prepare_splits(df, cfg)
+    train_df, val_df, feature_columns, feat_meta = prepare_splits(df, cfg, args.config)
+    if feat_meta.get("whitelist_size"):
+        print(
+            f"同事特征白名单: {feat_meta['whitelist_size']} 列，"
+            f"入模 {len(feature_columns)} 列，"
+            f"数据中缺失 {len(feat_meta['missing_in_data'])} 列，"
+            f"排除 id/label {len(feat_meta['excluded_id_label'])} 列"
+        )
+        if feat_meta["missing_in_data"][:5]:
+            print(f"  缺失示例: {feat_meta['missing_in_data'][:5]}")
     ratio = float(cfg["training"].get("unlabeled_subsample_ratio", 1.0))
     seed = int(cfg["training"]["random_seed"])
     train_df = subsample_unlabeled(train_df, label_col, ratio, seed)

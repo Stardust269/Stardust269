@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 ID_COLUMNS = frozenset(
     {
         "unique_id",
@@ -64,10 +67,70 @@ EXCLUDE_FROM_FEATURES = (
 )
 
 
-def get_model_feature_columns(all_columns: list[str]) -> list[str]:
+def load_feature_whitelist(path: Path) -> list[str]:
+    """读取同事筛选特征白名单（txt 每行一列，或 json 数组）。"""
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"特征白名单不存在: {path}")
+    if path.suffix.lower() == ".json":
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, list):
+            raise ValueError(f"特征白名单 JSON 应为数组: {path}")
+        return [str(c) for c in data]
+    return [
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+
+
+def get_required_load_columns(
+    all_parquet_columns: list[str] | None,
+    cfg: dict,
+    whitelist: list[str],
+) -> list[str]:
+    """白名单 + 训练必需的 label/split/过滤列（用于 parquet 列裁剪加载）。"""
+    data_cfg = cfg["data"]
+    extra = {data_cfg["label_col"], data_cfg["split_col"], "label"}
+    filt = data_cfg.get("filter", {})
+    if filt.get("require_zx_report") and filt.get("zx_report_col"):
+        extra.add(filt["zx_report_col"])
+    cols = list(dict.fromkeys([*whitelist, *extra]))
+    if all_parquet_columns is not None:
+        available = set(all_parquet_columns)
+        cols = [c for c in cols if c in available]
+    return cols
+
+
+def resolve_model_feature_columns(
+    all_columns: list[str],
+    cfg: dict,
+    whitelist: list[str] | None = None,
+) -> tuple[list[str], list[str], list[str]]:
+    """
+    返回 (入模特征, 白名单中缺失列, 白名单中排除列如 id/label)。
+    未配置白名单时回退到全表自动筛特征。
+    """
+    if whitelist is not None:
+        available = set(all_columns)
+        model_features = [
+            c for c in whitelist if c in available and c not in EXCLUDE_FROM_FEATURES
+        ]
+        missing = [
+            c for c in whitelist if c not in available and c not in EXCLUDE_FROM_FEATURES
+        ]
+        excluded = [c for c in whitelist if c in EXCLUDE_FROM_FEATURES]
+        return model_features, missing, excluded
+
     features = [c for c in all_columns if c not in EXCLUDE_FROM_FEATURES]
     if "days_anchor_to_zx" not in features:
         features.append("days_anchor_to_zx")
+    return features, [], []
+
+
+def get_model_feature_columns(all_columns: list[str]) -> list[str]:
+    features, _, _ = resolve_model_feature_columns(all_columns, {}, None)
     return features
 
 
