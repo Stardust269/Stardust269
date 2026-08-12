@@ -6,3 +6,4 @@ data/*.csv
 artifacts/
 *.txt
 !requirements.txt
+!features/colleague_selected_features.txt
