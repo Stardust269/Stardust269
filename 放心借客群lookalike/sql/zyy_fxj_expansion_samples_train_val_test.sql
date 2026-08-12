@@ -1,21 +1,24 @@
 -- =============================================================================
--- 同事样本：时间切分 train/val + TGI 表 test（最后 7 天）
+-- 同事样本：时间切分 train/val + 全量宽表 test（最后 7 天）
 -- =============================================================================
--- 背景（同事 TGI 方案，不调参）：
---   训练窗：days_dt_zx < '2026-06-22'  → 再 hash 9:1 得 train / val
---   测试窗：days_dt_zx >= '2026-06-22' → 直接从 tgi_result 按日期筛选，不采样，仅评估
---   说明：无需等同事单独产出「tgi 过滤后样本表」，日期条件即 test 圈选口径
+-- 背景（同事 TGI 验收方案，不调参）：
+--   训练窗：days_dt_zx < '2026-06-22'  → 再 hash 9:1 得 train / val（同事样本表）
+--   测试窗：days_dt_zx >= '2026-06-22' → 融合征信全量宽表按日期筛选，不采样，仅评估
+--
+-- test 源表（原始特征宽表，非 TGI 打分结果）：
+--   lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature_with_credit
+-- 勿用：fxj_ayh_seed_users_expansion_tgi_result（TGI 全量打分结果表）
 --
 -- 前置（同事已建）：
 --   lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_samples_train
 --       ← zyy_fxj_ayh_seed_users_expansion_samples where days_dt_zx < '2026-06-22'
 --
 -- 产出：
---   zyy_fxj_ayh_seed_users_expansion_samples_train_tagged   train+val（带 pu_label、dataset_split）
---   fxj_ayh_seed_users_expansion_tgi_test                   test（dataset_split='test'）
---   zyy_fxj_ayh_seed_users_expansion_samples_train_model    可选：训练用抽样表（负样本=正样本数）
+--   zyy_fxj_ayh_seed_users_expansion_samples_train_tagged      train+val（带 pu_label、dataset_split）
+--   fxj_ayh_seed_users_expansion_with_credit_test              test（dataset_split='test'）
+--   zyy_fxj_ayh_seed_users_expansion_samples_train_model       可选：训练用抽样表（负样本=正样本数）
 --
--- 同事核验参考（全表按 days_dt_zx 切）：
+-- 同事核验参考（samples 表按 days_dt_zx 切，仅供参考）：
 --   < 2026-06-22 : 665723 行, sum(label)=213083 正
 --   >=2026-06-22 :  49599 行, sum(label)=2239  正
 -- =============================================================================
@@ -39,12 +42,36 @@ where cast(days_dt_zx as date) >= date '2026-06-22'
 ;
 
 select
-    'tgi_result_test_window' as src,
+    'with_credit_test_window' as src,
     count(1) as row_cnt,
-    sum(cast(label as int)) as pos_cnt,
-    count(1) - sum(cast(label as int)) as neg_cnt
-from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tgi_result
-where cast(days_dt_zx as date) >= date '2026-06-22'
+    sum(case
+        when seed.y_loan_base_rate is not null
+         and cast(seed.y_loan_base_rate as double) < 0.18
+         and seed.lend_date_sj is not null
+         and t.days_dt_zx is not null
+         and cast(t.days_dt_zx as date) = cast(seed.lend_date_sj as date)
+        then 1 else 0
+    end) as pos_cnt,
+    count(1) - sum(case
+        when seed.y_loan_base_rate is not null
+         and cast(seed.y_loan_base_rate as double) < 0.18
+         and seed.lend_date_sj is not null
+         and t.days_dt_zx is not null
+         and cast(t.days_dt_zx as date) = cast(seed.lend_date_sj as date)
+        then 1 else 0
+    end) as neg_cnt
+from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature_with_credit t
+left join (
+    select
+        unique_id,
+        lend_date_sj,
+        max(y_loan_base_rate) as y_loan_base_rate
+    from lj_iceberg.mkt_ayh_ana.zxt_5789_cust_detail_0630
+    group by unique_id, lend_date_sj
+) seed
+    on t.unique_id = seed.unique_id
+    and cast(t.days_dt_zx as date) = cast(seed.lend_date_sj as date)
+where cast(t.days_dt_zx as date) >= date '2026-06-22'
 ;
 
 -- 负样本是否需 SQL 层抽样（训练窗）：
@@ -119,14 +146,12 @@ inner join lj_iceberg.ai_decision_dev.zyy_fxj_expansion_train_split_dim sp
 where stg.pu_label in (0, 1)
 ;
 
--- ########## 4. 测试集（tgi_result 最后 7 天，不采样） ##########
+-- ########## 4. 测试集（with_credit 全量宽表，days_dt_zx >= 6.22，不采样） ##########
 drop table if exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_test_label_stg;
 create table if not exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_test_label_stg as
 select
     t.*,
     case
-        when cast(t.label as int) in (0, 1)
-        then cast(t.label as int)
         when seed.y_loan_base_rate is not null
          and cast(seed.y_loan_base_rate as double) < 0.18
          and seed.lend_date_sj is not null
@@ -135,7 +160,7 @@ select
         then 1
         else 0
     end as pu_label
-from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tgi_result t
+from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature_with_credit t
 left join (
     select
         unique_id,
@@ -149,8 +174,8 @@ left join (
 where cast(t.days_dt_zx as date) >= date '2026-06-22'
 ;
 
-drop table if exists lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tgi_test;
-create table if not exists lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tgi_test as
+drop table if exists lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_with_credit_test;
+create table if not exists lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_with_credit_test as
 select
     'test' as dataset_split,
     stg.*
@@ -214,12 +239,12 @@ order by pu_label, dataset_split
 ;
 
 select
-    'tgi_test' as step,
+    'with_credit_test' as step,
     pu_label,
     dataset_split,
     count(1) as cnt,
     count(distinct unique_id) as usr
-from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tgi_test
+from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_with_credit_test
 group by pu_label, dataset_split
 order by pu_label, dataset_split
 ;
@@ -237,5 +262,5 @@ select
     min(cast(days_dt_zx as date)) as min_days_dt_zx,
     max(cast(days_dt_zx as date)) as max_days_dt_zx,
     count(1) as cnt
-from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tgi_test
+from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_with_credit_test
 ;

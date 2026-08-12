@@ -1,4 +1,4 @@
-# 时间切分训练配置（train 窗 9:1 + tgi test 评估）
+# 时间切分训练配置（train 窗 9:1 + with_credit 全量宽表 test 评估）
 
 data:
   input_path: data/training_pu_train_window.parquet
