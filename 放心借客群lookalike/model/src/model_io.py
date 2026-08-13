@@ -3,9 +3,15 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 import joblib
 import lightgbm as lgb
+import numpy as np
+import pandas as pd
+
+from memory_utils import release
+from preprocess import build_model_matrix
 
 
 _COLUMN_RE = re.compile(r"^Column_(\d+)$")
@@ -61,3 +67,47 @@ def load_joblib_model(model_path: Path):
     if not features:
         raise ValueError(f"joblib 模型缺少 features 字段: {model_path}")
     return bundle["model"], features
+
+
+class ScoringModel:
+    """加载一次模型，支持分块打分（降低峰值内存）。"""
+
+    def __init__(self, model_path: Path):
+        self.model_path = Path(model_path)
+        self.is_joblib = self.model_path.suffix == ".joblib"
+        if self.is_joblib:
+            self.clf, self.features = load_joblib_model(self.model_path)
+            self.booster = None
+        else:
+            self.booster = lgb.Booster(model_file=str(self.model_path))
+            self.features = resolve_model_features(self.model_path, self.booster)
+            self.clf = None
+
+    def predict_chunked(self, df: pd.DataFrame, chunk_size: int = 40_000) -> np.ndarray:
+        n = len(df)
+        scores = np.empty(n, dtype=np.float32)
+        for start in range(0, n, chunk_size):
+            end = min(start + chunk_size, n)
+            chunk = df.iloc[start:end]
+            x = build_model_matrix(chunk, self.features)
+            release(chunk)
+            if self.booster is not None:
+                scores[start:end] = self.booster.predict(x)
+            else:
+                if hasattr(self.clf, "predict_proba"):
+                    scores[start:end] = self.clf.predict_proba(x)[:, 1]
+                else:
+                    scores[start:end] = self.clf.predict(x)
+            release(x)
+        return scores
+
+
+def slim_for_scoring(
+    df: pd.DataFrame,
+    features: list[str],
+    label_col: str,
+    extra_cols: list[str] | None = None,
+) -> pd.DataFrame:
+    keep = list(dict.fromkeys([*(extra_cols or []), label_col, *features]))
+    keep = [c for c in keep if c in df.columns]
+    return df[keep]

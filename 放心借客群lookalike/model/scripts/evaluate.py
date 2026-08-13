@@ -8,7 +8,6 @@ import json
 import sys
 from pathlib import Path
 
-import joblib
 import numpy as np
 import pandas as pd
 
@@ -17,27 +16,9 @@ sys.path.insert(0, str(MODEL_ROOT / "src"))
 
 from config_loader import load_config, resolve_path  # noqa: E402
 from dataset import apply_filters, load_table  # noqa: E402
+from memory_utils import release  # noqa: E402
 from metrics import evaluate_scores  # noqa: E402
-from model_io import load_joblib_model, resolve_model_features  # noqa: E402
-from preprocess import build_model_matrix  # noqa: E402
-
-
-def _predict_scores(df: pd.DataFrame, model_path: Path) -> tuple[np.ndarray, list[str]]:
-    if model_path.suffix == ".joblib":
-        clf, features = load_joblib_model(model_path)
-        x = build_model_matrix(df, features)
-        if hasattr(clf, "predict_proba"):
-            score = clf.predict_proba(x)[:, 1]
-        else:
-            score = clf.predict(x)
-        return score, features
-
-    import lightgbm as lgb
-
-    booster = lgb.Booster(model_file=str(model_path))
-    features = resolve_model_features(model_path, booster)
-    x = build_model_matrix(df, features)
-    return booster.predict(x), features
+from model_io import ScoringModel, slim_for_scoring  # noqa: E402
 
 
 def _load_labels_and_scores(args: argparse.Namespace, cfg: dict | None) -> tuple[pd.Series, np.ndarray]:
@@ -82,6 +63,7 @@ def _load_labels_and_scores(args: argparse.Namespace, cfg: dict | None) -> tuple
     if args.model is None:
         raise ValueError("请指定 --model，或先用 predict.py 打分后传 --scores")
 
+    scorer = ScoringModel(args.model)
     df = load_table(args.data, cfg, args.config)
     if label_col not in df.columns:
         raise ValueError(f"标签列不存在: {label_col}，请确认 test parquet 含 pu_label")
@@ -96,8 +78,13 @@ def _load_labels_and_scores(args: argparse.Namespace, cfg: dict | None) -> tuple
     elif cfg:
         df = apply_filters(df, cfg)
 
-    score, _ = _predict_scores(df, args.model)
-    return df[label_col], score
+    chunk_size = int(getattr(args, "chunk_size", 40_000))
+    slim = slim_for_scoring(df, scorer.features, label_col)
+    release(df)
+    score = scorer.predict_chunked(slim, chunk_size=chunk_size)
+    y = slim[label_col]
+    release(slim)
+    return y, score
 
 
 def _print_report(metrics: dict) -> None:
@@ -148,6 +135,7 @@ def main() -> None:
     parser.add_argument("--label-col", default="pu_label")
     parser.add_argument("--id-col", default="unique_id")
     parser.add_argument("--threshold", type=float, default=0.5, help="二分类阈值")
+    parser.add_argument("--chunk-size", type=int, default=40_000, help="分块预测行数")
     parser.add_argument("--out", type=Path, default=None, help="指标 JSON 输出路径")
     args = parser.parse_args()
 

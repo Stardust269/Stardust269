@@ -72,6 +72,44 @@ def load_table(path: Path, cfg: dict | None = None, config_path: Path | None = N
     return df
 
 
+def load_split_table(
+    path: Path,
+    cfg: dict,
+    config_path: Path | None,
+    *,
+    split_value: str | None = None,
+    restrict_splits: bool = True,
+) -> pd.DataFrame:
+    """
+    按 dataset_split 只读 parquet 的一个分片（predicate pushdown），降低内存。
+    split_value=None 时读全表（用于 test）。
+    """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"数据文件不存在: {path}")
+
+    whitelist = _load_feature_whitelist_from_cfg(cfg, config_path)
+    columns = None
+    split_col = cfg["data"].get("split_col")
+    filters = None
+
+    if path.suffix.lower() == ".parquet":
+        parquet_cols = _parquet_column_names(path)
+        if whitelist is not None:
+            columns = get_required_load_columns(parquet_cols, cfg, whitelist)
+        if split_value and split_col and split_col in parquet_cols:
+            filters = [(split_col, "==", split_value)]
+        df = pd.read_parquet(path, columns=columns, filters=filters)
+    else:
+        df = load_table(path, cfg, config_path)
+        if split_value and split_col in df.columns:
+            df = df[df[split_col] == split_value]
+
+    if cfg is not None and memory_cfg(cfg.get("training", {})).get("use_float32", True):
+        df = _downcast_numeric(df)
+    return apply_filters(df, cfg, restrict_splits=restrict_splits and split_value is not None)
+
+
 def apply_filters(df: pd.DataFrame, cfg: dict, *, restrict_splits: bool = True) -> pd.DataFrame:
     filt = cfg["data"].get("filter", {})
     label_col = cfg["data"]["label_col"]
