@@ -110,6 +110,48 @@ def load_split_table(
     return apply_filters(df, cfg, restrict_splits=restrict_splits and split_value is not None)
 
 
+def load_split_minimal(
+    path: Path,
+    cfg: dict,
+    config_path: Path | None,
+    feature_columns: list[str],
+    *,
+    split_value: str | None = None,
+    restrict_splits: bool = True,
+) -> pd.DataFrame:
+    """仅加载指定特征列 + 标签/划分/过滤列，用于轻量分析（如决策树探查）。"""
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"数据文件不存在: {path}")
+
+    split_col = cfg["data"].get("split_col")
+    label_col = cfg["data"]["label_col"]
+    extra = {label_col, split_col, "label"}
+    filt = cfg["data"].get("filter", {})
+    if filt.get("require_zx_report") and filt.get("zx_report_col"):
+        extra.add(filt["zx_report_col"])
+
+    if path.suffix.lower() == ".parquet":
+        parquet_cols = _parquet_column_names(path)
+        columns = list(dict.fromkeys([*feature_columns, *extra]))
+        columns = [c for c in columns if c in parquet_cols]
+        filters = None
+        if split_value and split_col and split_col in parquet_cols:
+            filters = [(split_col, "==", split_value)]
+        df = pd.read_parquet(path, columns=columns, filters=filters)
+    else:
+        df = load_table(path, cfg, config_path)
+        keep = [c for c in feature_columns if c in df.columns]
+        keep += [c for c in extra if c in df.columns]
+        df = df[list(dict.fromkeys(keep))]
+        if split_value and split_col in df.columns:
+            df = df[df[split_col] == split_value]
+
+    if memory_cfg(cfg.get("training", {})).get("use_float32", True):
+        df = _downcast_numeric(df)
+    return apply_filters(df, cfg, restrict_splits=restrict_splits and split_value is not None)
+
+
 def apply_filters(df: pd.DataFrame, cfg: dict, *, restrict_splits: bool = True) -> pd.DataFrame:
     filt = cfg["data"].get("filter", {})
     label_col = cfg["data"]["label_col"]

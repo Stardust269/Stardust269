@@ -112,6 +112,13 @@ python scripts/report_eval.py \
 #   --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
 #   --top 10 \
 #   --out artifacts/top10_feature_importance.csv
+
+# Top10 特征重要度（Column_N → 真实字段名）：
+# python scripts/top_feature_importance.py \
+#   --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv \
+#   --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
+#   --top 10 \
+#   --out artifacts/top10_feature_importance.csv
 ```
 
 ## 2. 本地训练
