@@ -138,6 +138,11 @@ def _dot_escape(text: str) -> str:
     )
 
 
+def _dot_count(n: int) -> str:
+    """DOT/HTML 标签内禁用千分位逗号，否则会被 graphviz 当成属性分隔符。"""
+    return str(int(n))
+
+
 def _node_html_label(
     node_id: int,
     clf: DecisionTreeClassifier,
@@ -165,11 +170,11 @@ def _node_html_label(
     lines = [
         f"<B>{title}</B>",
         f"<FONT POINT-SIZE='9'>{kind}</FONT>",
-        f"samples: {st['n']:,}",
-        f"seeds: {st['pos']:,}",
-        f"seed% in node: {pos_pct:.1f}%",
-        f"seed recall: {recall_pct:.1f}%",
-        f"non-seed: {st['neg']:,}",
+        f"<FONT POINT-SIZE='10'>samples: {_dot_count(st['n'])}</FONT>",
+        f"<FONT POINT-SIZE='10'>seeds: {_dot_count(st['pos'])}</FONT>",
+        f"<FONT POINT-SIZE='10'>seed% in node: {pos_pct:.1f}%</FONT>",
+        f"<FONT POINT-SIZE='10'>seed recall: {recall_pct:.1f}%</FONT>",
+        f"<FONT POINT-SIZE='10'>non-seed: {_dot_count(st['neg'])}</FONT>",
     ]
     return f"<{'<BR/>'.join(lines)}>"
 
@@ -194,7 +199,8 @@ def build_tree_dot(
     total = recall_summary["total_seed"]
     recall_pct = recall_summary["recall_rate"] * 100.0
     graph_title = (
-        f"Pred=SEED leaves recall seeds {recalled:,}/{total:,} ({recall_pct:.1f}%)"
+        f"Pred=SEED leaves recall seeds {_dot_count(recalled)}/{_dot_count(total)} "
+        f"({recall_pct:.1f}%)"
     )
 
     lines = [
@@ -295,9 +301,9 @@ def save_decision_tree_plot(
             out_path = stem.with_suffix(f".{fmt}")
         except Exception as exc2:
             raise RuntimeError(
-                "无法渲染决策树图。请安装 graphviz:\n"
-                "  yum install graphviz   # 或 apt install graphviz\n"
-                "  pip install graphviz\n"
+                "无法渲染决策树图。需要 graphviz 的 dot 可执行文件（pip install graphviz 仅装 Python 绑定）:\n"
+                "  conda install -c conda-forge graphviz   # 推荐，无需 root\n"
+                "  yum/apt install graphviz                # 需系统权限\n"
                 f"已保存: {dot_path}\n"
                 f"已保存: {csv_path}\n"
                 f"可手动: dot -Tpng {dot_path} -o tree.png\n"
