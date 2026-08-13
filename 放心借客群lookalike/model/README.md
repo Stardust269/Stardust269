@@ -119,7 +119,13 @@ python scripts/report_eval.py \
 #   --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
 #   --data data/training_pu_train_window.parquet \
 #   --max-depth 4
-# 产出含 dt_probe_top10_*_tree.png；若已有 .joblib 可单独重绘：
+# 训练后在 test 上时间外评估（可加 --plot-test 导出 test 节点统计图）：
+# python scripts/decision_tree_probe.py ... --test-data data/test_window.parquet --plot-test
+# 已有 .joblib，仅在 test 上评估：
+# python scripts/decision_tree_probe.py \
+#   --artifact artifacts/dt_probe/dt_probe_top10_*.joblib \
+#   --test-data data/test_window.parquet
+# 产出含 dt_probe_top10_*_tree.png；若已有 .joblib 可单独重绘 train 图：
 # python scripts/plot_decision_tree.py --artifact artifacts/dt_probe/dt_probe_top10_*.joblib
 ```
 

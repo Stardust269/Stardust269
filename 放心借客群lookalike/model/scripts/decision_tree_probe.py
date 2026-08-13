@@ -83,6 +83,82 @@ def _eval_split(name: str, clf: DecisionTreeClassifier, x: np.ndarray, y: np.nda
     return out
 
 
+def _run_test_eval(
+    clf: DecisionTreeClassifier,
+    used: list[str],
+    test_path: Path,
+    cfg: dict,
+    config_path: Path,
+    label_col: str,
+    *,
+    do_plot: bool,
+    plot_out: Path | None,
+    out_stem: Path,
+) -> dict:
+    """用 train 上拟合的决策树，在 test 集上评估并可选导出 test 节点统计图。"""
+    print(f"\n>>> 加载 test: {test_path}")
+    test_df = load_split_minimal(
+        test_path,
+        cfg,
+        config_path,
+        used,
+        split_value=None,
+        restrict_splits=False,
+    )
+    x_test, y_test, _ = _prepare_xy(test_df, used, label_col)
+    release(test_df)
+
+    test_m = _eval_split("test", clf, x_test, y_test)
+    test_leaves = _leaf_stats(clf, x_test, y_test)
+    test_node_stats = compute_node_statistics(clf, x_test, y_test)
+    test_recall = summarize_pred_seed_leaf_recall(clf, test_node_stats, y_test)
+
+    print("\n=== test 整体指标（train 拟合树，时间外评估）===")
+    auc = test_m.get("auc")
+    auc_s = f"{auc:.6f}" if auc is not None else "n/a"
+    print(
+        f"test: n={test_m['n']:,}, pos={test_m['n_pos']:,}, "
+        f"accuracy={test_m['accuracy']:.4f}, auc={auc_s}"
+    )
+
+    print("\n=== test classification_report (threshold=0.5) ===")
+    test_prob = clf.predict_proba(x_test)[:, 1]
+    test_cr = classification_report(y_test, (test_prob >= 0.5).astype(int), digits=4)
+    print(test_cr)
+
+    print("\n=== test 叶节点纯度（前 10）===")
+    print(test_leaves.head(10).to_string(index=False))
+
+    print("\n=== test — Pred=SEED 叶节点种子召回 ===")
+    print(format_recall_summary_text(test_recall))
+
+    test_report = {
+        "metrics": test_m,
+        "classification_report": test_cr,
+        "leaves_test": test_leaves.to_dict(orient="records"),
+        "seed_leaf_recall_test": test_recall,
+    }
+    test_json = out_stem.with_name(f"{out_stem.name}_test.json")
+    test_json.write_text(json.dumps(test_report, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"\ntest 指标已写入 {test_json}")
+
+    if do_plot:
+        test_plot = plot_out or out_stem.with_name(f"{out_stem.name}_test_tree.png")
+        save_decision_tree_plot(
+            clf,
+            used,
+            test_plot,
+            x=x_test,
+            y=y_test,
+            node_stats=test_node_stats,
+            recall_summary=test_recall,
+        )
+        print(f"test 决策树图已写入 {test_plot}（节点统计基于 test 样本）")
+        test_report["plot_path"] = str(test_plot)
+
+    return test_report
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Top10 特征浅层决策树探查")
     parser.add_argument("--config", type=Path, default=MODEL_ROOT / "config_train_window.yaml")
@@ -96,12 +172,53 @@ def main() -> None:
     parser.add_argument("--out-dir", type=Path, default=MODEL_ROOT / "artifacts" / "dt_probe")
     parser.add_argument("--no-plot", action="store_true", help="不导出树结构图")
     parser.add_argument("--plot-out", type=Path, default=None, help="树图路径 .png/.pdf")
+    parser.add_argument(
+        "--test-data",
+        type=Path,
+        default=None,
+        help="test_window.parquet；用 train 拟合的树做时间外评估",
+    )
+    parser.add_argument(
+        "--artifact",
+        type=Path,
+        default=None,
+        help="已有 dt_probe .joblib；跳过训练，仅在 --test-data 上评估",
+    )
+    parser.add_argument(
+        "--plot-test",
+        action="store_true",
+        help="test 评估时额外导出 test 节点统计图（默认仅 train 图）",
+    )
     args = parser.parse_args()
     do_plot = not args.no_plot
 
     cfg = load_config(args.config)
     data_path = args.data or resolve_path(cfg["data"]["input_path"], args.config)
     label_col = cfg["data"]["label_col"]
+
+    # 仅从已有 joblib 在 test 上评估
+    if args.artifact:
+        if not args.test_data:
+            raise SystemExit("使用 --artifact 时必须指定 --test-data")
+        bundle = joblib.load(args.artifact)
+        clf = bundle["clf"]
+        used = bundle["feature_names"]
+        out_stem = args.artifact.with_suffix("")
+        print(f"已加载决策树: {args.artifact}")
+        print("特征:", used)
+        _run_test_eval(
+            clf,
+            used,
+            args.test_data,
+            cfg,
+            args.config,
+            label_col,
+            do_plot=not args.no_plot,
+            plot_out=args.plot_out,
+            out_stem=out_stem,
+        )
+        return
+
     model_path = args.model or infer_model_path(args.importance)
 
     top_features = load_top_feature_names(
@@ -254,6 +371,38 @@ def main() -> None:
     )
     (stem.with_suffix(".md")).write_text("\n".join(md), encoding="utf-8")
     print(f"\n报告已写入 {stem}.{{md,txt,json,joblib}}")
+
+    if args.test_data:
+        test_report = _run_test_eval(
+            clf,
+            used,
+            args.test_data,
+            cfg,
+            args.config,
+            label_col,
+            do_plot=args.plot_test or bool(args.plot_out),
+            plot_out=args.plot_out.with_name(f"{stem.name}_test_tree.png") if args.plot_out else None,
+            out_stem=stem,
+        )
+        report["test"] = test_report
+        (stem.with_suffix(".json")).write_text(
+            json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        md.append("")
+        md.append("## Test（时间外）")
+        md.append("")
+        tm = test_report["metrics"]
+        md.append(
+            f"- test accuracy: {tm['accuracy']:.4f}, auc: {tm.get('auc', 'n/a')}"
+        )
+        sr = test_report["seed_leaf_recall_test"]
+        md.append(
+            f"- test Pred=SEED 叶节点召回种子: {sr['recalled_in_pred1_leaves']:,}/"
+            f"{sr['total_seed']:,} ({sr['recall_rate']*100:.2f}%)"
+        )
+        if test_report.get("plot_path"):
+            md.append(f"- test 结构图: `{Path(test_report['plot_path']).name}`")
+        (stem.with_suffix(".md")).write_text("\n".join(md), encoding="utf-8")
 
 
 if __name__ == "__main__":
