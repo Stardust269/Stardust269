@@ -26,7 +26,12 @@ from config_loader import load_config, resolve_path  # noqa: E402
 from dataset import load_split_minimal  # noqa: E402
 from memory_utils import release  # noqa: E402
 from top_features import infer_model_path, load_top_feature_names  # noqa: E402
-from tree_viz import save_decision_tree_plot  # noqa: E402
+from tree_viz import (  # noqa: E402
+    compute_node_statistics,
+    format_recall_summary_text,
+    save_decision_tree_plot,
+    summarize_pred_seed_leaf_recall,
+)
 
 
 def _prepare_xy(df: pd.DataFrame, features: list[str], label_col: str):
@@ -157,6 +162,10 @@ def main() -> None:
     if not pure.empty:
         print(f"\n注意: {len(pure)} 个叶节点纯度≥99%，最大叶样本数={int(pure['samples'].max()):,}")
 
+    node_stats = compute_node_statistics(clf, x_train, y_train)
+    recall_summary = summarize_pred_seed_leaf_recall(clf, node_stats, y_train)
+    print("\n" + format_recall_summary_text(recall_summary))
+
     args.out_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     stem = args.out_dir / f"dt_probe_top{args.top}_{ts}"
@@ -169,15 +178,33 @@ def main() -> None:
         "metrics": {"train": train_m, "val": val_m},
         "leaves_train": leaves.to_dict(orient="records"),
         "tree_rules": tree_rules,
+        "seed_leaf_recall": recall_summary,
     }
     (stem.with_suffix(".json")).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     (stem.with_suffix(".txt")).write_text(tree_rules, encoding="utf-8")
-    joblib.dump({"clf": clf, "feature_names": used, "params": report["params"]}, stem.with_suffix(".joblib"))
+    joblib.dump(
+        {
+            "clf": clf,
+            "feature_names": used,
+            "params": report["params"],
+            "node_stats": {str(k): v for k, v in node_stats.items()},
+            "seed_leaf_recall": recall_summary,
+        },
+        stem.with_suffix(".joblib"),
+    )
 
     plot_path = None
     if do_plot:
         plot_path = args.plot_out or stem.with_name(f"{stem.name}_tree.png")
-        save_decision_tree_plot(clf, used, plot_path)
+        save_decision_tree_plot(
+            clf,
+            used,
+            plot_path,
+            x=x_train,
+            y=y_train,
+            node_stats=node_stats,
+            recall_summary=recall_summary,
+        )
         print(f"决策树图已写入 {plot_path}")
 
     md = [
@@ -197,7 +224,20 @@ def main() -> None:
         "",
     ]
     if plot_path:
-        md.extend(["## 结构图", "", f"![decision tree]({plot_path.name})", ""])
+        md.extend(
+            [
+                "## 结构图",
+                "",
+                f"![decision tree]({plot_path.name})",
+                "",
+                "## 预测=种子的叶节点 — 种子召回",
+                "",
+                f"- 全部种子: {recall_summary['total_seed']:,}",
+                f"- 预测=种子的叶节点召回种子: {recall_summary['recalled_in_pred1_leaves']:,} "
+                f"({recall_summary['recall_rate']*100:.2f}%)",
+                "",
+            ]
+        )
     md.extend(
         [
             "## 规则",
