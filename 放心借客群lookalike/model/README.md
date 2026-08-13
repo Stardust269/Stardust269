@@ -99,10 +99,11 @@ python scripts/report_eval.py \
 # 若仅需 test 快速指标：
 # python scripts/evaluate.py --model ... --data data/test_window.parquet
 
-# 已有 test 分数时，仅补算 p99~p96（top 1%~4%，无需重跑 report_eval）：
+# 已有 test 分数时，仅补算 p99~p96（推荐 --model 避免 join 错位）：
 # python scripts/tgi_top_percentiles.py \
-#   --scores data/test_window_scores.parquet \
+#   --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
 #   --data data/test_window.parquet \
+#   --chunk-size 30000 \
 #   --patch-csv artifacts/eval_report/eval_report_*_test_tgi_percentile.csv
 ```
 

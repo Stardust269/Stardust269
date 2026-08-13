@@ -161,7 +161,6 @@ def tgi_percentile_table(
     y_true: np.ndarray,
     y_score: np.ndarray,
     step: int = 5,
-    extra_top_percentiles: list[int] | None = None,
     percentiles: list[int] | None = None,
 ) -> pd.DataFrame:
     """
