@@ -205,7 +205,7 @@ def main() -> None:
             node_stats=node_stats,
             recall_summary=recall_summary,
         )
-        print(f"决策树图已写入 {plot_path}")
+        print(f"决策树图已写入 {plot_path}（同目录另有 .csv 节点明细、.dot 源文件）")
 
     md = [
         "# 决策树探查（Top10 特征）",
@@ -228,13 +228,18 @@ def main() -> None:
             [
                 "## 结构图",
                 "",
+                "节点框内字段说明：`seeds`=种子用户数，`seed% in node`=该节点内种子占比，"
+                "`seed recall`=该节点种子数/全量种子（累计召回率）。",
+                "",
                 f"![decision tree]({plot_path.name})",
                 "",
                 "## 预测=种子的叶节点 — 种子召回",
                 "",
                 f"- 全部种子: {recall_summary['total_seed']:,}",
-                f"- 预测=种子的叶节点召回种子: {recall_summary['recalled_in_pred1_leaves']:,} "
+                f"- 预测=SEED 的叶节点召回种子: {recall_summary['recalled_in_pred1_leaves']:,} "
                 f"({recall_summary['recall_rate']*100:.2f}%)",
+                "",
+                f"节点明细 CSV: `{plot_path.with_suffix('.csv').name}`",
                 "",
             ]
         )
