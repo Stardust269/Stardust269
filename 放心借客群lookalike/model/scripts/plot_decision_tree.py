@@ -27,8 +27,11 @@ def main() -> None:
     features = bundle["feature_names"]
     node_stats = bundle.get("node_stats")
     recall_summary = bundle.get("seed_leaf_recall")
-    if node_stats is not None:
-        node_stats = {int(k): v for k, v in node_stats.items()}
+    if node_stats is None or recall_summary is None:
+        raise ValueError(
+            "joblib 中缺少 node_stats/seed_leaf_recall，请用新版 decision_tree_probe.py 重新跑一遍探查"
+        )
+    node_stats = {int(k): v for k, v in node_stats.items()}
 
     out = args.out or args.artifact.with_name(args.artifact.stem.replace(".joblib", "") + "_tree.png")
     if out.suffix == ".joblib":
