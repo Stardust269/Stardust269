@@ -105,9 +105,12 @@ class ScoringModel:
 def slim_for_scoring(
     df: pd.DataFrame,
     features: list[str],
-    label_col: str,
+    label_col: str | None = None,
     extra_cols: list[str] | None = None,
 ) -> pd.DataFrame:
-    keep = list(dict.fromkeys([*(extra_cols or []), label_col, *features]))
+    base: list[str] = list(extra_cols or [])
+    if label_col and label_col in df.columns:
+        base.append(label_col)
+    keep = list(dict.fromkeys([*base, *features]))
     keep = [c for c in keep if c in df.columns]
     return df[keep]
