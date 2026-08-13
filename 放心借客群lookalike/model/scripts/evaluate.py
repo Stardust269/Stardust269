@@ -54,11 +54,20 @@ def _load_labels_and_scores(args: argparse.Namespace, cfg: dict | None) -> tuple
         if label_col not in labels_df.columns:
             raise ValueError(f"标签列不存在: {label_col}")
 
-        join_keys = [c for c in [args.id_col] if c in scores_df.columns and c in labels_df.columns]
+        join_keys = [
+            c
+            for c in [args.id_col, "dt_zx", "days_dt_zx"]
+            if c in scores_df.columns and c in labels_df.columns
+        ]
         if join_keys:
             merged = labels_df[join_keys + [label_col]].merge(
                 scores_df[join_keys + [score_col]], on=join_keys, how="inner"
             )
+            if len(merged) != len(labels_df):
+                print(
+                    f"警告: labels {len(labels_df)} 行，join 后 {len(merged)} 行，"
+                    f"join 键={join_keys}"
+                )
         else:
             if len(scores_df) != len(labels_df):
                 raise ValueError(

@@ -15,6 +15,7 @@ MODEL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(MODEL_ROOT / "src"))
 
 from dataset import load_table  # noqa: E402
+from model_io import load_joblib_model, resolve_model_features  # noqa: E402
 from preprocess import build_model_matrix  # noqa: E402
 
 
@@ -28,16 +29,14 @@ def main() -> None:
 
     df = load_table(args.data)
     if args.model.suffix == ".joblib":
-        bundle = joblib.load(args.model)
-        clf = bundle["model"]
-        features = bundle["features"]
+        clf, features = load_joblib_model(args.model)
         x = build_model_matrix(df, features)
         score = clf.predict_proba(x)[:, 1]
     else:
         import lightgbm as lgb
 
         booster = lgb.Booster(model_file=str(args.model))
-        features = booster.feature_name()
+        features = resolve_model_features(args.model, booster)
         x = build_model_matrix(df, features)
         score = booster.predict(x)
 

@@ -122,6 +122,7 @@ def main() -> None:
             y_train,
             x_val,
             y_val,
+            feature_columns=feature_columns,
             categorical_indices=categorical_indices,
             params=params,
             unlabeled_weight=float(pu_cfg.get("unlabeled_weight", 0.05)),

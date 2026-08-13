@@ -73,6 +73,7 @@ def train_weighted_naive_pu(
     y_train: np.ndarray,
     x_val: np.ndarray,
     y_val: np.ndarray,
+    feature_columns: list[str],
     categorical_indices: list[int],
     params: dict,
     unlabeled_weight: float,
@@ -89,6 +90,7 @@ def train_weighted_naive_pu(
         x_train,
         label=y_train,
         weight=w,
+        feature_name=feature_columns,
         categorical_feature=cat_arg,
         free_raw_data=free_raw,
     )
@@ -98,6 +100,7 @@ def train_weighted_naive_pu(
     val_set = lgb.Dataset(
         x_val,
         label=y_val,
+        feature_name=feature_columns,
         categorical_feature=cat_arg,
         reference=train_set,
         free_raw_data=free_raw,
@@ -157,14 +160,18 @@ def save_sklearn_pu_artifacts(clf, metrics, feature_columns, output_dir: Path, m
     return manifest
 
 
+from model_io import save_feature_list
+
+
 def save_lgbm_artifacts(booster, metrics, feature_columns, output_dir: Path, model_name: str) -> dict:
     output_dir.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_path = output_dir / f"{model_name}_{ts}.txt"
     booster.save_model(str(model_path))
+    features_path = save_feature_list(model_path, feature_columns)
     importance = pd.DataFrame(
         {
-            "feature": booster.feature_name(),
+            "feature": feature_columns,
             "gain": booster.feature_importance(importance_type="gain"),
         }
     ).sort_values("gain", ascending=False)
@@ -175,7 +182,9 @@ def save_lgbm_artifacts(booster, metrics, feature_columns, output_dir: Path, mod
         json.dump(metrics, f, ensure_ascii=False, indent=2)
     return {
         "model_path": str(model_path),
+        "features_path": str(features_path),
         "metrics_path": str(metrics_path),
         "importance_path": str(imp_path),
         "timestamp": ts,
+        "feature_count": len(feature_columns),
     }
