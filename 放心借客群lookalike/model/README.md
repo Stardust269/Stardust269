@@ -84,9 +84,18 @@ python scripts/train.py --config config_train_window.yaml --data data/training_p
 
 # 3) test 评估（不参与 fit；test 为全量背景，行数可能远大于 train 窗）
 python scripts/predict.py \
-  --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.joblib \
+  --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
   --data data/test_window.parquet \
   --out data/test_window_scores.parquet
+
+# 4) test 整体指标（recall / precision / F1 / AUC）
+python scripts/evaluate.py \
+  --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
+  --data data/test_window.parquet \
+  --out artifacts/test_window_metrics.json
+
+# 若已跑过 predict，也可用分数文件：
+# python scripts/evaluate.py --scores data/test_window_scores.parquet --data data/test_window.parquet
 ```
 
 ## 2. 本地训练
