@@ -34,9 +34,7 @@ def main() -> None:
 
     print("加载模型...")
     scorer = ScoringModel(args.model)
-    slim = slim_for_scoring(df, scorer.features, label_col="__dummy__")
-    if "__dummy__" in slim.columns:
-        slim = slim.drop(columns=["__dummy__"])
+    slim = slim_for_scoring(df, scorer.features)
     release(df)
     gc.collect()
 

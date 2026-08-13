@@ -89,7 +89,8 @@ def _build_report_md(model_path: Path, rankings: list[dict], tgi_df: pd.DataFram
             "",
             "## 二、Test TGI 百分位表（与同事格式对齐）",
             "",
-            "> p95 = 累计 top 5%，p90 = 累计 top 10%，以此类推；p00 = 全量。",
+            "> p99 = 累计 top 1%，p98 = top 2%，p97 = top 3%，p96 = top 4%；"
+        "p95 = 累计 top 5%，p90 = 累计 top 10%，以此类推；p00 = 全量。",
             "",
             _tgi_markdown_table(tgi_df),
             "",

@@ -88,15 +88,22 @@ python scripts/predict.py \
   --data data/test_window.parquet \
   --out data/test_window_scores.parquet
 
-# 4) 完整评估报告（train/valid/test AUC + Test TGI 百分位表，与同事格式对齐）
+# 4) 完整评估报告（串行低内存：train → valid → test）
 python scripts/report_eval.py \
   --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
   --train-data data/training_pu_train_window.parquet \
   --test-data data/test_window.parquet \
+  --chunk-size 30000 \
   --out-dir artifacts/eval_report
 
 # 若仅需 test 快速指标：
 # python scripts/evaluate.py --model ... --data data/test_window.parquet
+
+# 已有 test 分数时，仅补算 p99~p96（top 1%~4%，无需重跑 report_eval）：
+# python scripts/tgi_top_percentiles.py \
+#   --scores data/test_window_scores.parquet \
+#   --data data/test_window.parquet \
+#   --patch-csv artifacts/eval_report/eval_report_*_test_tgi_percentile.csv
 ```
 
 ## 2. 本地训练

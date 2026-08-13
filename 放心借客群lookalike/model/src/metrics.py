@@ -117,27 +117,18 @@ def evaluate_scores(
     return out
 
 
-def tgi_percentile_table(
-    y_true: np.ndarray,
-    y_score: np.ndarray,
-    step: int = 5,
-) -> pd.DataFrame:
-    """
-    与同事 TGI 验收表对齐的百分位表。
-    p95 = 累计 top 5%，p90 = 累计 top 10%，…，p00 = 全量。
-    """
-    y_true = np.asarray(y_true).astype(int)
-    y_score = np.asarray(y_score).astype(float)
-    order = np.argsort(-y_score, kind="mergesort")
-    y_sorted = y_true[order]
-    n = len(y_true)
-    n_pos_total = int(y_sorted.sum())
-
+def _tgi_rows_for_percentiles(
+    y_sorted: np.ndarray,
+    n: int,
+    n_pos_total: int,
+    percentiles: list[int],
+) -> list[dict]:
+    """按给定百分位（降序，如 99,98,...,0）生成 TGI 行；p99=累计 top 1%。"""
     rows: list[dict] = []
     prev_cum_n = 0
     prev_cum_pos = 0
 
-    for p in range(95, -1, -step):
+    for p in sorted(percentiles, reverse=True):
         top_ratio = (100 - p) / 100.0
         cum_n = n if p == 0 else max(int(round(n * top_ratio)), 1)
         cum_n = min(cum_n, n)
@@ -159,7 +150,41 @@ def tgi_percentile_table(
         )
         prev_cum_n = cum_n
         prev_cum_pos = cum_pos
+    return rows
 
+
+# 与同事表一致：顶部细粒度 top1%~4% + 每 5% 一档至全量
+DEFAULT_TGI_PERCENTILES = [99, 98, 97, 96, *range(95, -1, -5)]
+
+
+def tgi_percentile_table(
+    y_true: np.ndarray,
+    y_score: np.ndarray,
+    step: int = 5,
+    extra_top_percentiles: list[int] | None = None,
+    percentiles: list[int] | None = None,
+) -> pd.DataFrame:
+    """
+    与同事 TGI 验收表对齐的百分位表。
+    p99=累计 top 1%，p98=top 2%，…，p95=top 5%，p90=top 10%，…，p00=全量。
+    """
+    y_true = np.asarray(y_true).astype(int)
+    y_score = np.asarray(y_score).astype(float)
+    order = np.argsort(-y_score, kind="mergesort")
+    y_sorted = y_true[order]
+    n = len(y_true)
+    n_pos_total = int(y_sorted.sum())
+
+    if percentiles is None:
+        pct_list = [99, 98, 97, 96, *range(95, -1, -step)]
+        seen: set[int] = set()
+        percentiles = []
+        for p in pct_list:
+            if p not in seen:
+                seen.add(p)
+                percentiles.append(p)
+
+    rows = _tgi_rows_for_percentiles(y_sorted, n, n_pos_total, percentiles)
     df = pd.DataFrame(rows)
     total_row = {
         "tgi百分位": "总计",
@@ -171,3 +196,18 @@ def tgi_percentile_table(
         "precision": float("nan"),
     }
     return pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
+
+
+def tgi_percentile_subset(
+    y_true: np.ndarray,
+    y_score: np.ndarray,
+    percentiles: list[int],
+) -> pd.DataFrame:
+    """仅计算指定百分位（如 p99~p96），用于补算指标、无需重跑全量评估。"""
+    y_true = np.asarray(y_true).astype(int)
+    y_score = np.asarray(y_score).astype(float)
+    order = np.argsort(-y_score, kind="mergesort")
+    y_sorted = y_true[order]
+    n = len(y_true)
+    n_pos_total = int(y_sorted.sum())
+    return pd.DataFrame(_tgi_rows_for_percentiles(y_sorted, n, n_pos_total, percentiles))
