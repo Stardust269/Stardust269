@@ -125,8 +125,16 @@ python scripts/report_eval.py \
 # python scripts/decision_tree_probe.py \
 #   --artifact artifacts/dt_probe/dt_probe_top10_*.joblib \
 #   --test-data data/test_window.parquet
-# 产出含 dt_probe_top10_*_tree.png；若已有 .joblib 可单独重绘 train 图：
+# 已有 .joblib，画 train 决策树图（用 joblib 内缓存的 train 统计）：
 # python scripts/plot_decision_tree.py --artifact artifacts/dt_probe/dt_probe_top10_*.joblib
+# 画 test 决策树图（节点统计基于 test 样本）：
+# python scripts/plot_decision_tree.py \
+#   --artifact artifacts/dt_probe/dt_probe_top10_*.joblib \
+#   --split test --test-data data/test_window.parquet
+# 已有 .joblib，仅在 test 上评估并出图：
+# python scripts/decision_tree_probe.py \
+#   --artifact artifacts/dt_probe/dt_probe_top10_*.joblib \
+#   --test-data data/test_window.parquet
 ```
 
 ## 2. 本地训练

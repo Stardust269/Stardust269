@@ -162,7 +162,7 @@ def _run_test_eval(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Top10 特征浅层决策树探查")
     parser.add_argument("--config", type=Path, default=MODEL_ROOT / "config_train_window.yaml")
-    parser.add_argument("--importance", type=Path, required=True)
+    parser.add_argument("--importance", type=Path, default=None)
     parser.add_argument("--model", type=Path, default=None)
     parser.add_argument("--features-json", type=Path, default=None)
     parser.add_argument("--data", type=Path, default=None, help="train+val parquet")
@@ -218,6 +218,9 @@ def main() -> None:
             out_stem=out_stem,
         )
         return
+
+    if not args.importance:
+        raise SystemExit("请指定 --importance，或使用 --artifact 仅在 test 上评估")
 
     model_path = args.model or infer_model_path(args.importance)
 
@@ -380,7 +383,7 @@ def main() -> None:
             cfg,
             args.config,
             label_col,
-            do_plot=args.plot_test or bool(args.plot_out),
+            do_plot=not args.no_plot,
             plot_out=args.plot_out.with_name(f"{stem.name}_test_tree.png") if args.plot_out else None,
             out_stem=stem,
         )
