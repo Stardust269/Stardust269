@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 from sklearn.metrics import (
     average_precision_score,
     f1_score,
@@ -104,10 +105,69 @@ def evaluate_scores(
     y_score: np.ndarray,
     threshold: float = 0.5,
     top_k_ratios: list[float] | None = None,
+    include_threshold: bool = True,
 ) -> dict:
     top_k_ratios = top_k_ratios or [0.01, 0.05, 0.10]
-    return {
+    out: dict = {
         "ranking": pu_ranking_metrics(y_true, y_score),
-        "threshold": classification_metrics(y_true, y_score, threshold),
         "top_k": top_k_metrics(y_true, y_score, top_k_ratios),
     }
+    if include_threshold:
+        out["threshold"] = classification_metrics(y_true, y_score, threshold)
+    return out
+
+
+def tgi_percentile_table(
+    y_true: np.ndarray,
+    y_score: np.ndarray,
+    step: int = 5,
+) -> pd.DataFrame:
+    """
+    与同事 TGI 验收表对齐的百分位表。
+    p95 = 累计 top 5%，p90 = 累计 top 10%，…，p00 = 全量。
+    """
+    y_true = np.asarray(y_true).astype(int)
+    y_score = np.asarray(y_score).astype(float)
+    order = np.argsort(-y_score, kind="mergesort")
+    y_sorted = y_true[order]
+    n = len(y_true)
+    n_pos_total = int(y_sorted.sum())
+
+    rows: list[dict] = []
+    prev_cum_n = 0
+    prev_cum_pos = 0
+
+    for p in range(95, -1, -step):
+        top_ratio = (100 - p) / 100.0
+        cum_n = n if p == 0 else max(int(round(n * top_ratio)), 1)
+        cum_n = min(cum_n, n)
+        cum_pos = int(y_sorted[:cum_n].sum())
+        slice_n = cum_n - prev_cum_n
+        slice_pos = cum_pos - prev_cum_pos
+        recall = cum_pos / n_pos_total if n_pos_total else float("nan")
+        precision = cum_pos / cum_n if cum_n else float("nan")
+        rows.append(
+            {
+                "tgi百分位": f"p{p:02d}",
+                "总数": slice_n,
+                "种子用户数": slice_pos,
+                "累计总数": cum_n,
+                "累计种子用户数": cum_pos,
+                "recall": recall,
+                "precision": precision,
+            }
+        )
+        prev_cum_n = cum_n
+        prev_cum_pos = cum_pos
+
+    df = pd.DataFrame(rows)
+    total_row = {
+        "tgi百分位": "总计",
+        "总数": n,
+        "种子用户数": n_pos_total,
+        "累计总数": n,
+        "累计种子用户数": n_pos_total,
+        "recall": float("nan"),
+        "precision": float("nan"),
+    }
+    return pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)

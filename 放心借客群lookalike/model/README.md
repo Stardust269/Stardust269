@@ -88,14 +88,15 @@ python scripts/predict.py \
   --data data/test_window.parquet \
   --out data/test_window_scores.parquet
 
-# 4) test 整体指标（recall / precision / F1 / AUC）
-python scripts/evaluate.py \
+# 4) 完整评估报告（train/valid/test AUC + Test TGI 百分位表，与同事格式对齐）
+python scripts/report_eval.py \
   --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
-  --data data/test_window.parquet \
-  --out artifacts/test_window_metrics.json
+  --train-data data/training_pu_train_window.parquet \
+  --test-data data/test_window.parquet \
+  --out-dir artifacts/eval_report
 
-# 若已跑过 predict，也可用分数文件：
-# python scripts/evaluate.py --scores data/test_window_scores.parquet --data data/test_window.parquet
+# 若仅需 test 快速指标：
+# python scripts/evaluate.py --model ... --data data/test_window.parquet
 ```
 
 ## 2. 本地训练

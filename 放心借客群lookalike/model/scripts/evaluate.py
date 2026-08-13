@@ -16,16 +16,15 @@ MODEL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(MODEL_ROOT / "src"))
 
 from config_loader import load_config, resolve_path  # noqa: E402
-from dataset import load_table  # noqa: E402
+from dataset import apply_filters, load_table  # noqa: E402
 from metrics import evaluate_scores  # noqa: E402
+from model_io import load_joblib_model, resolve_model_features  # noqa: E402
 from preprocess import build_model_matrix  # noqa: E402
 
 
 def _predict_scores(df: pd.DataFrame, model_path: Path) -> tuple[np.ndarray, list[str]]:
     if model_path.suffix == ".joblib":
-        bundle = joblib.load(model_path)
-        clf = bundle["model"]
-        features = bundle["features"]
+        clf, features = load_joblib_model(model_path)
         x = build_model_matrix(df, features)
         if hasattr(clf, "predict_proba"):
             score = clf.predict_proba(x)[:, 1]
@@ -36,7 +35,7 @@ def _predict_scores(df: pd.DataFrame, model_path: Path) -> tuple[np.ndarray, lis
     import lightgbm as lgb
 
     booster = lgb.Booster(model_file=str(model_path))
-    features = booster.feature_name()
+    features = resolve_model_features(model_path, booster)
     x = build_model_matrix(df, features)
     return booster.predict(x), features
 
@@ -86,6 +85,16 @@ def _load_labels_and_scores(args: argparse.Namespace, cfg: dict | None) -> tuple
     df = load_table(args.data, cfg, args.config)
     if label_col not in df.columns:
         raise ValueError(f"标签列不存在: {label_col}，请确认 test parquet 含 pu_label")
+
+    # test 集含 dataset_split='test'，不可走 train/val 的 split 过滤
+    if cfg and cfg["data"].get("split_col") in df.columns:
+        split_col = cfg["data"]["split_col"]
+        if (df[split_col] == "test").any():
+            df = apply_filters(df, cfg, restrict_splits=False)
+        else:
+            df = apply_filters(df, cfg)
+    elif cfg:
+        df = apply_filters(df, cfg)
 
     score, _ = _predict_scores(df, args.model)
     return df[label_col], score

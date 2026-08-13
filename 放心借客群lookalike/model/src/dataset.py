@@ -72,7 +72,7 @@ def load_table(path: Path, cfg: dict | None = None, config_path: Path | None = N
     return df
 
 
-def apply_filters(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+def apply_filters(df: pd.DataFrame, cfg: dict, *, restrict_splits: bool = True) -> pd.DataFrame:
     filt = cfg["data"].get("filter", {})
     label_col = cfg["data"]["label_col"]
     split_col = cfg["data"]["split_col"]
@@ -92,7 +92,7 @@ def apply_filters(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     if label_col in df.columns:
         mask &= df[label_col].isin([0, 1])
 
-    if split_col in df.columns:
+    if restrict_splits and split_col in df.columns:
         allowed = {cfg["data"]["train_split_value"], cfg["data"]["val_split_value"]}
         mask &= df[split_col].isin(allowed)
 
