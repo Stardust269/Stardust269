@@ -60,7 +60,19 @@ def resolve_model_features(model_path: Path, booster: lgb.Booster | None = None)
     )
 
 
-def load_joblib_model(model_path: Path):
+def resolve_feature_display_name(name: str, feature_list: list[str] | None) -> str:
+    """将 Column_N 映射为真实字段名；已是真实名则原样返回。"""
+    m = _COLUMN_RE.match(str(name))
+    if m and feature_list is not None:
+        idx = int(m.group(1))
+        if 0 <= idx < len(feature_list):
+            return feature_list[idx]
+    return str(name)
+
+
+def resolve_feature_names(names: list[str], feature_list: list[str] | None) -> list[str]:
+    return [resolve_feature_display_name(n, feature_list) for n in names]
+
     bundle = joblib.load(model_path)
     features = bundle.get("features")
     if not features:
