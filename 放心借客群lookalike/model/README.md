@@ -113,12 +113,14 @@ python scripts/report_eval.py \
 #   --top 10 \
 #   --out artifacts/top10_feature_importance.csv
 
-# Top10 特征重要度（Column_N → 真实字段名）：
-# python scripts/top_feature_importance.py \
+# 决策树探查（Top10，检验是否存在少量规则即可强区分种子/非种子）：
+# python scripts/decision_tree_probe.py \
 #   --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv \
 #   --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
-#   --top 10 \
-#   --out artifacts/top10_feature_importance.csv
+#   --data data/training_pu_train_window.parquet \
+#   --max-depth 4
+# 产出含 dt_probe_top10_*_tree.png；若已有 .joblib 可单独重绘：
+# python scripts/plot_decision_tree.py --artifact artifacts/dt_probe/dt_probe_top10_*.joblib
 ```
 
 ## 2. 本地训练

@@ -13,6 +13,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import joblib
 import numpy as np
 import pandas as pd
 from sklearn.metrics import accuracy_score, classification_report, roc_auc_score
@@ -25,6 +26,7 @@ from config_loader import load_config, resolve_path  # noqa: E402
 from dataset import load_split_minimal  # noqa: E402
 from memory_utils import release  # noqa: E402
 from top_features import infer_model_path, load_top_feature_names  # noqa: E402
+from tree_viz import save_decision_tree_plot  # noqa: E402
 
 
 def _prepare_xy(df: pd.DataFrame, features: list[str], label_col: str):
@@ -87,7 +89,10 @@ def main() -> None:
     parser.add_argument("--max-depth", type=int, default=4, help="树深度，越小规则越少")
     parser.add_argument("--min-samples-leaf", type=int, default=200)
     parser.add_argument("--out-dir", type=Path, default=MODEL_ROOT / "artifacts" / "dt_probe")
+    parser.add_argument("--no-plot", action="store_true", help="不导出树结构图")
+    parser.add_argument("--plot-out", type=Path, default=None, help="树图路径 .png/.pdf")
     args = parser.parse_args()
+    do_plot = not args.no_plot
 
     cfg = load_config(args.config)
     data_path = args.data or resolve_path(cfg["data"]["input_path"], args.config)
@@ -167,6 +172,13 @@ def main() -> None:
     }
     (stem.with_suffix(".json")).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     (stem.with_suffix(".txt")).write_text(tree_rules, encoding="utf-8")
+    joblib.dump({"clf": clf, "feature_names": used, "params": report["params"]}, stem.with_suffix(".joblib"))
+
+    plot_path = None
+    if do_plot:
+        plot_path = args.plot_out or stem.with_name(f"{stem.name}_tree.png")
+        save_decision_tree_plot(clf, used, plot_path)
+        print(f"决策树图已写入 {plot_path}")
 
     md = [
         "# 决策树探查（Top10 特征）",
@@ -183,14 +195,20 @@ def main() -> None:
         f"- train accuracy: {train_m['accuracy']:.4f}, auc: {train_m.get('auc', 'n/a')}",
         f"- val accuracy: {val_m['accuracy']:.4f}, auc: {val_m.get('auc', 'n/a')}",
         "",
-        "## 规则",
-        "",
-        "```",
-        tree_rules,
-        "```",
     ]
+    if plot_path:
+        md.extend(["## 结构图", "", f"![decision tree]({plot_path.name})", ""])
+    md.extend(
+        [
+            "## 规则",
+            "",
+            "```",
+            tree_rules,
+            "```",
+        ]
+    )
     (stem.with_suffix(".md")).write_text("\n".join(md), encoding="utf-8")
-    print(f"\n报告已写入 {stem}.{{md,txt,json}}")
+    print(f"\n报告已写入 {stem}.{{md,txt,json,joblib}}")
 
 
 if __name__ == "__main__":
