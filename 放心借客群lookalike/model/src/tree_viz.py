@@ -205,10 +205,12 @@ def build_tree_dot(
 
     lines = [
         "digraph Tree {",
-        'graph [rankdir=TB, splines=ortho, nodesep=0.45, ranksep=0.55];',
+        (
+            "graph [rankdir=TB, splines=ortho, nodesep=0.45, ranksep=0.55, "
+            f'label="{_dot_escape(graph_title)}", labelloc=t, fontsize=13];'
+        ),
         'node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=10];',
         'edge [fontname="Helvetica", fontsize=9];',
-        f'label="{_dot_escape(graph_title)}", labelloc=t, fontsize=13;',
         "",
     ]
 

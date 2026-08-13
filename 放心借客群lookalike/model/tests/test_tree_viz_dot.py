@@ -26,9 +26,14 @@ def test_dot_has_no_thousand_separators_in_labels():
     recall = summarize_pred_seed_leaf_recall(clf, stats, y)
     dot = build_tree_dot(clf, features, stats, recall)
 
+    # graph 级 label 必须写在 graph [...] 内，不能单独成行
+    graph_lines = [ln for ln in dot.splitlines() if ln.strip().startswith("graph [")]
+    assert len(graph_lines) == 1
+    assert "label=" in graph_lines[0]
+    assert not any(ln.strip().startswith("label=") for ln in dot.splitlines())
+
     # 图标题行不应含 1,234 这类千分位
-    title_line = [ln for ln in dot.splitlines() if ln.strip().startswith("label=")][0]
-    assert not re.search(r"\d,\d{3}", title_line), title_line
+    assert not re.search(r"\d,\d{3}", graph_lines[0]), graph_lines[0]
 
     # HTML 节点标签内同样禁止千分位逗号
     for ln in dot.splitlines():
