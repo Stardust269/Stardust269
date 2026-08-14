@@ -142,6 +142,8 @@ def main() -> None:
     print("\n=== 验证集 PU 监控指标 ===")
     print(json.dumps(metrics["val"], ensure_ascii=False, indent=2))
     print(f"\n模型已保存: {manifest['model_path']}")
+    if manifest.get("features_path"):
+        print(f"特征列表: {manifest['features_path']}")
 
 
 if __name__ == "__main__":
