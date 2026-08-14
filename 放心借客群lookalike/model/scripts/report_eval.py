@@ -22,7 +22,7 @@ sys.path.insert(0, str(MODEL_ROOT / "src"))
 from config_loader import load_config, resolve_path  # noqa: E402
 from dataset import load_split_table  # noqa: E402
 from memory_utils import release  # noqa: E402
-from metrics import pu_ranking_metrics, tgi_percentile_table  # noqa: E402
+from metrics import pu_ranking_metrics, tgi_percentile_table_from_config  # noqa: E402
 from model_io import ScoringModel, slim_for_scoring  # noqa: E402
 
 
@@ -74,14 +74,27 @@ def _tgi_markdown_table(df: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
-def _build_report_md(model_path: Path, rankings: list[dict], tgi_df: pd.DataFrame) -> str:
+def _build_report_md(
+    model_path: Path,
+    rankings: list[dict],
+    tgi_df: pd.DataFrame,
+    *,
+    tgi_band_mode: str = "ratio",
+) -> str:
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    tgi_note = (
+        "> 固定绝对人数分档（与 TGI 过滤前 test 各档人数一致）；p00 = 剩余全量。"
+        if tgi_band_mode == "fixed"
+        else "> p99 = 累计 top 1%，p98 = top 2%，p97 = top 3%，p96 = top 4%；"
+        "p95 = 累计 top 5%，p90 = 累计 top 10%，以此类推；p00 = 全量。"
+    )
     return "\n".join(
         [
             "# 放心借 Lookalike 评估报告",
             "",
             f"- 生成时间: {ts}",
             f"- 模型: `{model_path}`",
+            f"- TGI 分档模式: `{tgi_band_mode}`",
             "",
             "## 一、排序指标（AUC / PR-AUC）",
             "",
@@ -89,8 +102,7 @@ def _build_report_md(model_path: Path, rankings: list[dict], tgi_df: pd.DataFram
             "",
             "## 二、Test TGI 百分位表（与同事格式对齐）",
             "",
-            "> p99 = 累计 top 1%，p98 = top 2%，p97 = top 3%，p96 = top 4%；"
-        "p95 = 累计 top 5%，p90 = 累计 top 10%，以此类推；p00 = 全量。",
+            tgi_note,
             "",
             _tgi_markdown_table(tgi_df),
             "",
@@ -143,7 +155,7 @@ def main() -> None:
     parser.add_argument("--config", type=Path, default=MODEL_ROOT / "config_train_window.yaml")
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--train-data", type=Path, default=None)
-    parser.add_argument("--test-data", type=Path, required=True)
+    parser.add_argument("--test-data", type=Path, default=None)
     parser.add_argument("--label-col", default=None)
     parser.add_argument("--chunk-size", type=int, default=40_000, help="分块预测行数，OOM 可改为 20000")
     parser.add_argument("--out-dir", type=Path, default=MODEL_ROOT / "artifacts" / "eval_report")
@@ -152,10 +164,19 @@ def main() -> None:
     cfg = load_config(args.config)
     label_col = args.label_col or cfg["data"]["label_col"]
     train_data = args.train_data or resolve_path(cfg["data"]["input_path"], args.config)
+    test_data = args.test_data
+    if test_data is None:
+        test_path = cfg.get("data", {}).get("test_path")
+        if not test_path:
+            raise SystemExit("请指定 --test-data，或在 config 中设置 data.test_path")
+        test_data = resolve_path(test_path, args.config)
+    eval_cfg = cfg.get("eval", {})
+    tgi_band_mode = str(eval_cfg.get("tgi_band_mode", "ratio")).lower()
 
     print(f"模型: {args.model}")
     print(f"train/val 数据: {train_data}")
-    print(f"test 数据: {args.test_data}")
+    print(f"test 数据: {test_data}")
+    print(f"TGI 分档模式: {tgi_band_mode}")
     print("加载模型（仅一次）...")
     scorer = ScoringModel(args.model)
 
@@ -192,7 +213,7 @@ def main() -> None:
     # test：需保留 y/score 用于 TGI 表，但仍分块加载+打分
     print(f"\n>>> [test] 1/4 加载数据...")
     test_df = load_split_table(
-        args.test_data,
+        test_data,
         cfg,
         args.config,
         split_value=None,
@@ -212,7 +233,7 @@ def main() -> None:
     test_ranking = pu_ranking_metrics(test_y, test_score)
     test_ranking["split"] = "test"
     rankings.append(test_ranking)
-    tgi_df = tgi_percentile_table(test_y, test_score, step=5)
+    tgi_df = tgi_percentile_table_from_config(test_y, test_score, eval_cfg, step=5)
     release(test_y, test_score)
     gc.collect()
 
@@ -226,7 +247,7 @@ def main() -> None:
     csv_path = out_dir / f"{stem}_test_tgi_percentile.csv"
     json_path = out_dir / f"{stem}.json"
 
-    md_text = _build_report_md(args.model, rankings, tgi_df)
+    md_text = _build_report_md(args.model, rankings, tgi_df, tgi_band_mode=tgi_band_mode)
     md_path.write_text(md_text, encoding="utf-8")
     tgi_df.to_csv(csv_path, index=False, encoding="utf-8-sig")
 
@@ -234,6 +255,7 @@ def main() -> None:
         "model": str(args.model),
         "generated_at": ts,
         "splits": {r["split"]: r for r in rankings},
+        "test_tgi_band_mode": tgi_band_mode,
         "test_tgi_percentile": tgi_df.to_dict(orient="records"),
     }
     with json_path.open("w", encoding="utf-8") as f:

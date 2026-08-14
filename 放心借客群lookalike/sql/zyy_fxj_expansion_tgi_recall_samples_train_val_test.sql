@@ -1,0 +1,161 @@
+-- =============================================================================
+-- TGI 回归后样本：train/val + test（与同事表对齐）
+-- =============================================================================
+-- 源表（同事已建，TGI 过滤后）：
+--   train/val 候选：lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples
+--   test：         lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_test
+--
+-- 划分规则与 TGI 过滤前完全一致：
+--   pu_label：rate < 0.18 且 days_dt_zx = lend_date_sj（或沿用表内 label）
+--   train/val：hash(unique_id, dt_zx) 9:1
+--
+-- 产出（供 parquet 导出）：
+--   zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_train_tagged
+--   zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_test_tagged
+-- =============================================================================
+
+-- ########## 0. 样本量探查 ##########
+select
+    'tgi_recall_train_src' as src,
+    count(1) as row_cnt,
+    sum(cast(label as int)) as pos_cnt,
+    count(1) - sum(cast(label as int)) as neg_cnt
+from lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples
+;
+
+select
+    'tgi_recall_test_src' as src,
+    count(1) as row_cnt,
+    sum(cast(label as int)) as pos_cnt,
+    count(1) - sum(cast(label as int)) as neg_cnt
+from lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_test
+;
+
+-- ########## 1. 训练窗打 pu_label ##########
+drop table if exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_tgi_recall_train_label_stg;
+create table if not exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_tgi_recall_train_label_stg as
+select
+    s.*,
+    case
+        when cast(s.label as int) in (0, 1)
+        then cast(s.label as int)
+        when seed.y_loan_base_rate is not null
+         and cast(seed.y_loan_base_rate as double) < 0.18
+         and seed.lend_date_sj is not null
+         and s.days_dt_zx is not null
+         and cast(s.days_dt_zx as date) = cast(seed.lend_date_sj as date)
+        then 1
+        else 0
+    end as pu_label
+from lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples s
+left join (
+    select
+        unique_id,
+        lend_date_sj,
+        max(y_loan_base_rate) as y_loan_base_rate
+    from lj_iceberg.mkt_ayh_ana.zxt_5789_cust_detail_0630
+    group by unique_id, lend_date_sj
+) seed
+    on s.unique_id = seed.unique_id
+    and cast(s.days_dt_zx as date) = cast(seed.lend_date_sj as date)
+;
+
+-- ########## 2. train/val 划分（9:1，hash，与过滤前一致） ##########
+drop table if exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_tgi_recall_train_split_dim;
+create table if not exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_tgi_recall_train_split_dim as
+select
+    k.unique_id,
+    k.dt_zx_key,
+    k.days_dt_zx_key,
+    k.pu_label,
+    case
+        when pmod(abs(hash(concat(k.unique_id, k.dt_zx_key))), 10) < 9
+        then 'train'
+        else 'val'
+    end as dataset_split
+from (
+    select
+        unique_id,
+        coalesce(cast(dt_zx as string), '') as dt_zx_key,
+        coalesce(cast(days_dt_zx as string), '') as days_dt_zx_key,
+        pu_label
+    from lj_iceberg.ai_decision_dev.zyy_fxj_expansion_tgi_recall_train_label_stg
+    where pu_label in (0, 1)
+) k
+;
+
+-- ########## 3. 训练+验证表 ##########
+drop table if exists lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_train_tagged;
+create table if not exists lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_train_tagged as
+select
+    sp.dataset_split,
+    stg.*
+from lj_iceberg.ai_decision_dev.zyy_fxj_expansion_tgi_recall_train_label_stg stg
+inner join lj_iceberg.ai_decision_dev.zyy_fxj_expansion_tgi_recall_train_split_dim sp
+    on stg.unique_id = sp.unique_id
+    and coalesce(cast(stg.dt_zx as string), '') = sp.dt_zx_key
+    and coalesce(cast(stg.days_dt_zx as string), '') = sp.days_dt_zx_key
+    and stg.pu_label = sp.pu_label
+where stg.pu_label in (0, 1)
+;
+
+-- ########## 4. 测试集（TGI 过滤后 test 表） ##########
+drop table if exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_tgi_recall_test_label_stg;
+create table if not exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_tgi_recall_test_label_stg as
+select
+    t.*,
+    case
+        when cast(t.label as int) in (0, 1)
+        then cast(t.label as int)
+        when seed.y_loan_base_rate is not null
+         and cast(seed.y_loan_base_rate as double) < 0.18
+         and seed.lend_date_sj is not null
+         and t.days_dt_zx is not null
+         and cast(t.days_dt_zx as date) = cast(seed.lend_date_sj as date)
+        then 1
+        else 0
+    end as pu_label
+from lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_test t
+left join (
+    select
+        unique_id,
+        lend_date_sj,
+        max(y_loan_base_rate) as y_loan_base_rate
+    from lj_iceberg.mkt_ayh_ana.zxt_5789_cust_detail_0630
+    group by unique_id, lend_date_sj
+) seed
+    on t.unique_id = seed.unique_id
+    and cast(t.days_dt_zx as date) = cast(seed.lend_date_sj as date)
+;
+
+drop table if exists lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_test_tagged;
+create table if not exists lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_test_tagged as
+select
+    'test' as dataset_split,
+    stg.*
+from lj_iceberg.ai_decision_dev.zyy_fxj_expansion_tgi_recall_test_label_stg stg
+where stg.pu_label in (0, 1)
+;
+
+-- ########## 5. 核验 ##########
+select
+    'tgi_recall_train_tagged' as step,
+    pu_label,
+    dataset_split,
+    count(1) as cnt,
+    count(distinct unique_id) as usr
+from lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_train_tagged
+group by pu_label, dataset_split
+order by pu_label, dataset_split
+;
+
+select
+    'tgi_recall_test_tagged' as step,
+    pu_label,
+    dataset_split,
+    count(1) as cnt,
+    count(distinct unique_id) as usr
+from lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_test_tagged
+group by pu_label, dataset_split
+order by pu_label, dataset_split
+;

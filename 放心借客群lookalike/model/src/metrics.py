@@ -156,6 +156,142 @@ def _tgi_rows_for_percentiles(
 # 与同事表一致：顶部细粒度 top1%~4% + 每 5% 一档至全量
 DEFAULT_TGI_PERCENTILES = [99, 98, 97, 96, *range(95, -1, -5)]
 
+# TGI 过滤前 test 集各百分位档位的绝对人数（与同事验收表一致，非按当前 n 的百分比）
+PRE_TGI_TEST_BAND_SIZES: dict[int, int] = {
+    99: 46731,
+    98: 46732,
+    97: 46731,
+    96: 46732,
+    95: 46732,
+    90: 46731,
+    85: 46732,
+    80: 46731,
+    75: 46732,
+    70: 46732,
+    65: 46731,
+    60: 46732,
+    55: 46731,
+    50: 46732,
+    45: 46732,
+    40: 46731,
+    35: 46732,
+    30: 46731,
+    25: 46732,
+    20: 46731,
+    15: 46732,
+    10: 46731,
+    5: 46732,
+}
+
+
+def _resolve_tgi_percentiles(step: int = 5, percentiles: list[int] | None = None) -> list[int]:
+    if percentiles is not None:
+        return percentiles
+    pct_list = [99, 98, 97, 96, *range(95, -1, -step)]
+    seen: set[int] = set()
+    out: list[int] = []
+    for p in pct_list:
+        if p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out
+
+
+def _tgi_rows_for_fixed_bands(
+    y_sorted: np.ndarray,
+    n: int,
+    n_pos_total: int,
+    percentiles: list[int],
+    band_sizes: dict[int, int],
+) -> list[dict]:
+    """按固定绝对人数分档（TGI 回归后 test 与 pre-TGI test 人数对齐）。"""
+    rows: list[dict] = []
+    prev_cum_n = 0
+    prev_cum_pos = 0
+
+    for p in sorted(percentiles, reverse=True):
+        if p == 0:
+            cum_n = n
+        else:
+            slice_n = int(band_sizes[p])
+            cum_n = min(prev_cum_n + slice_n, n)
+        cum_pos = int(y_sorted[:cum_n].sum())
+        slice_n = cum_n - prev_cum_n
+        slice_pos = cum_pos - prev_cum_pos
+        recall = cum_pos / n_pos_total if n_pos_total else float("nan")
+        precision = cum_pos / cum_n if cum_n else float("nan")
+        rows.append(
+            {
+                "tgi百分位": f"p{p:02d}",
+                "总数": slice_n,
+                "种子用户数": slice_pos,
+                "累计总数": cum_n,
+                "累计种子用户数": cum_pos,
+                "recall": recall,
+                "precision": precision,
+            }
+        )
+        prev_cum_n = cum_n
+        prev_cum_pos = cum_pos
+    return rows
+
+
+def tgi_percentile_table_fixed_bands(
+    y_true: np.ndarray,
+    y_score: np.ndarray,
+    band_sizes: dict[int, int] | None = None,
+    step: int = 5,
+    percentiles: list[int] | None = None,
+) -> pd.DataFrame:
+    """
+    TGI 回归后 test 评估：各档「总数」使用 pre-TGI test 的绝对人数，而非 round(n * pct)。
+    p00 档为排序后剩余全量（n - 前面各档累计人数）。
+    """
+    y_true = np.asarray(y_true).astype(int)
+    y_score = np.asarray(y_score).astype(float)
+    order = np.argsort(-y_score, kind="mergesort")
+    y_sorted = y_true[order]
+    n = len(y_true)
+    n_pos_total = int(y_sorted.sum())
+    pct_list = _resolve_tgi_percentiles(step, percentiles)
+    sizes = band_sizes or PRE_TGI_TEST_BAND_SIZES
+
+    missing = [p for p in pct_list if p not in (0,) and p not in sizes]
+    if missing:
+        raise ValueError(f"固定分档缺少百分位人数配置: {missing}")
+
+    rows = _tgi_rows_for_fixed_bands(y_sorted, n, n_pos_total, pct_list, sizes)
+    df = pd.DataFrame(rows)
+    total_row = {
+        "tgi百分位": "总计",
+        "总数": n,
+        "种子用户数": n_pos_total,
+        "累计总数": n,
+        "累计种子用户数": n_pos_total,
+        "recall": float("nan"),
+        "precision": float("nan"),
+    }
+    return pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
+
+
+def tgi_percentile_table_from_config(
+    y_true: np.ndarray,
+    y_score: np.ndarray,
+    eval_cfg: dict | None,
+    step: int = 5,
+    percentiles: list[int] | None = None,
+) -> pd.DataFrame:
+    """按配置选择 ratio 或 fixed 分档。"""
+    eval_cfg = eval_cfg or {}
+    mode = str(eval_cfg.get("tgi_band_mode", "ratio")).lower()
+    if mode == "fixed":
+        raw = eval_cfg.get("tgi_band_sizes") or PRE_TGI_TEST_BAND_SIZES
+        band_sizes = {int(k): int(v) for k, v in raw.items()}
+        return tgi_percentile_table_fixed_bands(
+            y_true, y_score, band_sizes=band_sizes, step=step, percentiles=percentiles
+        )
+    return tgi_percentile_table(y_true, y_score, step=step, percentiles=percentiles)
+
 
 def tgi_percentile_table(
     y_true: np.ndarray,
@@ -175,13 +311,7 @@ def tgi_percentile_table(
     n_pos_total = int(y_sorted.sum())
 
     if percentiles is None:
-        pct_list = [99, 98, 97, 96, *range(95, -1, -step)]
-        seen: set[int] = set()
-        percentiles = []
-        for p in pct_list:
-            if p not in seen:
-                seen.add(p)
-                percentiles.append(p)
+        percentiles = _resolve_tgi_percentiles(step)
 
     rows = _tgi_rows_for_percentiles(y_sorted, n, n_pos_total, percentiles)
     df = pd.DataFrame(rows)

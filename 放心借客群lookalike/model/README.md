@@ -137,6 +137,28 @@ python scripts/report_eval.py \
 #   --test-data data/test_window.parquet
 ```
 
+**TGI 回归后样本**（训练参数与 `config_train_window.yaml` 完全一致；test TGI 表用固定绝对人数分档）：
+
+```bash
+# 1) Hive：sql/zyy_fxj_expansion_tgi_recall_samples_train_val_test.sql
+#    train/val: zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples
+#    test:      zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_test
+
+# 2) 导出
+# model/sql/export_training_data_tgi_recall.sql → data/training_pu_tgi_recall.parquet
+# model/sql/export_test_tgi_recall_data.sql     → data/test_tgi_recall.parquet
+
+cd model
+python scripts/train.py --config config_train_tgi_recall.yaml --data data/training_pu_tgi_recall.parquet
+
+# 3) 评估（TGI 分档=46731/46732 绝对人数，与过滤前 test 对齐；p00=剩余全量）
+python scripts/report_eval.py \
+  --config config_train_tgi_recall.yaml \
+  --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_*.txt \
+  --chunk-size 30000 \
+  --out-dir artifacts/eval_report_tgi_recall
+```
+
 ## 2. 本地训练
 
 ```bash
