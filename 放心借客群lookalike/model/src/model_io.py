@@ -73,6 +73,8 @@ def resolve_feature_display_name(name: str, feature_list: list[str] | None) -> s
 def resolve_feature_names(names: list[str], feature_list: list[str] | None) -> list[str]:
     return [resolve_feature_display_name(n, feature_list) for n in names]
 
+
+def load_joblib_model(model_path: Path):
     bundle = joblib.load(model_path)
     features = bundle.get("features")
     if not features:
