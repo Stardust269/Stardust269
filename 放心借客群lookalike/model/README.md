@@ -141,8 +141,8 @@ python scripts/report_eval.py \
 
 ```bash
 # 1) Hive：sql/zyy_fxj_expansion_tgi_recall_samples_train_val_test.sql
-#    train/val: zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples
-#    test:      zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_test
+#    train/val: tgi_recall_samples，days_dt_zx < 2026-06-22
+#    test:      tgi_recall_samples_test，days_dt_zx >= 2026-06-22
 
 # 2) 导出
 # model/sql/export_training_data_tgi_recall.sql → data/training_pu_tgi_recall.parquet
