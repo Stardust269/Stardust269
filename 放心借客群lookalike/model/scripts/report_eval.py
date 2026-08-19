@@ -159,6 +159,11 @@ def main() -> None:
     parser.add_argument("--label-col", default=None)
     parser.add_argument("--chunk-size", type=int, default=40_000, help="分块预测行数，OOM 可改为 20000")
     parser.add_argument("--out-dir", type=Path, default=MODEL_ROOT / "artifacts" / "eval_report")
+    parser.add_argument(
+        "--test-only",
+        action="store_true",
+        help="仅评估 test（跳过 train/val，适合交叉评估：TGI 训 + 过滤前 test）",
+    )
     args = parser.parse_args()
 
     cfg = load_config(args.config)
@@ -174,7 +179,10 @@ def main() -> None:
     tgi_band_mode = str(eval_cfg.get("tgi_band_mode", "ratio")).lower()
 
     print(f"模型: {args.model}")
-    print(f"train/val 数据: {train_data}")
+    if args.test_only:
+        print("模式: 仅 test（跳过 train/val）")
+    else:
+        print(f"train/val 数据: {train_data}")
     print(f"test 数据: {test_data}")
     print(f"TGI 分档模式: {tgi_band_mode}")
     print("加载模型（仅一次）...")
@@ -182,33 +190,34 @@ def main() -> None:
 
     rankings: list[dict] = []
 
-    rankings.append(
-        _eval_one_split(
-            scorer,
-            train_data,
-            cfg,
-            args.config,
-            label_col,
-            "train",
-            cfg["data"]["train_split_value"],
-            args.chunk_size,
-            restrict_splits=True,
+    if not args.test_only:
+        rankings.append(
+            _eval_one_split(
+                scorer,
+                train_data,
+                cfg,
+                args.config,
+                label_col,
+                "train",
+                cfg["data"]["train_split_value"],
+                args.chunk_size,
+                restrict_splits=True,
+            )
         )
-    )
 
-    rankings.append(
-        _eval_one_split(
-            scorer,
-            train_data,
-            cfg,
-            args.config,
-            label_col,
-            "val",
-            cfg["data"]["val_split_value"],
-            args.chunk_size,
-            restrict_splits=True,
+        rankings.append(
+            _eval_one_split(
+                scorer,
+                train_data,
+                cfg,
+                args.config,
+                label_col,
+                "val",
+                cfg["data"]["val_split_value"],
+                args.chunk_size,
+                restrict_splits=True,
+            )
         )
-    )
 
     # test：需保留 y/score 用于 TGI 表，但仍分块加载+打分
     print(f"\n>>> [test] 1/4 加载数据...")

@@ -159,6 +159,23 @@ python scripts/report_eval.py \
   --out-dir artifacts/eval_report_tgi_recall
 ```
 
+**交叉评估（同事对比用）**：TGI 召回后训练的模型 → **TGI 召回前**全量 test（`test_window.parquet`）：
+
+```bash
+# 确保已有：
+#   - artifacts/lgbm_fxj_lookalike_pu_tgi_recall_*.txt（及 *_features.json）
+#   - data/test_window.parquet（过滤前 with_credit test，~93 万行）
+
+python scripts/report_eval.py \
+  --config config_eval_tgi_train_pretgi_test.yaml \
+  --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_*.txt \
+  --test-only \
+  --chunk-size 20000 \
+  --out-dir artifacts/eval_report_tgi_train_on_pretgi_test
+```
+
+TGI 表用 **fixed** 固定人数分档，可与过滤前模型的 TGI 表直接对比。
+
 ## 2. 本地训练
 
 ```bash
