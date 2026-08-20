@@ -33,15 +33,69 @@ def _load_feature_whitelist_from_cfg(cfg: dict, config_path: Path | None) -> lis
 
 
 def _downcast_numeric(df: pd.DataFrame) -> pd.DataFrame:
-    float_cols = df.select_dtypes(include=["float64"]).columns
-    if len(float_cols):
-        df[float_cols] = df[float_cols].astype(np.float32)
-    int_cols = df.select_dtypes(include=["int64"]).columns
-    for col in int_cols:
+    for col in df.select_dtypes(include=["float64"]).columns:
+        df[col] = df[col].astype(np.float32)
+    for col in df.select_dtypes(include=["int64"]).columns:
         if col in {"pu_label", "label", "dataset_split"}:
             continue
         df[col] = pd.to_numeric(df[col], downcast="integer")
     return df
+
+
+def resolve_training_schema(
+    path: Path,
+    cfg: dict,
+    config_path: Path | None = None,
+) -> tuple[list[str], dict]:
+    """从 parquet/csv 表头解析入模特征，避免为拿列名加载全量数据。"""
+    path = Path(path)
+    whitelist = _load_feature_whitelist_from_cfg(cfg, config_path)
+    if path.suffix.lower() == ".parquet":
+        all_columns = _parquet_column_names(path)
+    elif path.suffix.lower() == ".csv":
+        all_columns = pd.read_csv(path, nrows=0).columns.tolist()
+    else:
+        raise ValueError("仅支持 .parquet / .csv")
+
+    feature_columns, missing, excluded = resolve_model_feature_columns(
+        all_columns, cfg, whitelist
+    )
+    if not feature_columns:
+        raise ValueError("入模特征为空，请检查 feature_list_path 或数据列名")
+
+    meta = {
+        "whitelist_size": len(whitelist) if whitelist else None,
+        "missing_in_data": missing,
+        "excluded_id_label": excluded,
+    }
+    return feature_columns, meta
+
+
+def load_labels_minimal(
+    path: Path,
+    cfg: dict,
+    config_path: Path | None,
+    *,
+    label_col: str,
+    join_keys: list[str],
+    restrict_splits: bool = False,
+) -> pd.DataFrame:
+    """仅加载 join 键与标签列，用于 scores 与 labels 对齐（避免读入全量特征）。"""
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"数据文件不存在: {path}")
+
+    keep = list(dict.fromkeys([*join_keys, label_col]))
+    if path.suffix.lower() == ".parquet":
+        parquet_cols = _parquet_column_names(path)
+        keep = [c for c in keep if c in parquet_cols]
+        df = pd.read_parquet(path, columns=keep)
+    else:
+        df = load_table(path, cfg, config_path)
+        keep = [c for c in keep if c in df.columns]
+        df = df[keep]
+
+    return apply_filters(df, cfg, restrict_splits=restrict_splits)
 
 
 def load_table(path: Path, cfg: dict | None = None, config_path: Path | None = None) -> pd.DataFrame:
@@ -156,37 +210,45 @@ def apply_filters(df: pd.DataFrame, cfg: dict, *, restrict_splits: bool = True) 
     filt = cfg["data"].get("filter", {})
     label_col = cfg["data"]["label_col"]
     split_col = cfg["data"]["split_col"]
-    mask = pd.Series(True, index=df.index)
+    mask = np.ones(len(df), dtype=bool)
 
     if filt.get("require_zx_report") and filt.get("zx_report_col") in df.columns:
         col = filt["zx_report_col"]
-        mask &= df[col].fillna(0).astype(int) == 1
+        mask &= df[col].fillna(0).to_numpy(dtype=np.int8, copy=False) == 1
 
     ms13_min = float(filt.get("unlabeled_ms13_min") or 0)
     ms13_col = filt.get("ms13_col")
     if ms13_min > 0 and ms13_col and ms13_col in df.columns:
-        is_pos = df[label_col] == 1
-        ms13 = pd.to_numeric(df[ms13_col], errors="coerce")
+        is_pos = df[label_col].to_numpy(copy=False) == 1
+        ms13 = pd.to_numeric(df[ms13_col], errors="coerce").to_numpy(dtype=np.float32, copy=False)
         mask &= is_pos | (ms13 >= ms13_min)
 
     if label_col in df.columns:
-        mask &= df[label_col].isin([0, 1])
+        labels = df[label_col].to_numpy(copy=False)
+        mask &= (labels == 0) | (labels == 1)
 
     if restrict_splits and split_col in df.columns:
         allowed = {cfg["data"]["train_split_value"], cfg["data"]["val_split_value"]}
-        mask &= df[split_col].isin(allowed)
+        mask &= df[split_col].isin(allowed).to_numpy(copy=False)
 
-    return df.loc[mask].reset_index(drop=True)
+    if not mask.all():
+        df = df.iloc[np.flatnonzero(mask)].reset_index(drop=True)
+    else:
+        df = df.reset_index(drop=True)
+    return df
 
 
 def subsample_unlabeled(df: pd.DataFrame, label_col: str, ratio: float, seed: int) -> pd.DataFrame:
     if ratio >= 1.0:
         return df
-    pos = df[df[label_col] == 1]
-    unl = df[df[label_col] == 0]
-    n = max(int(len(unl) * ratio), 1)
-    unl_sample = unl.sample(n=min(n, len(unl)), random_state=seed)
-    return pd.concat([pos, unl_sample], ignore_index=True)
+    labels = df[label_col].to_numpy(copy=False)
+    pos_idx = np.flatnonzero(labels == 1)
+    unl_idx = np.flatnonzero(labels == 0)
+    n = max(int(len(unl_idx) * ratio), 1)
+    rng = np.random.RandomState(seed)
+    sampled_unl = rng.choice(unl_idx, size=min(n, len(unl_idx)), replace=False)
+    keep = np.concatenate([pos_idx, sampled_unl])
+    return df.iloc[keep].reset_index(drop=True)
 
 
 def _slim_columns(

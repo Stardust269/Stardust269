@@ -53,8 +53,11 @@ model/
 
 **内存优化**（`training.memory` 配置，见 `config_half.yaml`）：
 - `float32` 矩阵替代 pandas float64 宽表
-- 分步构建 `x_train` / `x_val` 后释放 DataFrame
+- **分片加载**：train/val 按 `dataset_split` predicate pushdown 分别读入，避免全表常驻内存
+- 分步构建 `x_train` / `x_val` 后释放 DataFrame；`weighted_naive` 在 `lgb.train` 前释放 `x_train`
 - LightGBM `free_raw_data`、仅 val early stopping、跳过 train 全量 predict
+- `predict.py` 默认读 `--config` 做 parquet 列裁剪（与训练白名单一致）
+- 分块打分走 numpy 矩阵，避免每 chunk 构建 float64 DataFrame
 - `max_bin: 127`、`num_threads: 2`
 
 半量导出与训练：

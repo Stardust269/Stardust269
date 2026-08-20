@@ -25,13 +25,22 @@ def build_training_arrays(
         if col not in df.columns:
             continue
         if col in CATEGORICAL_COLUMNS:
-            codes = pd.Categorical(df[col].astype("string").fillna("__MISSING__")).codes
+            series = df[col]
+            if pd.api.types.is_string_dtype(series) or series.dtype == object:
+                filled = series.fillna("__MISSING__")
+            else:
+                filled = series.astype("object").where(series.notna(), "__MISSING__")
+            codes = pd.Categorical(filled).codes
             matrix[:, j] = codes.astype(dtype, copy=False)
             categorical_indices.append(j)
         else:
-            matrix[:, j] = pd.to_numeric(df[col], errors="coerce").to_numpy(
-                dtype=dtype, na_value=np.nan, copy=False
-            )
+            col_values = df[col]
+            if pd.api.types.is_numeric_dtype(col_values):
+                matrix[:, j] = col_values.to_numpy(dtype=dtype, copy=False)
+            else:
+                matrix[:, j] = pd.to_numeric(col_values, errors="coerce").to_numpy(
+                    dtype=dtype, na_value=np.nan, copy=False
+                )
 
     return matrix, categorical_indices
 

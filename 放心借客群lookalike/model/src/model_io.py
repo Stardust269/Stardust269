@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from memory_utils import release
-from preprocess import build_model_matrix
+from preprocess import build_model_matrix, build_training_arrays
 
 
 _COLUMN_RE = re.compile(r"^Column_(\d+)$")
@@ -102,16 +102,18 @@ class ScoringModel:
         for start in range(0, n, chunk_size):
             end = min(start + chunk_size, n)
             chunk = df.iloc[start:end]
-            x = build_model_matrix(chunk, self.features)
-            release(chunk)
             if self.booster is not None:
+                x, _ = build_training_arrays(chunk, self.features, use_float32=True)
                 scores[start:end] = self.booster.predict(x)
+                release(chunk, x)
             else:
+                x = build_model_matrix(chunk, self.features)
+                release(chunk)
                 if hasattr(self.clf, "predict_proba"):
                     scores[start:end] = self.clf.predict_proba(x)[:, 1]
                 else:
                     scores[start:end] = self.clf.predict(x)
-            release(x)
+                release(x)
         return scores
 
 

@@ -15,6 +15,8 @@ def memory_cfg(training_cfg: dict) -> dict:
     defaults = {
         "use_float32": True,
         "release_dataframes": True,
+        "release_train_matrix": True,
+        "load_splits_separately": True,
         "lgb_free_raw_data": True,
         "skip_train_metrics": True,
         "valid_on_val_only": True,

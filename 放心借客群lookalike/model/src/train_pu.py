@@ -56,6 +56,10 @@ def train_elkanoto_pu(
         random_state=seed,
     )
     clf.fit(x_train, y_train)
+    if mem.get("release_train_matrix", True):
+        release(x_train)
+        if mem.get("skip_train_metrics", True):
+            release(y_train)
 
     metrics: dict = {"method": "elkanoto"}
     if not mem.get("skip_train_metrics", True):
@@ -66,6 +70,97 @@ def train_elkanoto_pu(
     metrics["val"]["precision_at_1pct"] = precision_at_k(y_val, val_prob, 0.01)
     metrics["val"]["precision_at_5pct"] = precision_at_k(y_val, val_prob, 0.05)
     return clf, metrics
+
+
+def build_weighted_naive_datasets(
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    x_val: np.ndarray,
+    y_val: np.ndarray,
+    feature_columns: list[str],
+    categorical_indices: list[int],
+    params: dict,
+    unlabeled_weight: float,
+    mem: dict | None = None,
+) -> tuple[lgb.Dataset, lgb.Dataset, dict]:
+    mem = mem or {}
+    free_raw = bool(mem.get("lgb_free_raw_data", True))
+    w = np.where(y_train == 1, 1.0, float(unlabeled_weight)).astype(np.float32)
+
+    cat_arg = categorical_indices if categorical_indices else "auto"
+    train_set = lgb.Dataset(
+        x_train,
+        label=y_train,
+        weight=w,
+        feature_name=feature_columns,
+        categorical_feature=cat_arg,
+        free_raw_data=free_raw,
+    )
+    if free_raw and mem.get("skip_train_metrics", True):
+        release(w)
+
+    val_set = lgb.Dataset(
+        x_val,
+        label=y_val,
+        feature_name=feature_columns,
+        categorical_feature=cat_arg,
+        reference=train_set,
+        free_raw_data=free_raw,
+    )
+    train_params = _lgb_train_params(params, mem)
+    return train_set, val_set, {
+        "y_train": y_train,
+        "y_val": y_val,
+        "x_train": x_train,
+        "x_val": x_val,
+        "train_params": train_params,
+        "feature_columns": feature_columns,
+    }
+
+
+def run_weighted_naive_training(
+    train_set: lgb.Dataset,
+    val_set: lgb.Dataset,
+    ctx: dict,
+    num_boost_round: int,
+    early_stopping_rounds: int,
+    mem: dict | None = None,
+) -> tuple[lgb.Booster, dict]:
+    mem = mem or {}
+    free_raw = bool(mem.get("lgb_free_raw_data", True))
+    valid_sets = [val_set] if mem.get("valid_on_val_only", True) else [train_set, val_set]
+    valid_names = ["val"] if mem.get("valid_on_val_only", True) else ["train", "val"]
+
+    booster = lgb.train(
+        params=ctx["train_params"],
+        train_set=train_set,
+        num_boost_round=num_boost_round,
+        valid_sets=valid_sets,
+        valid_names=valid_names,
+        callbacks=[
+            lgb.early_stopping(stopping_rounds=early_stopping_rounds, verbose=True),
+            lgb.log_evaluation(period=50),
+        ],
+    )
+    gc.collect()
+
+    y_train = ctx["y_train"]
+    y_val = ctx["y_val"]
+    x_train = ctx["x_train"]
+    x_val = ctx["x_val"]
+    metrics: dict = {
+        "method": "weighted_naive",
+        "best_iteration": int(booster.best_iteration),
+    }
+    if not mem.get("skip_train_metrics", True):
+        train_prob = booster.predict(x_train, num_iteration=booster.best_iteration)
+        metrics["train"] = pu_ranking_metrics(y_train, train_prob)
+    val_prob = booster.predict(x_val, num_iteration=booster.best_iteration)
+    metrics["val"] = pu_ranking_metrics(y_val, val_prob)
+    metrics["val"]["precision_at_1pct"] = precision_at_k(y_val, val_prob, 0.01)
+    if free_raw:
+        release(x_val)
+    return booster, metrics
 
 
 def train_weighted_naive_pu(
@@ -82,60 +177,27 @@ def train_weighted_naive_pu(
     mem: dict | None = None,
 ) -> tuple[lgb.Booster, dict]:
     mem = mem or {}
-    free_raw = bool(mem.get("lgb_free_raw_data", True))
-    w = np.where(y_train == 1, 1.0, float(unlabeled_weight)).astype(np.float32)
-
-    cat_arg = categorical_indices if categorical_indices else "auto"
-    train_set = lgb.Dataset(
+    train_set, val_set, ctx = build_weighted_naive_datasets(
         x_train,
-        label=y_train,
-        weight=w,
-        feature_name=feature_columns,
-        categorical_feature=cat_arg,
-        free_raw_data=free_raw,
-    )
-    if free_raw and mem.get("skip_train_metrics", True):
-        release(x_train, w)
-
-    val_set = lgb.Dataset(
+        y_train,
         x_val,
-        label=y_val,
-        feature_name=feature_columns,
-        categorical_feature=cat_arg,
-        reference=train_set,
-        free_raw_data=free_raw,
+        y_val,
+        feature_columns=feature_columns,
+        categorical_indices=categorical_indices,
+        params=params,
+        unlabeled_weight=unlabeled_weight,
+        mem=mem,
     )
-
-    train_params = _lgb_train_params(params, mem)
-    valid_sets = [val_set] if mem.get("valid_on_val_only", True) else [train_set, val_set]
-    valid_names = ["val"] if mem.get("valid_on_val_only", True) else ["train", "val"]
-
-    booster = lgb.train(
-        params=train_params,
-        train_set=train_set,
+    if mem.get("release_train_matrix", True):
+        release(x_train, y_train)
+    return run_weighted_naive_training(
+        train_set,
+        val_set,
+        ctx,
         num_boost_round=num_boost_round,
-        valid_sets=valid_sets,
-        valid_names=valid_names,
-        callbacks=[
-            lgb.early_stopping(stopping_rounds=early_stopping_rounds, verbose=True),
-            lgb.log_evaluation(period=50),
-        ],
+        early_stopping_rounds=early_stopping_rounds,
+        mem=mem,
     )
-    gc.collect()
-
-    metrics: dict = {
-        "method": "weighted_naive",
-        "best_iteration": int(booster.best_iteration),
-    }
-    if not mem.get("skip_train_metrics", True):
-        train_prob = booster.predict(x_train, num_iteration=booster.best_iteration)
-        metrics["train"] = pu_ranking_metrics(y_train, train_prob)
-    val_prob = booster.predict(x_val, num_iteration=booster.best_iteration)
-    metrics["val"] = pu_ranking_metrics(y_val, val_prob)
-    metrics["val"]["precision_at_1pct"] = precision_at_k(y_val, val_prob, 0.01)
-    if free_raw:
-        release(x_val)
-    return booster, metrics
 
 
 def save_sklearn_pu_artifacts(clf, metrics, feature_columns, output_dir: Path, model_name: str) -> dict:

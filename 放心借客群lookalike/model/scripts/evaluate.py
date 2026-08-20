@@ -15,7 +15,7 @@ MODEL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(MODEL_ROOT / "src"))
 
 from config_loader import load_config, resolve_path  # noqa: E402
-from dataset import apply_filters, load_table  # noqa: E402
+from dataset import apply_filters, load_labels_minimal, load_table  # noqa: E402
 from memory_utils import release  # noqa: E402
 from metrics import evaluate_scores  # noqa: E402
 from model_io import ScoringModel, slim_for_scoring  # noqa: E402
@@ -30,15 +30,26 @@ def _load_labels_and_scores(args: argparse.Namespace, cfg: dict | None) -> tuple
         if score_col not in scores_df.columns:
             raise ValueError(f"分数列不存在: {score_col}，可选: {list(scores_df.columns)}")
 
-        labels_df = load_table(args.data, cfg, args.config)
-        if label_col not in labels_df.columns:
-            raise ValueError(f"标签列不存在: {label_col}")
-
         join_keys = [
             c
             for c in [args.id_col, "dt_zx", "days_dt_zx"]
-            if c in scores_df.columns and c in labels_df.columns
+            if c in scores_df.columns
         ]
+        if cfg is not None and join_keys:
+            labels_df = load_labels_minimal(
+                args.data,
+                cfg,
+                args.config,
+                label_col=label_col,
+                join_keys=join_keys,
+                restrict_splits=False,
+            )
+            join_keys = [c for c in join_keys if c in labels_df.columns]
+        else:
+            labels_df = load_table(args.data, cfg, args.config)
+        if label_col not in labels_df.columns:
+            raise ValueError(f"标签列不存在: {label_col}")
+
         if join_keys:
             merged = labels_df[join_keys + [label_col]].merge(
                 scores_df[join_keys + [score_col]], on=join_keys, how="inner"
