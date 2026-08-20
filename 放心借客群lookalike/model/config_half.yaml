@@ -1,0 +1,52 @@
+# 同事 tagged 半量训练集（约 35 万行）；128G 分析机建议先用此配置
+
+data:
+  input_path: data/training_pu_half.parquet
+  feature_list_path: features/colleague_selected_features.txt
+  id_col: unique_id
+  label_col: pu_label
+  split_col: dataset_split
+  train_split_value: train
+  val_split_value: val
+  filter:
+    require_zx_report: true
+    zx_report_col: zx_has_report_flg
+    unlabeled_ms13_min: 0
+    ms13_col: ms13_score
+
+pu:
+  method: weighted_naive         # 128G 分析机建议 weighted_naive；elkanoto 更耗内存
+  hold_out_ratio: 0.1
+  unlabeled_weight: 0.05
+
+training:
+  random_seed: 42
+  num_boost_round: 800
+  early_stopping_rounds: 80
+  unlabeled_subsample_ratio: 1.0
+  memory:
+    use_float32: true
+    release_dataframes: true
+    lgb_free_raw_data: true
+    skip_train_metrics: true      # 不对全量 train 做 predict，省内存
+    valid_on_val_only: true       # early stopping 只看 val
+    max_bin: 127                  # 降低直方图内存（默认 255）
+  params:
+    objective: binary
+    metric: auc
+    boosting_type: gbdt
+    learning_rate: 0.05
+    num_leaves: 63
+    max_depth: 8
+    min_data_in_leaf: 200
+    feature_fraction: 0.7
+    bagging_fraction: 0.7
+    bagging_freq: 1
+    lambda_l2: 2.0
+    verbosity: -1
+    seed: 42
+    num_threads: 2               # 限制 LightGBM 线程，降低内存峰值
+
+output:
+  artifacts_dir: artifacts
+  model_name: lgbm_fxj_lookalike_pu_half
