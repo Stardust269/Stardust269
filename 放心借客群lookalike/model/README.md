@@ -109,6 +109,27 @@ python scripts/report_eval.py \
 #   --chunk-size 30000 \
 #   --patch-csv artifacts/eval_report/eval_report_*_test_tgi_percentile.csv
 
+**Top1000 特征试验**（数据/PU/超参与 `config_train_window.yaml` 一致；特征取全量模型 gain Top1000）：
+
+```bash
+# 0) 前提：已有全量模型 artifacts/lgbm_fxj_lookalike_pu_train_window_*.{txt,feature_importance.csv}
+
+python scripts/top_feature_importance.py \
+  --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv \
+  --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
+  --top 1000 \
+  --out artifacts/top1000_train_window_gain.csv \
+  --out-features features/top1000_train_window_gain.txt
+
+python scripts/train.py --config config_train_window_top1000.yaml
+
+python scripts/report_eval.py \
+  --config config_train_window_top1000.yaml \
+  --model artifacts/lgbm_fxj_lookalike_pu_train_window_top1000_*.txt \
+  --chunk-size 30000 \
+  --out-dir artifacts/eval_report_train_window_top1000
+```
+
 # Top10 特征重要度（Column_N → 真实字段名）：
 # python scripts/top_feature_importance.py \
 #   --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv \
