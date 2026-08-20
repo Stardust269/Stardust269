@@ -1,0 +1,49 @@
+# 交叉评估：TGI 召回后 train 训练的模型 → TGI 召回前全量 test（便于与历史结果对比）
+#
+# 训练仍用 config_train_tgi_recall.yaml；本配置仅用于 report_eval。
+#
+# train/val：TGI 召回后训练集（与模型训练一致）
+# test：    TGI 召回前 with_credit 全量 test 窗（test_window.parquet，~93 万行）
+
+data:
+  input_path: data/training_pu_tgi_recall.parquet
+  test_path: data/test_window.parquet
+  feature_list_path: features/colleague_selected_features.txt
+  id_col: unique_id
+  label_col: pu_label
+  split_col: dataset_split
+  train_split_value: train
+  val_split_value: val
+  filter:
+    require_zx_report: true
+    zx_report_col: zx_has_report_flg
+    unlabeled_ms13_min: 0
+    ms13_col: ms13_score
+
+eval:
+  # 过滤前 test 用固定绝对人数分档，与同事历史 TGI 表直接对比
+  tgi_band_mode: fixed
+  tgi_band_sizes:
+    99: 46731
+    98: 46732
+    97: 46731
+    96: 46732
+    95: 46732
+    90: 46731
+    85: 46732
+    80: 46731
+    75: 46732
+    70: 46732
+    65: 46731
+    60: 46732
+    55: 46731
+    50: 46732
+    45: 46732
+    40: 46731
+    35: 46732
+    30: 46731
+    25: 46732
+    20: 46731
+    15: 46732
+    10: 46731
+    5: 46732
