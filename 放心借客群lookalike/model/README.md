@@ -13,22 +13,18 @@
 
 ## 目录
 
+完整文件说明见文末 **[附录：model/ 文件说明](#附录model-文件说明)**。顶层结构概览：
+
 ```
 model/
-├── config.yaml
-├── requirements.txt
-├── sql/
-│   ├── build_pu_training_table.sql   # 全量 U 打 pu_label + split
-│   ├── build_pu_training_table_with_credit_1_sample.sql  # with_credit_1 + 负样本抽（量=正样本）
-│   ├── export_training_data.sql
-│   └── export_training_data_tagged_half.sql   # 同事 tagged 半量 → training_pu_half.parquet
-├── config_half.yaml     # 半量训练配置（约 35 万行，省内存）
-├── scripts/
-│   ├── train.py
-│   ├── predict.py
-│   └── generate_demo_data.py
-├── data/          # 本地数据（gitignore）
-└── artifacts/     # 模型输出（gitignore）
+├── config*.yaml          # 训练/评估配置（多套数据场景）
+├── features/             # 入模特征白名单
+├── sql/                  # Hive 建表与 parquet 导出 SQL
+├── scripts/              # 命令行入口（训练、评估、探查）
+├── src/                  # 核心库（数据、PU、指标、模型 IO）
+├── tests/                # 单元测试
+├── data/                 # 本地 parquet（gitignore）
+└── artifacts/            # 模型与报告输出（gitignore）
 ```
 
 ## 1. Hive 准备
@@ -108,6 +104,7 @@ python scripts/report_eval.py \
 #   --data data/test_window.parquet \
 #   --chunk-size 30000 \
 #   --patch-csv artifacts/eval_report/eval_report_*_test_tgi_percentile.csv
+```
 
 **Top1000 特征试验**（数据/PU/超参与 `config_train_window.yaml` 一致；特征取全量模型 gain Top1000）：
 
@@ -130,6 +127,7 @@ python scripts/report_eval.py \
   --out-dir artifacts/eval_report_train_window_top1000
 ```
 
+```bash
 # Top10 特征重要度（Column_N → 真实字段名）：
 # python scripts/top_feature_importance.py \
 #   --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv \
@@ -258,3 +256,105 @@ python scripts/predict.py \
 ## 6. 与 Notion 策略对齐（可选过滤）
 
 `config.yaml` → `filter.unlabeled_ms13_min: 630` 可对**未标注**人群施加 ms13 下限（种子不筛）。多头等特征已在宽表中，建模阶段不做硬过滤。
+
+---
+
+## 附录：model/ 文件说明
+
+以下为 `model/` 目录下**每个文件**的用途说明（按路径排序）。`data/`、`artifacts/` 为运行时目录，内容不入 git。
+
+### 根目录
+
+| 文件 | 说明 |
+| --- | --- |
+| `README.md` | 本说明文档：业务背景、训练/评估命令、PU 方法、内存优化、文件索引 |
+| `requirements.txt` | Python 依赖（LightGBM、pandas、pyarrow、pulearn、sklearn 等） |
+| `.gitignore` | 忽略 `data/*.parquet`、`artifacts/`、虚拟环境等；保留 `features/colleague_selected_features.txt` |
+| `训练进展与同事确认事项.md` | 训练进展同步文档：数据链路、内存优化、结果摘要、待同事确认问题 |
+| `config.yaml` | **默认/全量**训练配置：`elkanoto` PU、`unlabeled_subsample_ratio: 0.2`、同事 4443 列白名单 |
+| `config_half.yaml` | **半量样本**训练（约 35 万行）：`weighted_naive`、省内存，数据 `training_pu_half.parquet` |
+| `config_train_window.yaml` | **主流程**：时间切分 train 窗 + weighted_naive；数据 `training_pu_train_window.parquet` |
+| `config_train_window_top1000.yaml` | 与 `config_train_window` 同数据/超参，特征换为全量模型 gain **Top1000** 白名单 |
+| `config_train_tgi_recall.yaml` | TGI 召回后样本训练；参数与 train_window 一致；含 fixed TGI 分档评估配置 |
+| `config_train_tgi_recall_elkanoto.yaml` | TGI 召回样本 + **elkanoto** PU；产出 `.joblib` |
+| `config_eval_tgi_train_pretgi_test.yaml` | **仅评估**：TGI 训模型 → 过滤前 `test_window.parquet` 交叉对比 |
+
+### features/（特征白名单）
+
+| 文件 | 说明 |
+| --- | --- |
+| `colleague_selected_features.txt` | 同事筛选 **4443 列**特征白名单（每行一列）；训练默认 `feature_list_path` |
+| `colleague_selected_features.json` | 同上，JSON 数组格式 |
+| `top1000_train_window_gain.txt` | **运行时生成**：全量模型 gain Top1000 特征名；由 `top_feature_importance.py --out-features` 产出 |
+
+### sql/（Hive 建表与导出）
+
+| 文件 | 说明 |
+| --- | --- |
+| `build_pu_training_table.sql` | 千万级背景宽表打 `pu_label` + `dataset_split`（全量 U 旧方案） |
+| `build_pu_training_table_with_credit_1_sample.sql` | `with_credit_1` 表 + 负样本抽样（负样本量≈正样本）；产出 `fxj_lookalike_pu_training_1` |
+| `export_training_data.sql` | 导出默认训练 parquet → `data/training_pu.parquet` |
+| `export_training_data_train_window.sql` | 导出时间窗 train+val → `data/training_pu_train_window.parquet` |
+| `export_test_window_data.sql` | 导出时间窗外 test → `data/test_window.parquet` |
+| `export_training_data_tagged_half.sql` | 导出半量 tagged 样本 → `data/training_pu_half.parquet` |
+| `export_training_data_tgi_recall.sql` | 导出 TGI 召回后 train+val → `data/training_pu_tgi_recall.parquet` |
+| `export_test_tgi_recall_data.sql` | 导出 TGI 召回后 test → `data/test_tgi_recall.parquet` |
+
+> 同事样本表打标签、时间切分等**上游 SQL** 在 `放心借客群lookalike/sql/`（如 `zyy_fxj_expansion_samples_train_val_test.sql`），不在本目录。
+
+### scripts/（命令行入口）
+
+| 文件 | 说明 |
+| --- | --- |
+| `train.py` | **训练主入口**：读 config → 加载 parquet → PU + LightGBM → 保存模型与指标 |
+| `predict.py` | 对背景人群**分块打分**，输出 lookalike 分数 parquet（支持 `--config` 列裁剪） |
+| `report_eval.py` | 生成 **train/val/test** 完整评估报告（AUC + TGI 百分位表，低内存串行） |
+| `evaluate.py` | 在带标签 test 上计算 AUC / precision / recall 等（支持 `--scores` 预打分 join） |
+| `tgi_top_percentiles.py` | 仅补算 TGI 顶部百分位（p99~p96），无需重跑完整 report_eval |
+| `top_feature_importance.py` | 从 `*_feature_importance.csv` 提取 TopK gain，并导出训练用特征 txt |
+| `decision_tree_probe.py` | Top 特征浅层决策树探查（规则可读性、train/test 时间外评估） |
+| `plot_decision_tree.py` | 从 `dt_probe` 的 joblib 导出带种子数/召回标注的树图（DOT/PNG） |
+| `repair_lgb_features.py` | 为旧版 `Column_0` 命名的 `.txt` 模型补写 `*_features.json` sidecar |
+| `generate_demo_data.py` | 无集群数据时生成小规模合成 parquet，用于本地冒烟 |
+| `materialize_colleague_features.py` | 一次性脚本：将内嵌的同事特征列表写入 `features/colleague_selected_features.*` |
+
+### src/（核心库）
+
+| 文件 | 说明 |
+| --- | --- |
+| `config_loader.py` | 加载 YAML config；将相对路径解析为相对 config 文件的绝对路径 |
+| `dataset.py` | Parquet/CSV 加载、列裁剪、过滤、train/val 分片加载、`to_xy` 矩阵构建 |
+| `features.py` | 特征白名单、泄漏字段排除、入模列解析、特征分组统计 |
+| `preprocess.py` | 宽表 → float32 numpy 训练矩阵；类别列编码 |
+| `memory_utils.py` | 内存相关默认配置（`release_train_matrix`、`load_splits_separately` 等） |
+| `train_pu.py` | PU 训练实现：`weighted_naive`（原生 lgb）/ `elkanoto`（pulearn）；模型落盘 |
+| `model_io.py` | 模型加载、`ScoringModel` 分块预测、特征 sidecar（`*_features.json`） |
+| `metrics.py` | PU 排序指标、TGI 百分位表（ratio/fixed 分档）、`evaluate_scores` |
+| `top_features.py` | 特征重要度表解析、TopK 特征名提取、`Column_N` → 真实字段名映射 |
+| `tree_viz.py` | 决策树 DOT/PNG 导出；节点种子数、seed%、seed recall 标注 |
+
+### tests/（单元测试）
+
+| 文件 | 说明 |
+| --- | --- |
+| `test_tgi_fixed_bands.py` | TGI 固定人数分档（`tgi_band_mode: fixed`）逻辑测试 |
+| `test_tree_viz_dot.py` | 决策树 DOT 输出语法与标注字段测试 |
+| `test_top_features.py` | TopK 特征名提取与特征白名单写入测试 |
+
+### 运行时目录（无固定文件，gitignore）
+
+| 路径 | 说明 |
+| --- | --- |
+| `data/` | 本地 parquet/csv：训练集、测试集、打分结果等 |
+| `artifacts/` | 模型（`.txt` / `.joblib`）、`*_feature_importance.csv`、评估报告、决策树探查产物 |
+
+### 常见产出文件命名（artifacts/）
+
+训练 `weighted_naive` 后典型产物：
+
+- `lgbm_fxj_lookalike_pu_<场景>_<时间戳>.txt` — LightGBM 模型
+- `lgbm_*_<时间戳>_features.json` — 入模特征名 sidecar（打分/评估必需）
+- `lgbm_*_<时间戳>_feature_importance.csv` — gain 排序，供 TopK 特征筛选
+- `lgbm_*_<时间戳>_metrics.json` — 验证集 PU 监控指标
+
+`elkanoto` 产出为 `.joblib`（内含 sklearn 管线 + features 列表）。
