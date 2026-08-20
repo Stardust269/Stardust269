@@ -176,6 +176,21 @@ python scripts/report_eval.py \
 
 TGI 表用 **fixed** 固定人数分档，可与过滤前模型的 TGI 表直接对比。
 
+**Elkanoto 对比试验**（同事建议的传统 PU 框架；**比 weighted_naive 更耗内存**）：
+
+```bash
+cd model
+python scripts/train.py --config config_train_tgi_recall_elkanoto.yaml --data data/training_pu_tgi_recall.parquet
+
+python scripts/report_eval.py \
+  --config config_train_tgi_recall_elkanoto.yaml \
+  --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_elkanoto_*.joblib \
+  --chunk-size 30000 \
+  --out-dir artifacts/eval_report_tgi_recall_elkanoto
+```
+
+内存差异要点：`weighted_naive` 走原生 `lgb.train`，可用 `free_raw_data`、仅 val early stopping、训练后释放 `x_train`；`elkanoto` 走 `pulearn` + sklearn `LGBMClassifier`，且从未标注中再 hold-out 估计类先验，峰值通常更高。OOM 时优先降 `unlabeled_subsample_ratio` 或先用 `config_half.yaml` 半量数据试跑。
+
 ## 2. 本地训练
 
 ```bash

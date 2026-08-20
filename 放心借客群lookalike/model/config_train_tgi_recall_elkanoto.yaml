@@ -1,0 +1,80 @@
+# TGI 回归后样本 + Elkanoto PU（传统 pulearn 框架；比 weighted_naive 更耗内存）
+# 产出为 .joblib，评估/打分用同一套 scripts（predict.py / report_eval.py 均支持）
+
+data:
+  input_path: data/training_pu_tgi_recall.parquet
+  test_path: data/test_tgi_recall.parquet
+  feature_list_path: features/colleague_selected_features.txt
+  id_col: unique_id
+  label_col: pu_label
+  split_col: dataset_split
+  train_split_value: train
+  val_split_value: val
+  filter:
+    require_zx_report: true
+    zx_report_col: zx_has_report_flg
+    unlabeled_ms13_min: 0
+    ms13_col: ms13_score
+
+pu:
+  method: elkanoto
+  hold_out_ratio: 0.1
+  unlabeled_weight: 0.05
+
+training:
+  random_seed: 42
+  num_boost_round: 800          # elkanoto 路径当前固定 n_estimators=500（见 train_pu._lgbm_estimator）
+  early_stopping_rounds: 80
+  # 内存吃紧时可先降到 0.5~0.8；elkanoto 比 weighted_naive 峰值更高
+  unlabeled_subsample_ratio: 1.0
+  memory:
+    use_float32: true
+    release_dataframes: true
+    skip_train_metrics: true
+    max_bin: 127
+  params:
+    objective: binary
+    metric: auc
+    boosting_type: gbdt
+    learning_rate: 0.05
+    num_leaves: 63
+    max_depth: 8
+    min_data_in_leaf: 200
+    feature_fraction: 0.7
+    bagging_fraction: 0.7
+    bagging_freq: 1
+    lambda_l2: 2.0
+    verbosity: -1
+    seed: 42
+    num_threads: 2
+
+output:
+  artifacts_dir: artifacts
+  model_name: lgbm_fxj_lookalike_pu_tgi_recall_elkanoto
+
+eval:
+  tgi_band_mode: fixed
+  tgi_band_sizes:
+    99: 46731
+    98: 46732
+    97: 46731
+    96: 46732
+    95: 46732
+    90: 46731
+    85: 46732
+    80: 46731
+    75: 46732
+    70: 46732
+    65: 46731
+    60: 46732
+    55: 46731
+    50: 46732
+    45: 46732
+    40: 46731
+    35: 46732
+    30: 46731
+    25: 46732
+    20: 46731
+    15: 46732
+    10: 46731
+    5: 46732
