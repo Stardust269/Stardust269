@@ -1,0 +1,74 @@
+# Top1000 特征训练（与 config_train_window.yaml 数据/PU/超参完全一致）
+#
+# 前置：先用全量 4437 特征 weighted_naive 模型产出 feature_importance.csv，再生成 Top1000 白名单：
+#
+#   python scripts/top_feature_importance.py \
+#     --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv \
+#     --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
+#     --top 1000 \
+#     --out artifacts/top1000_train_window_gain.csv \
+#     --out-features features/top1000_train_window_gain.txt
+#
+# 训练：
+#   python scripts/train.py --config config_train_window_top1000.yaml
+#
+# 评估（与全量模型同一 test 窗）：
+#   python scripts/report_eval.py \
+#     --config config_train_window_top1000.yaml \
+#     --model artifacts/lgbm_fxj_lookalike_pu_train_window_top1000_*.txt \
+#     --chunk-size 30000 \
+#     --out-dir artifacts/eval_report_train_window_top1000
+
+data:
+  input_path: data/training_pu_train_window.parquet
+  test_path: data/test_window.parquet
+  feature_list_path: features/top1000_train_window_gain.txt
+  id_col: unique_id
+  label_col: pu_label
+  split_col: dataset_split
+  train_split_value: train
+  val_split_value: val
+  filter:
+    require_zx_report: true
+    zx_report_col: zx_has_report_flg
+    unlabeled_ms13_min: 0
+    ms13_col: ms13_score
+
+pu:
+  method: weighted_naive
+  hold_out_ratio: 0.1
+  unlabeled_weight: 0.05
+
+training:
+  random_seed: 42
+  num_boost_round: 800
+  early_stopping_rounds: 80
+  unlabeled_subsample_ratio: 1.0
+  memory:
+    use_float32: true
+    release_dataframes: true
+    release_train_matrix: true
+    load_splits_separately: true
+    lgb_free_raw_data: true
+    skip_train_metrics: true
+    valid_on_val_only: true
+    max_bin: 127
+  params:
+    objective: binary
+    metric: auc
+    boosting_type: gbdt
+    learning_rate: 0.05
+    num_leaves: 63
+    max_depth: 8
+    min_data_in_leaf: 200
+    feature_fraction: 0.7
+    bagging_fraction: 0.7
+    bagging_freq: 1
+    lambda_l2: 2.0
+    verbosity: -1
+    seed: 42
+    num_threads: 2
+
+output:
+  artifacts_dir: artifacts
+  model_name: lgbm_fxj_lookalike_pu_train_window_top1000

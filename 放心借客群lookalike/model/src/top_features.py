@@ -69,3 +69,12 @@ def load_top_feature_names(
         for _, row in imp.iterrows()
     ]
     return names
+
+
+def save_feature_name_list(names: list[str], path: Path) -> Path:
+    """写入训练白名单 txt（每行一列，供 feature_list_path 使用）。"""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [n.strip() for n in names if n and str(n).strip()]
+    path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+    return path

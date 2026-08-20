@@ -15,6 +15,7 @@ from top_features import (  # noqa: E402
     load_feature_list_for_model,
     load_importance_table,
     load_top_feature_names,
+    save_feature_name_list,
 )
 
 
@@ -24,7 +25,13 @@ def main() -> None:
     parser.add_argument("--model", type=Path, default=None)
     parser.add_argument("--features", type=Path, default=None)
     parser.add_argument("--top", type=int, default=10)
-    parser.add_argument("--out", type=Path, default=None)
+    parser.add_argument("--out", type=Path, default=None, help="TopK 重要度 CSV")
+    parser.add_argument(
+        "--out-features",
+        type=Path,
+        default=None,
+        help="TopK 特征名 txt（每行一列，供 config feature_list_path 训练）",
+    )
     args = parser.parse_args()
 
     model_path = args.model or infer_model_path(args.importance)
@@ -50,6 +57,10 @@ def main() -> None:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         top.to_csv(args.out, index=False, encoding="utf-8-sig")
         print(f"\n已写入 {args.out}")
+
+    if args.out_features:
+        save_feature_name_list(names, args.out_features)
+        print(f"特征白名单已写入 {args.out_features}（{len(names)} 列）")
 
 
 if __name__ == "__main__":
