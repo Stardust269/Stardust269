@@ -344,6 +344,7 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 | `python scripts/top_feature_importance.py --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --top 10 --out artifacts/top10_feature_importance.csv` | 查看 Top10 gain，并将 `Column_N` 译为真实字段名 |
 | `python scripts/top_feature_importance.py --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --top 1000 --out artifacts/top1000_train_window_gain.csv --out-features features/top1000_train_window_gain.txt` | 导出 **Top1000 训练白名单**（供 `config_train_window_top1000.yaml`） |
 | `python scripts/repair_lgb_features.py --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_*.txt --config config_train_tgi_recall.yaml --data data/training_pu_tgi_recall.parquet` | 旧模型仅有 `Column_0` 占位名时，**补写** `*_features.json`（无需重训；否则 AUC=0.5） |
+| `python scripts/report_eval.py --config config_train_window_top1000.yaml --model artifacts/lgbm_*.txt ...` | 带 `--config` 时若 sidecar 缺失会**自动补写**（Top1000 用 `config_train_window_top1000.yaml`） |
 
 ### 7.7 决策树探查与可视化
 
