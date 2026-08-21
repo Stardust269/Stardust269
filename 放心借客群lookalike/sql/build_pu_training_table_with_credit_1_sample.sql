@@ -5,43 +5,29 @@
 --   fxj_seed_users_attach_credit_feature_with_credit_1.sql
 --   → lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature_with_credit_1
 --
--- 逻辑（与 build_pu_training_table.sql 一致）：
---   pu_label=1：放心借利率 <18%，且借款当日有征信报告
---   利率/首借日期来自客群明细表（宽表 multiloans_feature 本身无 y_loan_base_rate）
---   客群明细：lj_iceberg.mkt_ayh_ana.zxt_5789_cust_detail_0630（见 客群及其他相关表.md）
---   pu_label=0：从未标注池中随机抽取，抽取量 = 正样本行数（约 20 万）
+-- 逻辑：
+--   is_positive / pu_label：直接沿用同事样本表 label（0/1），不再用种子规则 join 客群明细
+--   正样本（label=1）：全量保留
+--   负样本（label=0）：从未标注池中随机抽取，抽取量 = 正样本行数（约 21.5 万）
 --   同事对照：负样本曾固定抽 50 万（本脚本默认与正样本对齐，见步骤 3 注释改 500000）
 --
 -- 输出：
 --   lj_iceberg.ai_decision_dev.fxj_lookalike_pu_training_1
 -- =============================================================================
 
--- ########## 1. 有报告人群 + 是否正类（未抽样） ##########
+-- ########## 1. 有报告人群 + 同事 label → is_positive（未抽样） ##########
+-- 宽表 with_credit_1 无 label 列，需 join 同事样本表 zyy_fxj_ayh_seed_users_expansion_samples
 drop table if exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_label_stg;
 create table if not exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_label_stg as
 select
     t.*,
-    case
-        when seed.y_loan_base_rate is not null
-         and cast(seed.y_loan_base_rate as double) < 0.18
-         and seed.lend_date_sj is not null
-         and t.days_dt_zx is not null
-         and cast(t.days_dt_zx as date) = cast(seed.lend_date_sj as date)
-        then 1
-        else 0
-    end as is_positive
+    cast(smp.label as int) as is_positive
 from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature_with_credit_1 t
-left join (
-    select
-        unique_id,
-        lend_date_sj,
-        max(y_loan_base_rate) as y_loan_base_rate
-    from lj_iceberg.mkt_ayh_ana.zxt_5789_cust_detail_0630
-    group by unique_id, lend_date_sj
-) seed
-    on t.unique_id = seed.unique_id
-    and cast(t.days_dt_zx as date) = cast(seed.lend_date_sj as date)
+inner join lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_samples smp
+    on t.unique_id = smp.unique_id
+   and coalesce(cast(t.dt_zx as string), '') = coalesce(cast(smp.dt_zx as string), '')
 where t.zx_has_report_flg = 1
+  and cast(smp.label as int) in (0, 1)
 ;
 
 -- ########## 2. 正样本（全量保留） ##########
