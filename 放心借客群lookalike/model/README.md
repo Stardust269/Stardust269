@@ -259,6 +259,107 @@ python scripts/predict.py \
 
 ---
 
+## 7. 命令速查（对话中使用的全部命令）
+
+以下汇总本项目中**对话与实践里出现过的命令**（默认在 `model/` 目录下执行）。`*` 请替换为实际模型时间戳或 glob 展开后的路径。
+
+**工作目录**（项目迁移后）：
+
+```bash
+cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchengrun/fxj_lookalike/model
+```
+
+### 7.1 环境与依赖
+
+| 命令 | 说明 |
+| --- | --- |
+| `python -m venv .venv && source .venv/bin/activate` | 创建并激活 Python 虚拟环境 |
+| `pip install -r requirements.txt` | 安装 LightGBM、pandas、pyarrow、pulearn 等依赖 |
+| `conda install -c conda-forge graphviz` | 安装系统 `dot` 二进制，决策树出图必需（`pip install graphviz` 不够） |
+| `python -m pytest tests/ -q` | 运行单元测试（TGI 分档、树图 DOT、Top 特征工具） |
+
+### 7.2 数据准备（Hive → parquet）
+
+在 Hive/Spark 中执行 SQL（非 shell 命令），再下载到 `model/data/`：
+
+| 步骤 | SQL 脚本 | 产出 parquet |
+| --- | --- | --- |
+| 同事样本打标签 + 9:1 | `../sql/zyy_fxj_expansion_samples_tagged.sql` | — |
+| 时间切分 train/test | `../sql/zyy_fxj_expansion_samples_train_val_test.sql` | train 表 + test 表 |
+| 半量抽样（省内存） | `../sql/zyy_fxj_expansion_samples_tagged_half.sql` | 半量表 |
+| TGI 召回样本切分 | `../sql/zyy_fxj_expansion_tgi_recall_samples_train_val_test.sql` | TGI train/test 表 |
+| 导出 train 窗 | `sql/export_training_data_train_window.sql` | `data/training_pu_train_window.parquet` |
+| 导出 test 窗 | `sql/export_test_window_data.sql` | `data/test_window.parquet` |
+| 导出半量 | `sql/export_training_data_tagged_half.sql` | `data/training_pu_half.parquet` |
+| 导出 TGI train+val | `sql/export_training_data_tgi_recall.sql` | `data/training_pu_tgi_recall.parquet` |
+| 导出 TGI test | `sql/export_test_tgi_recall_data.sql` | `data/test_tgi_recall.parquet` |
+| 导出默认全量（旧） | `sql/export_training_data.sql` | `data/training_pu.parquet` |
+
+### 7.3 训练
+
+| 命令 | 说明 |
+| --- | --- |
+| `python scripts/train.py --data data/training_pu.parquet` | **首次全量训练**（默认 `config.yaml`：elkanoto + U 下采样 20%） |
+| `python scripts/train.py --config config_half.yaml --data data/training_pu_half.parquet` | **半量样本** weighted_naive，128G 分析机省内存 |
+| `python scripts/train.py --config config_train_window.yaml --data data/training_pu_train_window.parquet` | **主流程**：时间切分 train 窗 + weighted_naive + 全量 U |
+| `python scripts/train.py --config config_train_tgi_recall.yaml --data data/training_pu_tgi_recall.parquet` | **TGI 召回后样本**训练，超参与 train_window 一致 |
+| `python scripts/train.py --config config_train_tgi_recall_elkanoto.yaml --data data/training_pu_tgi_recall.parquet` | TGI 样本 + **elkanoto** PU（产出 `.joblib`，更耗内存） |
+| `python scripts/train.py --config config_train_window_top1000.yaml` | **Top1000 特征**训练（需先生成 `features/top1000_train_window_gain.txt`） |
+| `python scripts/generate_demo_data.py --rows 20000` | 无集群数据时生成合成 parquet |
+| `python scripts/train.py` | 使用默认 `config.yaml` + 默认数据路径 |
+
+### 7.4 评估与报告
+
+| 命令 | 说明 |
+| --- | --- |
+| `python scripts/report_eval.py --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --train-data data/training_pu_train_window.parquet --test-data data/test_window.parquet --chunk-size 30000 --out-dir artifacts/eval_report` | **完整报告**：train/val/test AUC + test TGI 百分位表（低内存串行） |
+| `python scripts/report_eval.py --config config_train_window.yaml --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --chunk-size 30000 --out-dir artifacts/eval_report` | 同上，路径从 config 读取 |
+| `python scripts/report_eval.py --config config_train_tgi_recall.yaml --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_*.txt --chunk-size 30000 --out-dir artifacts/eval_report_tgi_recall` | TGI 召回模型评估（fixed 绝对人数分档） |
+| `python scripts/report_eval.py --config config_eval_tgi_train_pretgi_test.yaml --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_*.txt --test-only --chunk-size 20000 --out-dir artifacts/eval_report_tgi_train_on_pretgi_test` | **交叉评估**：TGI 训模型 → 过滤前 `test_window.parquet` |
+| `python scripts/report_eval.py --config config_train_window_top1000.yaml --model artifacts/lgbm_fxj_lookalike_pu_train_window_top1000_*.txt --chunk-size 30000 --out-dir artifacts/eval_report_train_window_top1000` | Top1000 模型完整评估 |
+| `python scripts/report_eval.py --config config_train_tgi_recall_elkanoto.yaml --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_elkanoto_*.joblib --chunk-size 30000 --out-dir artifacts/eval_report_tgi_recall_elkanoto` | Elkanoto 模型评估 |
+| `python scripts/evaluate.py --config config_train_window.yaml --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --data data/test_window.parquet --chunk-size 30000` | **仅 test** 快速 AUC / precision / recall |
+| `python scripts/tgi_top_percentiles.py --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --data data/test_window.parquet --chunk-size 30000 --patch-csv artifacts/eval_report/eval_report_*_test_tgi_percentile.csv` | 已有报告时**仅补算** p99~p96 顶部百分位 |
+
+### 7.5 打分扩量
+
+| 命令 | 说明 |
+| --- | --- |
+| `python scripts/predict.py --config config_train_window.yaml --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --data data/test_window.parquet --out data/test_window_scores.parquet --chunk-size 30000` | 对 test 集分块打分（`--config` 做列裁剪，省内存） |
+| `python scripts/predict.py --config config_train_tgi_recall.yaml --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_*.txt --data data/test_tgi_recall.parquet --out data/test_tgi_recall_scores.parquet --chunk-size 30000` | TGI test 打分 |
+| `python scripts/predict.py --model artifacts/lgbm_fxj_lookalike_pu_*.joblib --data data/background_scoring.parquet --out data/lookalike_top.parquet --top-k 500000 --chunk-size 30000` | 背景人群 TopK 扩量名单（elkanoto joblib 或任意模型） |
+
+### 7.6 特征重要度与 TopK 筛选
+
+| 命令 | 说明 |
+| --- | --- |
+| `python scripts/top_feature_importance.py --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --top 10 --out artifacts/top10_feature_importance.csv` | 查看 Top10 gain，并将 `Column_N` 译为真实字段名 |
+| `python scripts/top_feature_importance.py --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --top 1000 --out artifacts/top1000_train_window_gain.csv --out-features features/top1000_train_window_gain.txt` | 导出 **Top1000 训练白名单**（供 `config_train_window_top1000.yaml`） |
+| `python scripts/repair_lgb_features.py --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_*.txt --config config_train_tgi_recall.yaml --data data/training_pu_tgi_recall.parquet` | 旧模型仅有 `Column_0` 占位名时，**补写** `*_features.json`（无需重训；否则 AUC=0.5） |
+
+### 7.7 决策树探查与可视化
+
+| 命令 | 说明 |
+| --- | --- |
+| `python scripts/decision_tree_probe.py --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --data data/training_pu_train_window.parquet --max-depth 4` | Top 特征浅层决策树，检验是否少量规则即可区分种子 |
+| `python scripts/decision_tree_probe.py ... --test-data data/test_window.parquet --plot-test` | 在 test 上时间外评估并导出 test 节点统计图 |
+| `python scripts/decision_tree_probe.py --artifact artifacts/dt_probe/dt_probe_top10_*.joblib --test-data data/test_window.parquet` | 已有探查 joblib，**跳过训练**仅在 test 上评估 |
+| `python scripts/plot_decision_tree.py --artifact artifacts/dt_probe/dt_probe_top10_*.joblib` | 用 joblib 内缓存的 **train** 节点统计出树图 |
+| `python scripts/plot_decision_tree.py --artifact artifacts/dt_probe/dt_probe_top10_*.joblib --split test --test-data data/test_window.parquet` | 基于 **test** 样本重算节点统计并出图 |
+
+### 7.8 常用参数说明
+
+| 参数 | 含义 |
+| --- | --- |
+| `--config` | YAML 配置路径；决定数据路径、白名单、PU 方法、TGI 分档口径 |
+| `--data` / `--train-data` / `--test-data` | 覆盖 config 中的 parquet 路径 |
+| `--chunk-size 30000`（或 `20000`） | 分块打分/评估行数；OOM 时调小 |
+| `--test-only` | `report_eval` 跳过 train/val，仅评 test |
+| `--top-k` | `predict` 仅输出分数最高的 K 行 |
+| `--out-features` | `top_feature_importance` 导出训练用特征 txt |
+
+---
+
 ## 附录：model/ 文件说明
 
 以下为 `model/` 目录下**每个文件**的用途说明（按路径排序）。`data/`、`artifacts/` 为运行时目录，内容不入 git。
