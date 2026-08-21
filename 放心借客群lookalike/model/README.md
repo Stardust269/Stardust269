@@ -13,37 +13,34 @@
 
 ## 目录
 
-完整文件说明见文末 **[附录：model/ 文件说明](#附录model-文件说明)**。顶层结构概览：
+完整文件说明见文末 **[附录：model/ 文件说明](#附录model-文件说明)**；**全部运行命令**见 **[§7 命令速查](#7-命令速查对话中使用的全部命令)**。
 
 ```
 model/
 ├── config*.yaml          # 训练/评估配置（多套数据场景）
 ├── features/             # 入模特征白名单
-├── sql/                  # Hive 建表与 parquet 导出 SQL
 ├── scripts/              # 命令行入口（训练、评估、探查）
 ├── src/                  # 核心库（数据、PU、指标、模型 IO）
 ├── tests/                # 单元测试
-├── data/                 # 本地 parquet（gitignore）
+├── data/                 # 本地 parquet（gitignore，由云查询机导出后拷入）
 └── artifacts/            # 模型与报告输出（gitignore）
 ```
 
-## 1. Hive 准备
+> **环境分工**：**云查询机**跑 Hive SQL（脚本在仓库 `../sql/`，或你司查询机上的副本）；**云分析机**（本目录）只跑 Python，输入为 `data/*.parquet`。
 
-```bash
-# 1) 征信特征宽表（若未跑）
-# 放心借客群lookalike/sql/fxj_seed_users_attach_credit_feature.sql
+## 1. 数据准备（云查询机）与分析机输入
 
-# 2) PU 训练表（二选一）
-# 全量：model/sql/build_pu_training_table.sql
-# 抽样（推荐先训）：with_credit_1 脚本 + build_pu_training_table_with_credit_1_sample.sql
+Hive / Spark SQL **不在本目录执行**。请在**云查询机**跑 `放心借客群lookalike/sql/` 下的脚本（或你维护的等价 SQL），再将结果导出为 parquet 放到分析机 `model/data/`。
 
-# 3) 导出 → data/training_pu.parquet（默认 fxj_lookalike_pu_training_1）
-# model/sql/export_training_data.sql
-```
+| 场景 | 云查询机 SQL（仓库路径） | 分析机 parquet |
+| --- | --- | --- |
+| 征信宽表 | `../sql/fxj_seed_users_attach_credit_feature.sql` | — |
+| 同事样本打标签 + 9:1 | `../sql/zyy_fxj_expansion_samples_tagged.sql` | — |
+| 时间切分 train/test | `../sql/zyy_fxj_expansion_samples_train_val_test.sql` | 导出 train 表 → `data/training_pu_train_window.parquet`；test 表 → `data/test_window.parquet` |
+| 半量抽样 | `../sql/zyy_fxj_expansion_samples_tagged_half.sql` | → `data/training_pu_half.parquet` |
+| TGI 召回切分 | `../sql/zyy_fxj_expansion_tgi_recall_samples_train_val_test.sql` | → `data/training_pu_tgi_recall.parquet` / `data/test_tgi_recall.parquet` |
 
-若宽表无 `y_loan_base_rate` / `lend_date_sj`（纯背景表），请在 `build_pu_training_table.sql` 中改为 join 种子清单表打 `pu_label`。
-
-**同事 50 万负样本表**（`zyy_fxj_ayh_seed_users_expansion_samples`）请用 `sql/zyy_fxj_expansion_samples_tagged.sql` 打 `pu_label` + **9:1** `dataset_split`。分析机内存不足时，再跑 **`sql/zyy_fxj_expansion_samples_tagged_half.sql`**（从 tagged 约 70 万行各抽 50% → 约 35 万行）。
+导出方式：在云查询机对目标 Hive 表 `SELECT *`（或按白名单列裁剪）后下载；分析机 config 中的 `data.input_path` / `test_path` 指向上述 parquet 即可。
 
 训练默认仅使用同事筛选的 **4443 列**特征白名单（`features/colleague_selected_features.txt`），parquet 加载时列裁剪。
 
@@ -59,7 +56,7 @@ model/
 半量导出与训练：
 
 ```bash
-# Hive：model/sql/export_training_data_tagged_half.sql → 下载为 data/training_pu_half.parquet
+# 云查询机：跑 ../sql/zyy_fxj_expansion_samples_tagged_half.sql 并导出 → data/training_pu_half.parquet
 
 cd model
 python scripts/train.py --config config_half.yaml --data data/training_pu_half.parquet
@@ -68,15 +65,12 @@ python scripts/train.py --config config_half.yaml --data data/training_pu_half.p
 **同事 TGI 时间切分**（train 窗 9:1 + test 从 with_credit 全量宽表按日期，不调参）：
 
 ```bash
-# 1) Hive：sql/zyy_fxj_expansion_samples_train_val_test.sql
+# 1) 云查询机：../sql/zyy_fxj_expansion_samples_train_val_test.sql
 #    train: days_dt_zx < 2026-06-22 → ..._train_tagged（同事样本表）
 #    test:  days_dt_zx >= 2026-06-22 从 ..._feature_with_credit 全量宽表筛选
 #           → fxj_ayh_seed_users_expansion_with_credit_test
 #           勿用 fxj_ayh_seed_users_expansion_tgi_result（TGI 打分结果表）
-
-# 2) 导出
-# model/sql/export_training_data_train_window.sql → data/training_pu_train_window.parquet
-# model/sql/export_test_window_data.sql           → data/test_window.parquet
+#    导出 → data/training_pu_train_window.parquet / data/test_window.parquet
 
 cd model
 python scripts/train.py --config config_train_window.yaml --data data/training_pu_train_window.parquet
@@ -162,13 +156,10 @@ python scripts/report_eval.py \
 **TGI 回归后样本**（训练参数与 `config_train_window.yaml` 完全一致；test TGI 表用固定绝对人数分档）：
 
 ```bash
-# 1) Hive：sql/zyy_fxj_expansion_tgi_recall_samples_train_val_test.sql
+# 1) 云查询机：../sql/zyy_fxj_expansion_tgi_recall_samples_train_val_test.sql
 #    train/val: tgi_recall_samples，days_dt_zx < 2026-06-22
 #    test:      tgi_recall_samples_test，days_dt_zx >= 2026-06-22
-
-# 2) 导出
-# model/sql/export_training_data_tgi_recall.sql → data/training_pu_tgi_recall.parquet
-# model/sql/export_test_tgi_recall_data.sql     → data/test_tgi_recall.parquet
+#    导出 → data/training_pu_tgi_recall.parquet / data/test_tgi_recall.parquet
 
 cd model
 python scripts/train.py --config config_train_tgi_recall.yaml --data data/training_pu_tgi_recall.parquet
@@ -278,22 +269,19 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 | `conda install -c conda-forge graphviz` | 安装系统 `dot` 二进制，决策树出图必需（`pip install graphviz` 不够） |
 | `python -m pytest tests/ -q` | 运行单元测试（TGI 分档、树图 DOT、Top 特征工具） |
 
-### 7.2 数据准备（Hive → parquet）
+### 7.2 数据准备（云查询机 → parquet）
 
-在 Hive/Spark 中执行 SQL（非 shell 命令），再下载到 `model/data/`：
+在**云查询机**执行 Hive SQL（仓库参考脚本在 `../sql/`），导出后拷到分析机 `model/data/`：
 
-| 步骤 | SQL 脚本 | 产出 parquet |
+| 步骤 | 云查询机 SQL（仓库 `../sql/`） | 分析机 parquet |
 | --- | --- | --- |
-| 同事样本打标签 + 9:1 | `../sql/zyy_fxj_expansion_samples_tagged.sql` | — |
-| 时间切分 train/test | `../sql/zyy_fxj_expansion_samples_train_val_test.sql` | train 表 + test 表 |
-| 半量抽样（省内存） | `../sql/zyy_fxj_expansion_samples_tagged_half.sql` | 半量表 |
-| TGI 召回样本切分 | `../sql/zyy_fxj_expansion_tgi_recall_samples_train_val_test.sql` | TGI train/test 表 |
-| 导出 train 窗 | `sql/export_training_data_train_window.sql` | `data/training_pu_train_window.parquet` |
-| 导出 test 窗 | `sql/export_test_window_data.sql` | `data/test_window.parquet` |
-| 导出半量 | `sql/export_training_data_tagged_half.sql` | `data/training_pu_half.parquet` |
-| 导出 TGI train+val | `sql/export_training_data_tgi_recall.sql` | `data/training_pu_tgi_recall.parquet` |
-| 导出 TGI test | `sql/export_test_tgi_recall_data.sql` | `data/test_tgi_recall.parquet` |
-| 导出默认全量（旧） | `sql/export_training_data.sql` | `data/training_pu.parquet` |
+| 同事样本打标签 + 9:1 | `zyy_fxj_expansion_samples_tagged.sql` | — |
+| 时间切分 train/test | `zyy_fxj_expansion_samples_train_val_test.sql` | `training_pu_train_window.parquet` / `test_window.parquet` |
+| 半量抽样（省内存） | `zyy_fxj_expansion_samples_tagged_half.sql` | `training_pu_half.parquet` |
+| TGI 召回样本切分 | `zyy_fxj_expansion_tgi_recall_samples_train_val_test.sql` | `training_pu_tgi_recall.parquet` / `test_tgi_recall.parquet` |
+| 征信宽表（前置） | `fxj_seed_users_attach_credit_feature.sql` | — |
+
+> 本目录**不含 SQL 文件**；分析机只读 `data/*.parquet`，不连 Hive。
 
 ### 7.3 训练
 
@@ -388,20 +376,7 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 | `colleague_selected_features.json` | 同上，JSON 数组格式 |
 | `top1000_train_window_gain.txt` | **运行时生成**：全量模型 gain Top1000 特征名；由 `top_feature_importance.py --out-features` 产出 |
 
-### sql/（Hive 建表与导出）
-
-| 文件 | 说明 |
-| --- | --- |
-| `build_pu_training_table.sql` | 千万级背景宽表打 `pu_label` + `dataset_split`（全量 U 旧方案） |
-| `build_pu_training_table_with_credit_1_sample.sql` | `with_credit_1` 表 + 负样本抽样（负样本量≈正样本）；产出 `fxj_lookalike_pu_training_1` |
-| `export_training_data.sql` | 导出默认训练 parquet → `data/training_pu.parquet` |
-| `export_training_data_train_window.sql` | 导出时间窗 train+val → `data/training_pu_train_window.parquet` |
-| `export_test_window_data.sql` | 导出时间窗外 test → `data/test_window.parquet` |
-| `export_training_data_tagged_half.sql` | 导出半量 tagged 样本 → `data/training_pu_half.parquet` |
-| `export_training_data_tgi_recall.sql` | 导出 TGI 召回后 train+val → `data/training_pu_tgi_recall.parquet` |
-| `export_test_tgi_recall_data.sql` | 导出 TGI 召回后 test → `data/test_tgi_recall.parquet` |
-
-> 同事样本表打标签、时间切分等**上游 SQL** 在 `放心借客群lookalike/sql/`（如 `zyy_fxj_expansion_samples_train_val_test.sql`），不在本目录。
+> **Hive SQL** 不在 `model/` 内。建表/导出脚本见仓库 **`../sql/`**，在**云查询机**执行；分析机仅使用 `data/*.parquet`。
 
 ### scripts/（命令行入口）
 
