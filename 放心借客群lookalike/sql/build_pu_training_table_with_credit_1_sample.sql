@@ -21,7 +21,7 @@ drop table if exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_label_stg;
 create table if not exists lj_iceberg.ai_decision_dev.fxj_lookalike_pu_label_stg as
 select
     t.*,
-    cast(smp.label as int) as is_positive
+    smp.label as is_positive
 from lj_iceberg.ai_decision_dev.fxj_ayh_seed_users_expansion_tx_cpd_fpd_bh_rzdz_pd_multiloans_feature_with_credit_1 t
 inner join lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_samples smp
     on t.unique_id = smp.unique_id
