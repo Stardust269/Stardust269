@@ -7,7 +7,7 @@
 --
 -- 划分规则与 TGI 过滤前完全一致：
 --   时间窗：train/val 用 days_dt_zx < 2026-06-22；test 用 days_dt_zx >= 2026-06-22
---   pu_label：rate < 0.18 且 days_dt_zx = lend_date_sj（或沿用表内 label）
+--   pu_label：直接沿用源表 label（0/1）
 --   train/val：hash(unique_id, dt_zx) 9:1
 --
 -- 产出（供 parquet 导出）：
@@ -40,33 +40,13 @@ select
 from lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_test
 ;
 
--- ########## 1. 训练窗打 pu_label ##########
+-- ########## 1. 训练窗打 pu_label（直接沿用源表 label） ##########
 drop table if exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_tgi_recall_train_label_stg;
 create table if not exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_tgi_recall_train_label_stg as
 select
     s.*,
-    case
-        when cast(s.label as int) in (0, 1)
-        then cast(s.label as int)
-        when seed.y_loan_base_rate is not null
-         and cast(seed.y_loan_base_rate as double) < 0.18
-         and seed.lend_date_sj is not null
-         and s.days_dt_zx is not null
-         and cast(s.days_dt_zx as date) = cast(seed.lend_date_sj as date)
-        then 1
-        else 0
-    end as pu_label
+    s.label as pu_label
 from lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples s
-left join (
-    select
-        unique_id,
-        lend_date_sj,
-        max(y_loan_base_rate) as y_loan_base_rate
-    from lj_iceberg.mkt_ayh_ana.zxt_5789_cust_detail_0630
-    group by unique_id, lend_date_sj
-) seed
-    on s.unique_id = seed.unique_id
-    and cast(s.days_dt_zx as date) = cast(seed.lend_date_sj as date)
 where cast(s.days_dt_zx as date) < date '2026-06-22'
 ;
 
@@ -114,28 +94,8 @@ drop table if exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_tgi_recall_tes
 create table if not exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_tgi_recall_test_label_stg as
 select
     t.*,
-    case
-        when cast(t.label as int) in (0, 1)
-        then cast(t.label as int)
-        when seed.y_loan_base_rate is not null
-         and cast(seed.y_loan_base_rate as double) < 0.18
-         and seed.lend_date_sj is not null
-         and t.days_dt_zx is not null
-         and cast(t.days_dt_zx as date) = cast(seed.lend_date_sj as date)
-        then 1
-        else 0
-    end as pu_label
+    t.label as pu_label
 from lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_tgi_recall_samples_test t
-left join (
-    select
-        unique_id,
-        lend_date_sj,
-        max(y_loan_base_rate) as y_loan_base_rate
-    from lj_iceberg.mkt_ayh_ana.zxt_5789_cust_detail_0630
-    group by unique_id, lend_date_sj
-) seed
-    on t.unique_id = seed.unique_id
-    and cast(t.days_dt_zx as date) = cast(seed.lend_date_sj as date)
 where cast(t.days_dt_zx as date) >= date '2026-06-22'
 ;
 

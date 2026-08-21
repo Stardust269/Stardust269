@@ -14,34 +14,13 @@
 -- select label, count(1) from lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_samples group by label;
 -- desc lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_samples;
 
--- ########## 1. 打 pu_label ##########
+-- ########## 1. 打 pu_label（直接沿用源表 label） ##########
 drop table if exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_samples_label_stg;
 create table if not exists lj_iceberg.ai_decision_dev.zyy_fxj_expansion_samples_label_stg as
 select
     s.*,
-    case
-        when cast(s.label as int) in (0, 1)
-        then cast(s.label as int)
-        when seed.y_loan_base_rate is not null
-         and cast(seed.y_loan_base_rate as double) < 0.18
-         and seed.lend_date_sj is not null
-         and s.days_dt_zx is not null
-         and cast(s.days_dt_zx as date) = cast(seed.lend_date_sj as date)
-        then 1
-        else 0
-    end as pu_label
+    s.label as pu_label
 from lj_iceberg.ai_decision_dev.zyy_fxj_ayh_seed_users_expansion_samples s
-left join (
-    select
-        unique_id,
-        lend_date_sj,
-        max(y_loan_base_rate) as y_loan_base_rate
-    from lj_iceberg.mkt_ayh_ana.zxt_5789_cust_detail_0630
-    group by unique_id, lend_date_sj
-) seed
-    on s.unique_id = seed.unique_id
-    and cast(s.days_dt_zx as date) = cast(seed.lend_date_sj as date)
--- 若正负列是 is_seed 而非 label，把上面 case 第一行改为 cast(s.is_seed as int)
 ;
 
 -- ########## 2. train/val 划分键（9:1；仅在同事 20万+50万 样本表上划分） ##########
