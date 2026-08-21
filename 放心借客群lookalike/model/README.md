@@ -30,17 +30,35 @@ model/
 
 ## 1. 数据准备（云查询机）与分析机输入
 
-Hive / Spark SQL **不在本目录执行**。请在**云查询机**跑 `放心借客群lookalike/sql/` 下的脚本（或你维护的等价 SQL），再将结果导出为 parquet 放到分析机 `model/data/`。
+Hive / Spark SQL **不在 `model/` 内执行**。请在**云查询机**跑仓库 **`../sql/`**（与 `model/` 同级）下的建表脚本，再通过查询机自带的导出功能下载 parquet 到分析机 `model/data/`。
 
-| 场景 | 云查询机 SQL（仓库路径） | 分析机 parquet |
+**仓库内不提供 export SQL**（导出走云查询机界面/工具，无法用固定 SQL 文件完成）。
+
+### 1.1 云查询机 SQL（`放心借客群lookalike/sql/`）
+
+| 类型 | 脚本 | 说明 |
 | --- | --- | --- |
-| 征信宽表 | `../sql/fxj_seed_users_attach_credit_feature.sql` | — |
-| 同事样本打标签 + 9:1 | `../sql/zyy_fxj_expansion_samples_tagged.sql` | — |
-| 时间切分 train/test | `../sql/zyy_fxj_expansion_samples_train_val_test.sql` | 导出 train 表 → `data/training_pu_train_window.parquet`；test 表 → `data/test_window.parquet` |
-| 半量抽样 | `../sql/zyy_fxj_expansion_samples_tagged_half.sql` | → `data/training_pu_half.parquet` |
-| TGI 召回切分 | `../sql/zyy_fxj_expansion_tgi_recall_samples_train_val_test.sql` | → `data/training_pu_tgi_recall.parquet` / `data/test_tgi_recall.parquet` |
+| 征信宽表 | `fxj_seed_users_attach_credit_feature.sql` | 融合征信特征宽表 |
+| 征信宽表（抽样） | `fxj_seed_users_attach_credit_feature_with_credit_1.sql` | with_credit_1 终表 |
+| **PU 建表（全量 U）** | `build_pu_training_table.sql` | 千万级背景打 `pu_label` + 9:1 划分 → `fxj_lookalike_pu_training` |
+| **PU 建表（抽样）** | `build_pu_training_table_with_credit_1_sample.sql` | with_credit_1 + 负样本抽（量≈正样本）→ `fxj_lookalike_pu_training_1` |
+| 同事样本打标签 | `zyy_fxj_expansion_samples_tagged.sql` | 约 71.5 万行，9:1 划分 |
+| 时间切分 train/test | `zyy_fxj_expansion_samples_train_val_test.sql` | train 窗 + with_credit 全量 test |
+| 半量抽样 | `zyy_fxj_expansion_samples_tagged_half.sql` | 约 35 万行 |
+| TGI 召回切分 | `zyy_fxj_expansion_tgi_recall_samples_train_val_test.sql` | TGI 召回后 train/test |
 
-导出方式：在云查询机对目标 Hive 表 `SELECT *`（或按白名单列裁剪）后下载；分析机 config 中的 `data.input_path` / `test_path` 指向上述 parquet 即可。
+### 1.2 分析机 parquet（`model/data/`，手动导出后拷入）
+
+| 场景 | 云查询机源表（示例） | 分析机文件名 |
+| --- | --- | --- |
+| 时间切分 train+val | `..._samples_train_tagged` | `training_pu_train_window.parquet` |
+| 时间切分 test | `fxj_ayh_seed_users_expansion_with_credit_test` | `test_window.parquet` |
+| 半量 train | `..._tagged_half` | `training_pu_half.parquet` |
+| TGI train+val | `..._tgi_recall_samples_train_tagged` | `training_pu_tgi_recall.parquet` |
+| TGI test | `..._tgi_recall_samples_test_tagged` | `test_tgi_recall.parquet` |
+| 旧全量/抽样 PU | `fxj_lookalike_pu_training` / `_1` | `training_pu.parquet` |
+
+分析机 config 的 `data.input_path` / `test_path` 指向上表 parquet 即可。
 
 训练默认仅使用同事筛选的 **4443 列**特征白名单（`features/colleague_selected_features.txt`），parquet 加载时列裁剪。
 
@@ -271,15 +289,17 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 
 ### 7.2 数据准备（云查询机 → parquet）
 
-在**云查询机**执行 Hive SQL（仓库参考脚本在 `../sql/`），导出后拷到分析机 `model/data/`：
+在**云查询机**执行 Hive SQL（仓库脚本在 `../sql/`），**导出 parquet 用查询机界面/工具**（仓库无 export SQL），拷到分析机 `model/data/`：
 
-| 步骤 | 云查询机 SQL（仓库 `../sql/`） | 分析机 parquet |
+| 步骤 | 云查询机 SQL（`../sql/`） | 分析机 parquet |
 | --- | --- | --- |
+| 征信宽表（前置） | `fxj_seed_users_attach_credit_feature.sql` | — |
+| **PU 建表（全量 U，旧路径）** | `build_pu_training_table.sql` | `training_pu.parquet`（可选） |
+| **PU 建表（抽样，旧路径）** | `build_pu_training_table_with_credit_1_sample.sql` | — |
 | 同事样本打标签 + 9:1 | `zyy_fxj_expansion_samples_tagged.sql` | — |
 | 时间切分 train/test | `zyy_fxj_expansion_samples_train_val_test.sql` | `training_pu_train_window.parquet` / `test_window.parquet` |
 | 半量抽样（省内存） | `zyy_fxj_expansion_samples_tagged_half.sql` | `training_pu_half.parquet` |
 | TGI 召回样本切分 | `zyy_fxj_expansion_tgi_recall_samples_train_val_test.sql` | `training_pu_tgi_recall.parquet` / `test_tgi_recall.parquet` |
-| 征信宽表（前置） | `fxj_seed_users_attach_credit_feature.sql` | — |
 
 > 本目录**不含 SQL 文件**；分析机只读 `data/*.parquet`，不连 Hive。
 
@@ -376,7 +396,23 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 | `colleague_selected_features.json` | 同上，JSON 数组格式 |
 | `top1000_train_window_gain.txt` | **运行时生成**：全量模型 gain Top1000 特征名；由 `top_feature_importance.py --out-features` 产出 |
 
-> **Hive SQL** 不在 `model/` 内。建表/导出脚本见仓库 **`../sql/`**，在**云查询机**执行；分析机仅使用 `data/*.parquet`。
+> **Hive SQL** 不在 `model/` 内。建表脚本在仓库 **`../sql/`**（与 `model/` 同级），在**云查询机**执行；**不提供 export SQL**，parquet 由查询机导出后拷至 `data/`。
+
+### 上级目录 `../sql/`（云查询机，与 model 同级）
+
+| 文件 | 说明 |
+| --- | --- |
+| `build_pu_training_table.sql` | 全量背景 U 打 `pu_label` + 9:1 → `fxj_lookalike_pu_training` |
+| `build_pu_training_table_with_credit_1_sample.sql` | with_credit_1 + 负样本抽样 → `fxj_lookalike_pu_training_1` |
+| `fxj_seed_users_attach_credit_feature.sql` | 征信特征宽表 |
+| `fxj_seed_users_attach_credit_feature_with_credit_1.sql` | with_credit_1 宽表 |
+| `zyy_fxj_expansion_samples_tagged.sql` | 同事样本打标签 + 9:1 |
+| `zyy_fxj_expansion_samples_train_val_test.sql` | 时间切分 train/test |
+| `zyy_fxj_expansion_samples_tagged_half.sql` | 半量抽样 |
+| `zyy_fxj_expansion_tgi_recall_samples_train_val_test.sql` | TGI 召回样本切分 |
+| 其他 | `fxj_seed_credit_account_part2_light.sql`、`同事样例_*.sql` 等 |
+
+仓库内**无** `export_*.sql`；Hive 表 → parquet 在云查询机界面导出。
 
 ### scripts/（命令行入口）
 
