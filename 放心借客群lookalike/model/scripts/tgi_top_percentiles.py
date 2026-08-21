@@ -91,7 +91,11 @@ def _load_from_model(
     y = y[mask]
 
     print("加载模型并分块打分（仅算 p99~p96，不重跑全表评估）...")
-    scorer = ScoringModel(model_path)
+    scorer = ScoringModel(
+        model_path,
+        config_path=config_path,
+        data_path=data_path,
+    )
     slim = slim_for_scoring(df.loc[mask], scorer.features, label_col)
     release(df)
     gc.collect()

@@ -74,7 +74,11 @@ def _load_labels_and_scores(args: argparse.Namespace, cfg: dict | None) -> tuple
     if args.model is None:
         raise ValueError("请指定 --model，或先用 predict.py 打分后传 --scores")
 
-    scorer = ScoringModel(args.model)
+    scorer = ScoringModel(
+        args.model,
+        config_path=args.config if cfg else None,
+        data_path=args.data if cfg else None,
+    )
     df = load_table(args.data, cfg, args.config)
     if label_col not in df.columns:
         raise ValueError(f"标签列不存在: {label_col}，请确认 test parquet 含 pu_label")

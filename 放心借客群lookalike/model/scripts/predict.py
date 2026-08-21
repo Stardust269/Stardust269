@@ -41,7 +41,11 @@ def main() -> None:
     ids = df[id_cols].copy() if id_cols else pd.DataFrame(index=df.index)
 
     print("加载模型...")
-    scorer = ScoringModel(args.model)
+    scorer = ScoringModel(
+        args.model,
+        config_path=args.config if cfg else None,
+        data_path=args.data if cfg else None,
+    )
     slim = slim_for_scoring(df, scorer.features)
     release(df)
     gc.collect()

@@ -186,7 +186,11 @@ def main() -> None:
     print(f"test 数据: {test_data}")
     print(f"TGI 分档模式: {tgi_band_mode}")
     print("加载模型（仅一次）...")
-    scorer = ScoringModel(args.model)
+    scorer = ScoringModel(
+        args.model,
+        config_path=args.config,
+        data_path=train_data,
+    )
 
     rankings: list[dict] = []
 
