@@ -118,25 +118,44 @@ python scripts/report_eval.py \
 #   --patch-csv artifacts/eval_report/eval_report_*_test_tgi_percentile.csv
 ```
 
-**Top1000 特征试验**（数据/PU/超参与 `config_train_window.yaml` 一致；特征取全量模型 gain Top1000）：
+**TopK 特征缩减试验**（数据/PU/超参与 `config_train_window.yaml` 一致；特征取全量模型 gain TopK，Top1000 效果≈全量，继续试 Top500 / Top200）：
 
 ```bash
 # 0) 前提：已有全量模型 artifacts/lgbm_fxj_lookalike_pu_train_window_*.{txt,feature_importance.csv}
 
+# Top1000（已跑过）
 python scripts/top_feature_importance.py \
   --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv \
   --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
   --top 1000 \
   --out artifacts/top1000_train_window_gain.csv \
   --out-features features/top1000_train_window_gain.txt
-
 python scripts/train.py --config config_train_window_top1000.yaml
 
+# Top500
+python scripts/top_feature_importance.py \
+  --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv \
+  --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
+  --top 500 \
+  --out artifacts/top500_train_window_gain.csv \
+  --out-features features/top500_train_window_gain.txt
+python scripts/train.py --config config_train_window_top500.yaml
+
+# Top200
+python scripts/top_feature_importance.py \
+  --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv \
+  --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
+  --top 200 \
+  --out artifacts/top200_train_window_gain.csv \
+  --out-features features/top200_train_window_gain.txt
+python scripts/train.py --config config_train_window_top200.yaml
+
+# 评估（与全量模型同一 test 窗，替换 config / model / out-dir）
 python scripts/report_eval.py \
-  --config config_train_window_top1000.yaml \
-  --model artifacts/lgbm_fxj_lookalike_pu_train_window_top1000_*.txt \
+  --config config_train_window_top500.yaml \
+  --model artifacts/lgbm_fxj_lookalike_pu_train_window_top500_*.txt \
   --chunk-size 30000 \
-  --out-dir artifacts/eval_report_train_window_top1000
+  --out-dir artifacts/eval_report_train_window_top500
 ```
 
 ```bash
@@ -313,6 +332,8 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 | `python scripts/train.py --config config_train_tgi_recall.yaml --data data/training_pu_tgi_recall.parquet` | **TGI 召回后样本**训练，超参与 train_window 一致 |
 | `python scripts/train.py --config config_train_tgi_recall_elkanoto.yaml --data data/training_pu_tgi_recall.parquet` | TGI 样本 + **elkanoto** PU（产出 `.joblib`，更耗内存） |
 | `python scripts/train.py --config config_train_window_top1000.yaml` | **Top1000 特征**训练（需先生成 `features/top1000_train_window_gain.txt`） |
+| `python scripts/train.py --config config_train_window_top500.yaml` | **Top500 特征**训练（同源 gain 排序前 500） |
+| `python scripts/train.py --config config_train_window_top200.yaml` | **Top200 特征**训练（同源 gain 排序前 200） |
 | `python scripts/generate_demo_data.py --rows 20000` | 无集群数据时生成合成 parquet |
 | `python scripts/train.py` | 使用默认 `config.yaml` + 默认数据路径 |
 
@@ -325,6 +346,8 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 | `python scripts/report_eval.py --config config_train_tgi_recall.yaml --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_*.txt --chunk-size 30000 --out-dir artifacts/eval_report_tgi_recall` | TGI 召回模型评估（fixed 绝对人数分档） |
 | `python scripts/report_eval.py --config config_eval_tgi_train_pretgi_test.yaml --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_*.txt --test-only --chunk-size 20000 --out-dir artifacts/eval_report_tgi_train_on_pretgi_test` | **交叉评估**：TGI 训模型 → 过滤前 `test_window.parquet` |
 | `python scripts/report_eval.py --config config_train_window_top1000.yaml --model artifacts/lgbm_fxj_lookalike_pu_train_window_top1000_*.txt --chunk-size 30000 --out-dir artifacts/eval_report_train_window_top1000` | Top1000 模型完整评估 |
+| `python scripts/report_eval.py --config config_train_window_top500.yaml --model artifacts/lgbm_fxj_lookalike_pu_train_window_top500_*.txt --chunk-size 30000 --out-dir artifacts/eval_report_train_window_top500` | Top500 模型完整评估 |
+| `python scripts/report_eval.py --config config_train_window_top200.yaml --model artifacts/lgbm_fxj_lookalike_pu_train_window_top200_*.txt --chunk-size 30000 --out-dir artifacts/eval_report_train_window_top200` | Top200 模型完整评估 |
 | `python scripts/report_eval.py --config config_train_tgi_recall_elkanoto.yaml --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_elkanoto_*.joblib --chunk-size 30000 --out-dir artifacts/eval_report_tgi_recall_elkanoto` | Elkanoto 模型评估 |
 | `python scripts/evaluate.py --config config_train_window.yaml --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --data data/test_window.parquet --chunk-size 30000` | **仅 test** 快速 AUC / precision / recall |
 | `python scripts/tgi_top_percentiles.py --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --data data/test_window.parquet --chunk-size 30000 --patch-csv artifacts/eval_report/eval_report_*_test_tgi_percentile.csv` | 已有报告时**仅补算** p99~p96 顶部百分位 |
@@ -342,7 +365,9 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 | 命令 | 说明 |
 | --- | --- |
 | `python scripts/top_feature_importance.py --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --top 10 --out artifacts/top10_feature_importance.csv` | 查看 Top10 gain，并将 `Column_N` 译为真实字段名 |
-| `python scripts/top_feature_importance.py --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --top 1000 --out artifacts/top1000_train_window_gain.csv --out-features features/top1000_train_window_gain.txt` | 导出 **Top1000 训练白名单**（供 `config_train_window_top1000.yaml`） |
+| `python scripts/top_feature_importance.py ... --top 1000 --out-features features/top1000_train_window_gain.txt` | 导出 **Top1000** 训练白名单 |
+| `python scripts/top_feature_importance.py ... --top 500 --out-features features/top500_train_window_gain.txt` | 导出 **Top500** 训练白名单 |
+| `python scripts/top_feature_importance.py ... --top 200 --out-features features/top200_train_window_gain.txt` | 导出 **Top200** 训练白名单 |
 | `python scripts/repair_lgb_features.py --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_*.txt --config config_train_tgi_recall.yaml --data data/training_pu_tgi_recall.parquet` | 旧模型仅有 `Column_0` 占位名时，**补写** `*_features.json`（无需重训；否则 AUC=0.5） |
 
 ### 7.7 决策树探查与可视化
@@ -384,6 +409,8 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 | `config_half.yaml` | **半量样本**训练（约 35 万行）：`weighted_naive`、省内存，数据 `training_pu_half.parquet` |
 | `config_train_window.yaml` | **主流程**：时间切分 train 窗 + weighted_naive；数据 `training_pu_train_window.parquet` |
 | `config_train_window_top1000.yaml` | 与 `config_train_window` 同数据/超参，特征换为全量模型 gain **Top1000** 白名单 |
+| `config_train_window_top500.yaml` | 同上，**Top500** 白名单 |
+| `config_train_window_top200.yaml` | 同上，**Top200** 白名单 |
 | `config_train_tgi_recall.yaml` | TGI 召回后样本训练；参数与 train_window 一致；含 fixed TGI 分档评估配置 |
 | `config_train_tgi_recall_elkanoto.yaml` | TGI 召回样本 + **elkanoto** PU；产出 `.joblib` |
 | `config_eval_tgi_train_pretgi_test.yaml` | **仅评估**：TGI 训模型 → 过滤前 `test_window.parquet` 交叉对比 |
@@ -394,7 +421,9 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 | --- | --- |
 | `colleague_selected_features.txt` | 同事筛选 **4443 列**特征白名单（每行一列）；训练默认 `feature_list_path` |
 | `colleague_selected_features.json` | 同上，JSON 数组格式 |
-| `top1000_train_window_gain.txt` | **运行时生成**：全量模型 gain Top1000 特征名；由 `top_feature_importance.py --out-features` 产出 |
+| `top1000_train_window_gain.txt` | **运行时生成**：全量模型 gain Top1000 特征名 |
+| `top500_train_window_gain.txt` | **运行时生成**：全量模型 gain Top500 特征名 |
+| `top200_train_window_gain.txt` | **运行时生成**：全量模型 gain Top200 特征名 |
 
 > **Hive SQL** 不在 `model/` 内。建表脚本在仓库 **`../sql/`**（与 `model/` 同级），在**云查询机**执行；**不提供 export SQL**，parquet 由查询机导出后拷至 `data/`。
 
