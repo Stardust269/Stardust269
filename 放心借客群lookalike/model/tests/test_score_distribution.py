@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 MODEL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(MODEL_ROOT / "scripts"))
@@ -32,5 +33,9 @@ def test_histogram_sums_to_one() -> None:
 def test_top_band_table() -> None:
     scores = np.arange(100, dtype=np.float32) / 100.0
     bands = top_band_table(scores)
-    assert len(bands) == 8
-    assert bands.iloc[0]["count"] >= 1
+    assert len(bands) == 24  # top 1~5% + 10~100% 步长 5%
+    assert bands.iloc[0]["top_pct"] == "top_1%"
+    assert bands.iloc[0]["count"] == 1
+    assert bands.iloc[0]["score_max"] == pytest.approx(0.99)
+    assert bands.iloc[-1]["top_pct"] == "top_100%"
+    assert bands.iloc[-1]["count"] == 100

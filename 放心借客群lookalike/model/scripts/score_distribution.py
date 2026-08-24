@@ -22,6 +22,8 @@ from memory_utils import release  # noqa: E402
 from model_io import ScoringModel, slim_for_scoring  # noqa: E402
 
 DEFAULT_PERCENTILES = [1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 99, 99.5, 99.9]
+# top 5% 内按 1% 步进，5% 外按 5% 步进（累计头部百分位）
+TOP_BAND_PERCENTILES = [1, 2, 3, 4, 5] + list(range(10, 101, 5))
 
 
 def _model_stem(model_path: Path) -> str:
@@ -67,19 +69,25 @@ def score_histogram(scores: np.ndarray, *, bins: int = 20) -> pd.DataFrame:
 
 
 def top_band_table(scores: np.ndarray) -> pd.DataFrame:
+    """累计 top 百分位分层：top1%~5% 步长 1%，之后步长 5% 至 top100%。"""
     s = np.asarray(scores, dtype=np.float64)
     s = s[np.isfinite(s)]
     n = len(s)
     rows = []
-    for p in [99, 98, 97, 96, 95, 90, 80, 50]:
-        thresh = float(np.percentile(s, p))
-        top_n = int(np.sum(s >= thresh))
+    for top_pct in TOP_BAND_PERCENTILES:
+        pct_rank = 100.0 - top_pct
+        thresh = float(np.percentile(s, pct_rank)) if n else float("nan")
+        in_band = s[s >= thresh] if n else s[:0]
+        top_n = int(in_band.size)
         rows.append(
             {
-                "percentile": f"top_{100 - p}%",
+                "top_pct": f"top_{top_pct}%",
                 "score_threshold": thresh,
                 "count": top_n,
                 "ratio": top_n / n if n else 0.0,
+                "score_mean": float(in_band.mean()) if top_n else float("nan"),
+                "score_min": float(in_band.min()) if top_n else float("nan"),
+                "score_max": float(in_band.max()) if top_n else float("nan"),
             }
         )
     return pd.DataFrame(rows)
