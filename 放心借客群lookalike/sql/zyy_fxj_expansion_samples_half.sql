@@ -1,0 +1,6 @@
+-- =============================================================================
+-- 【已合并至 tagged_half】请优先运行：
+--   放心借客群lookalike/sql/zyy_fxj_expansion_samples_tagged_half.sql
+-- 产出表：zyy_fxj_ayh_seed_users_expansion_samples_tagged_half
+--         （兼容别名 zyy_fxj_ayh_seed_users_expansion_samples_half）
+-- =============================================================================

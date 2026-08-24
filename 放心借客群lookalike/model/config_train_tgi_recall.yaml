@@ -1,0 +1,82 @@
+# TGI 回归后样本训练配置（参数与 config_train_window.yaml 完全一致，仅数据路径与评估口径不同）
+
+data:
+  input_path: data/training_pu_tgi_recall.parquet
+  test_path: data/test_tgi_recall.parquet
+  feature_list_path: features/colleague_selected_features.txt
+  id_col: unique_id
+  label_col: pu_label
+  split_col: dataset_split
+  train_split_value: train
+  val_split_value: val
+  filter:
+    require_zx_report: true
+    zx_report_col: zx_has_report_flg
+    unlabeled_ms13_min: 0
+    ms13_col: ms13_score
+
+pu:
+  method: weighted_naive
+  hold_out_ratio: 0.1
+  unlabeled_weight: 0.05
+
+training:
+  random_seed: 42
+  num_boost_round: 800
+  early_stopping_rounds: 80
+  unlabeled_subsample_ratio: 1.0
+  memory:
+    use_float32: true
+    release_dataframes: true
+    lgb_free_raw_data: true
+    skip_train_metrics: true
+    valid_on_val_only: true
+    max_bin: 127
+  params:
+    objective: binary
+    metric: auc
+    boosting_type: gbdt
+    learning_rate: 0.05
+    num_leaves: 63
+    max_depth: 8
+    min_data_in_leaf: 200
+    feature_fraction: 0.7
+    bagging_fraction: 0.7
+    bagging_freq: 1
+    lambda_l2: 2.0
+    verbosity: -1
+    seed: 42
+    num_threads: 2
+
+output:
+  artifacts_dir: artifacts
+  model_name: lgbm_fxj_lookalike_pu_tgi_recall
+
+# Test TGI 百分位表：与 TGI 过滤前 test 集相同的绝对人数分档（非按当前 test 行数百分比）
+eval:
+  tgi_band_mode: fixed
+  # p99~p25 来自同事 pre-TGI test 划分；p20~p05 延续 46731/46732 交替；p00=剩余全量
+  tgi_band_sizes:
+    99: 46731
+    98: 46732
+    97: 46731
+    96: 46732
+    95: 46732
+    90: 46731
+    85: 46732
+    80: 46731
+    75: 46732
+    70: 46732
+    65: 46731
+    60: 46732
+    55: 46731
+    50: 46732
+    45: 46732
+    40: 46731
+    35: 46732
+    30: 46731
+    25: 46732
+    20: 46731
+    15: 46732
+    10: 46731
+    5: 46732
