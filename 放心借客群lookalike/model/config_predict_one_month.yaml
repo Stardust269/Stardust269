@@ -13,6 +13,15 @@
 #     --out-dir artifacts/predict_one_month_train_window
 #
 # TGI 召回后模型：换 --config config_train_tgi_recall.yaml 与对应 model 路径
+#
+# 多分片（part1~5）一键打分 + 合并：
+#   python scripts/batch_predict_merge.py \
+#     --config config_predict_one_month.yaml \
+#     --data-template /home/finance/IDE/work/user_data/jiangchengrun/fxj_lookalike/model/data/predict_one_month_part{part}.parquet \
+#     --parts 1 2 3 4 5 \
+#     --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
+#     --out-dir artifacts/predict_one_month_scores \
+#     --chunk-size 30000
 
 data:
   input_path: data/predict_one_month.parquet
