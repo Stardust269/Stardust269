@@ -206,7 +206,13 @@ def load_split_minimal(
     return apply_filters(df, cfg, restrict_splits=restrict_splits and split_value is not None)
 
 
-def apply_filters(df: pd.DataFrame, cfg: dict, *, restrict_splits: bool = True) -> pd.DataFrame:
+def apply_filters(
+    df: pd.DataFrame,
+    cfg: dict,
+    *,
+    restrict_splits: bool = True,
+    skip_label_filter: bool = False,
+) -> pd.DataFrame:
     filt = cfg["data"].get("filter", {})
     label_col = cfg["data"]["label_col"]
     split_col = cfg["data"]["split_col"]
@@ -223,7 +229,7 @@ def apply_filters(df: pd.DataFrame, cfg: dict, *, restrict_splits: bool = True) 
         ms13 = pd.to_numeric(df[ms13_col], errors="coerce").to_numpy(dtype=np.float32, copy=False)
         mask &= is_pos | (ms13 >= ms13_min)
 
-    if label_col in df.columns:
+    if not skip_label_filter and label_col in df.columns:
         labels = df[label_col].to_numpy(copy=False)
         mask &= (labels == 0) | (labels == 1)
 

@@ -334,6 +334,7 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 | 命令 | 说明 |
 | --- | --- |
 | `python scripts/predict.py --config config_train_window.yaml --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --data data/test_window.parquet --out data/test_window_scores.parquet --chunk-size 30000` | 对 test 集分块打分（`--config` 做列裁剪，省内存） |
+| `python scripts/score_distribution.py --config config_predict_one_month.yaml --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --chunk-size 30000 --out-dir artifacts/predict_one_month --save-scores` | **无标签真实用户**：打分 + 分布统计（`label=-1` 可保留） |
 | `python scripts/predict.py --config config_train_tgi_recall.yaml --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_*.txt --data data/test_tgi_recall.parquet --out data/test_tgi_recall_scores.parquet --chunk-size 30000` | TGI test 打分 |
 | `python scripts/predict.py --model artifacts/lgbm_fxj_lookalike_pu_*.joblib --data data/background_scoring.parquet --out data/lookalike_top.parquet --top-k 500000 --chunk-size 30000` | 背景人群 TopK 扩量名单（elkanoto joblib 或任意模型） |
 
