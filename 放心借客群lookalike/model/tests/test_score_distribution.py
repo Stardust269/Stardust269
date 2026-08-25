@@ -1,4 +1,4 @@
-"""score_distribution 工具单测。"""
+"""score_distribution / score_percentile_band 单测。"""
 
 from __future__ import annotations
 
@@ -12,7 +12,8 @@ MODEL_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(MODEL_ROOT / "scripts"))
 sys.path.insert(0, str(MODEL_ROOT / "src"))
 
-from score_distribution import score_histogram, summarize_scores, top_band_table  # noqa: E402
+from metrics import score_percentile_band_table  # noqa: E402
+from score_distribution import score_histogram, summarize_scores  # noqa: E402
 
 
 def test_summarize_scores_basic() -> None:
@@ -30,12 +31,15 @@ def test_histogram_sums_to_one() -> None:
     assert abs(hist["ratio"].sum() - 1.0) < 1e-6
 
 
-def test_top_band_table() -> None:
+def test_score_percentile_band_table_order_and_slices() -> None:
     scores = np.arange(100, dtype=np.float32) / 100.0
-    bands = top_band_table(scores)
-    assert len(bands) == 24  # top 1~5% + 10~100% 步长 5%
-    assert bands.iloc[0]["top_pct"] == "top_1%"
-    assert bands.iloc[0]["count"] == 1
-    assert bands.iloc[0]["score_max"] == pytest.approx(0.99)
-    assert bands.iloc[-1]["top_pct"] == "top_100%"
-    assert bands.iloc[-1]["count"] == 100
+    bands = score_percentile_band_table(scores)
+    body = bands[bands["score百分位"] != "总计"]
+    assert body.iloc[0]["score百分位"] == "p99"
+    assert int(body.iloc[0]["总数"]) == 1
+    assert int(body.iloc[0]["累计总数"]) == 1
+    assert body.iloc[1]["score百分位"] == "p98"
+    assert int(body.iloc[1]["总数"]) == 1
+    assert int(body.iloc[1]["累计总数"]) == 2
+    assert bands.iloc[-1]["score百分位"] == "总计"
+    assert int(bands.iloc[-1]["总数"]) == 100

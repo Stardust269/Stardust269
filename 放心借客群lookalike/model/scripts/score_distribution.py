@@ -19,11 +19,10 @@ sys.path.insert(0, str(MODEL_ROOT / "src"))
 from config_loader import load_config, resolve_path  # noqa: E402
 from dataset import apply_filters, load_table, resolve_training_schema  # noqa: E402
 from memory_utils import release  # noqa: E402
+from metrics import format_score_percentile_band_table, score_percentile_band_table  # noqa: E402
 from model_io import ScoringModel, slim_for_scoring  # noqa: E402
 
 DEFAULT_PERCENTILES = [1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 99, 99.5, 99.9]
-# top 5% 内按 1% 步进，5% 外按 5% 步进（累计头部百分位）
-TOP_BAND_PERCENTILES = [1, 2, 3, 4, 5] + list(range(10, 101, 5))
 
 
 def _model_stem(model_path: Path) -> str:
@@ -68,39 +67,12 @@ def score_histogram(scores: np.ndarray, *, bins: int = 20) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def top_band_table(scores: np.ndarray) -> pd.DataFrame:
-    """累计 top 百分位分层：top1%~5% 步长 1%，之后步长 5% 至 top100%。"""
-    s = np.asarray(scores, dtype=np.float64)
-    s = s[np.isfinite(s)]
-    n = len(s)
-    rows = []
-    for top_pct in TOP_BAND_PERCENTILES:
-        pct_rank = 100.0 - top_pct
-        thresh = float(np.percentile(s, pct_rank)) if n else float("nan")
-        in_band = s[s >= thresh] if n else s[:0]
-        top_n = int(in_band.size)
-        rows.append(
-            {
-                "top_pct": f"top_{top_pct}%",
-                "score_threshold": thresh,
-                "count": top_n,
-                "ratio": top_n / n if n else 0.0,
-                "score_mean": float(in_band.mean()) if top_n else float("nan"),
-                "score_min": float(in_band.min()) if top_n else float("nan"),
-                "score_max": float(in_band.max()) if top_n else float("nan"),
-            }
-        )
-    return pd.DataFrame(rows)
-
-
-def _print_summary(model_path: Path, summary: dict) -> None:
-    print(f"\n=== {model_path.name} 分数分布 ===")
-    print(f"样本数: {summary['n']:,}")
+def _print_summary(model_path: Path, summary: dict, bands: pd.DataFrame) -> None:
+    print(f"\n=== {model_path.name} 全局统计（n={summary['n']:,}）===")
     print(f"mean={summary['mean']:.6f}  std={summary['std']:.6f}")
     print(f"min={summary['min']:.6f}  max={summary['max']:.6f}")
-    print("分位数:")
-    for k, v in summary["percentiles"].items():
-        print(f"  {k}: {v:.6f}")
+    print("\n=== score 百分位分布（p99=top1%，按分数从高到低）===")
+    print(format_score_percentile_band_table(bands))
 
 
 def _load_scoring_frame(
@@ -166,7 +138,7 @@ def _run_one_model(
 
     summary = summarize_scores(scores)
     hist = score_histogram(scores)
-    bands = top_band_table(scores)
+    bands = score_percentile_band_table(scores)
 
     stem = _model_stem(model_path)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -192,7 +164,7 @@ def _run_one_model(
     hist_path = out_dir / f"{stem}_distribution_histogram.csv"
     hist.to_csv(hist_path, index=False, encoding="utf-8-sig")
 
-    bands_path = out_dir / f"{stem}_distribution_top_bands.csv"
+    bands_path = out_dir / f"{stem}_score_percentile_bands.csv"
     bands.to_csv(bands_path, index=False, encoding="utf-8-sig")
 
     scores_path = None
@@ -202,8 +174,9 @@ def _run_one_model(
         scores_path = out_dir / f"{stem}_scores.parquet"
         out.to_parquet(scores_path, index=False)
 
-    _print_summary(model_path, summary)
+    _print_summary(model_path, summary, bands)
     print(f"已写入: {summary_path}")
+    print(f"百分位分布表: {bands_path}")
     if scores_path:
         print(f"分数 parquet: {scores_path}")
 
@@ -214,6 +187,7 @@ def _run_one_model(
             "summary": str(summary_path),
             "histogram": str(hist_path),
             "top_bands": str(bands_path),
+            "score_percentile_bands": str(bands_path),
             "scores": str(scores_path) if scores_path else None,
         },
     }

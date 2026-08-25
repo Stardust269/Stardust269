@@ -19,13 +19,13 @@ sys.path.insert(0, str(MODEL_ROOT / "src"))
 
 from config_loader import load_config  # noqa: E402
 from memory_utils import release  # noqa: E402
+from metrics import format_score_percentile_band_table, score_percentile_band_table  # noqa: E402
 from model_io import ScoringModel, slim_for_scoring  # noqa: E402
 from score_distribution import (  # noqa: E402
     _load_scoring_frame,
     _model_stem,
     score_histogram,
     summarize_scores,
-    top_band_table,
 )
 
 DEFAULT_ID_COLS = ["unique_id", "dt_zx", "days_dt_zx"]
@@ -125,7 +125,7 @@ def write_global_outputs(
     scores = merged["lookalike_score"].to_numpy()
     summary = summarize_scores(scores)
     hist = score_histogram(scores)
-    bands = top_band_table(scores)
+    bands = score_percentile_band_table(scores)
 
     summary_path = out_dir / f"{stem}_distribution_summary.json"
     with summary_path.open("w", encoding="utf-8") as f:
@@ -144,7 +144,7 @@ def write_global_outputs(
     hist_path = out_dir / f"{stem}_distribution_histogram.csv"
     hist.to_csv(hist_path, index=False, encoding="utf-8-sig")
 
-    bands_path = out_dir / f"{stem}_distribution_top_bands.csv"
+    bands_path = out_dir / f"{stem}_score_percentile_bands.csv"
     bands.to_csv(bands_path, index=False, encoding="utf-8-sig")
 
     pct_path = out_dir / f"{stem}_distribution_percentiles.csv"
@@ -157,11 +157,11 @@ def write_global_outputs(
         topk_path = out_dir / f"{stem}_top{top_k}.parquet"
         merged.head(top_k).to_parquet(topk_path, index=False)
 
-    print(f"\n=== 全局分数分布（n={summary['n']:,}）===")
+    print(f"\n=== 全局统计（n={summary['n']:,}）===")
     print(f"mean={summary['mean']:.6f}  std={summary['std']:.6f}")
     print(f"min={summary['min']:.6f}  max={summary['max']:.6f}")
-    for k, v in summary["percentiles"].items():
-        print(f"  {k}: {v:.6f}")
+    print("\n=== score 百分位分布（p99=top1%，按分数从高到低）===")
+    print(format_score_percentile_band_table(bands))
 
     return {
         "n_total": summary["n"],
@@ -169,7 +169,7 @@ def write_global_outputs(
             "scores_all": str(all_path),
             "summary": str(summary_path),
             "histogram": str(hist_path),
-            "top_bands": str(bands_path),
+            "score_percentile_bands": str(bands_path),
             "percentiles": str(pct_path),
             "top_k": str(topk_path) if topk_path else None,
         },
@@ -213,6 +213,12 @@ def main() -> None:
         help="跳过打分，仅从 out-dir 中读取已有 scores_part*.parquet 做合并",
     )
     parser.add_argument("--top-k", type=int, default=0, help=">0 时额外输出全局 TopK parquet")
+    parser.add_argument(
+        "--from-scores",
+        type=Path,
+        default=None,
+        help="已有合并分数 parquet（如 scores_all.parquet），跳过打分仅重算分布",
+    )
     args = parser.parse_args()
 
     if not args.model.exists():
@@ -229,6 +235,41 @@ def main() -> None:
     model_stem = _model_stem(args.model)
     part_frames: list[pd.DataFrame] = []
     part_meta: list[dict] = []
+
+    if args.from_scores is not None:
+        if not args.from_scores.exists():
+            raise SystemExit(f"分数文件不存在: {args.from_scores}")
+        print(f"从已有分数重算分布: {args.from_scores}")
+        merged = pd.read_parquet(args.from_scores)
+        if "lookalike_score" not in merged.columns:
+            raise SystemExit("分数文件缺少 lookalike_score 列")
+        if "global_rank" not in merged.columns:
+            merged = merged.sort_values("lookalike_score", ascending=False).reset_index(drop=True)
+            merged["global_rank"] = np.arange(1, len(merged) + 1, dtype=np.int64)
+        part_meta = [{"from_scores": str(args.from_scores), "n_scored": len(merged)}]
+        global_result = write_global_outputs(
+            merged,
+            args.out_dir,
+            model_path=args.model,
+            part_meta=part_meta,
+            top_k=args.top_k,
+        )
+        manifest = {
+            "model": str(args.model),
+            "model_stem": model_stem,
+            "config": str(args.config),
+            "from_scores": str(args.from_scores),
+            "generated_at": datetime.now().isoformat(timespec="seconds"),
+            "part_meta": part_meta,
+            "global": global_result,
+        }
+        manifest_path = args.out_dir / "batch_predict_manifest.json"
+        with manifest_path.open("w", encoding="utf-8") as f:
+            json.dump(manifest, f, ensure_ascii=False, indent=2)
+        print(f"\n全量分数: {global_result['paths']['scores_all']}")
+        print(f"百分位分布表: {global_result['paths']['score_percentile_bands']}")
+        print(f"汇总清单: {manifest_path}")
+        return
 
     if args.skip_predict:
         for part in args.parts:

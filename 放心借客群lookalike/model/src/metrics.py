@@ -153,6 +153,85 @@ def _tgi_rows_for_percentiles(
     return rows
 
 
+def score_percentile_band_table(
+    y_score: np.ndarray,
+    y_true: np.ndarray | None = None,
+    step: int = 5,
+    percentiles: list[int] | None = None,
+) -> pd.DataFrame:
+    """
+    与同事 TGI 验收表同结构的分位带（按分数从高到低切片）。
+    p99=最高 1% 那一档，p98=次高 1%，…，p95 后每 5% 一档至 p00。
+    无标签时种子相关列为 0，recall/precision 为 NaN。
+    """
+    y_score = np.asarray(y_score).astype(float)
+    finite = np.isfinite(y_score)
+    y_score = y_score[finite]
+    if y_true is None:
+        y_true = np.zeros(len(y_score), dtype=int)
+    else:
+        y_true = np.asarray(y_true).astype(int)[finite]
+
+    order = np.argsort(-y_score, kind="mergesort")
+    y_sorted = y_true[order]
+    n = len(y_score)
+    n_pos_total = int(y_sorted.sum())
+    pct_list = _resolve_tgi_percentiles(step, percentiles)
+    rows = _tgi_rows_for_percentiles(y_sorted, n, n_pos_total, pct_list)
+
+    for row in rows:
+        row["score百分位"] = row.pop("tgi百分位")
+        slice_n = int(row["总数"])
+        slice_pos = int(row["种子用户数"])
+        row["种子浓度"] = slice_pos / slice_n if slice_n else float("nan")
+
+    df = pd.DataFrame(rows)[
+        [
+            "score百分位",
+            "总数",
+            "种子用户数",
+            "种子浓度",
+            "累计总数",
+            "累计种子用户数",
+            "recall",
+            "precision",
+        ]
+    ]
+    total_row = {
+        "score百分位": "总计",
+        "总数": n,
+        "种子用户数": n_pos_total,
+        "种子浓度": n_pos_total / n if n else float("nan"),
+        "累计总数": n,
+        "累计种子用户数": n_pos_total,
+        "recall": float("nan"),
+        "precision": float("nan"),
+    }
+    return pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
+
+
+def format_score_percentile_band_table(df: pd.DataFrame) -> str:
+    """格式化为与同事验收表一致的文本表。"""
+    lines = [
+        "score百分位\t总数\t种子用户数\t种子浓度\t累计总数\t累计种子用户数\trecall\tprecision"
+    ]
+    for _, row in df.iterrows():
+        pct = row["score百分位"]
+        if pct == "总计":
+            recall_s = ""
+            precision_s = ""
+            conc_s = f"{row['种子浓度'] * 100:.2f}%" if pd.notna(row["种子浓度"]) else ""
+        else:
+            recall_s = f"{row['recall'] * 100:.2f}%" if pd.notna(row["recall"]) else ""
+            precision_s = f"{row['precision'] * 100:.2f}%" if pd.notna(row["precision"]) else ""
+            conc_s = f"{row['种子浓度'] * 100:.2f}%" if pd.notna(row["种子浓度"]) else ""
+        lines.append(
+            f"{pct}\t{int(row['总数']):,}\t{int(row['种子用户数']):,}\t{conc_s}\t"
+            f"{int(row['累计总数']):,}\t{int(row['累计种子用户数']):,}\t{recall_s}\t{precision_s}"
+        )
+    return "\n".join(lines)
+
+
 # 与同事表一致：顶部细粒度 top1%~4% + 每 5% 一档至全量
 DEFAULT_TGI_PERCENTILES = [99, 98, 97, 96, *range(95, -1, -5)]
 
