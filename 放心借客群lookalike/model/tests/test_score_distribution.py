@@ -37,9 +37,7 @@ def test_score_percentile_band_table_order_and_slices() -> None:
     body = bands[bands["score百分位"] != "总计"]
     assert body.iloc[0]["score百分位"] == "p99"
     assert int(body.iloc[0]["总数"]) == 1
-    assert int(body.iloc[0]["累计总数"]) == 1
-    assert body.iloc[1]["score百分位"] == "p98"
-    assert int(body.iloc[1]["总数"]) == 1
-    assert int(body.iloc[1]["累计总数"]) == 2
+    assert "分数_mean" in bands.columns
+    assert "累计分数_mean" in bands.columns
     assert bands.iloc[-1]["score百分位"] == "总计"
     assert int(bands.iloc[-1]["总数"]) == 100

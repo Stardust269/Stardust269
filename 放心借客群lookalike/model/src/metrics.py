@@ -153,82 +153,104 @@ def _tgi_rows_for_percentiles(
     return rows
 
 
+def _score_stats(arr: np.ndarray) -> dict[str, float]:
+    if arr.size == 0:
+        return {"min": float("nan"), "max": float("nan"), "mean": float("nan")}
+    return {"min": float(arr.min()), "max": float(arr.max()), "mean": float(arr.mean())}
+
+
+def _score_percentile_band_rows(
+    scores_sorted: np.ndarray,
+    n: int,
+    percentiles: list[int],
+) -> list[dict]:
+    """按分数从高到低互斥切片；每行含本层与累计的 min/max/mean。"""
+    rows: list[dict] = []
+    prev_cum_n = 0
+
+    for p in sorted(percentiles, reverse=True):
+        top_ratio = (100 - p) / 100.0
+        cum_n = n if p == 0 else max(int(round(n * top_ratio)), 1)
+        cum_n = min(cum_n, n)
+        slice_n = cum_n - prev_cum_n
+        cum_scores = scores_sorted[:cum_n]
+        slice_scores = scores_sorted[prev_cum_n:cum_n]
+        cum_st = _score_stats(cum_scores)
+        slice_st = _score_stats(slice_scores)
+        rows.append(
+            {
+                "score百分位": f"p{p:02d}",
+                "总数": slice_n,
+                "分数_min": slice_st["min"],
+                "分数_max": slice_st["max"],
+                "分数_mean": slice_st["mean"],
+                "累计总数": cum_n,
+                "累计分数_min": cum_st["min"],
+                "累计分数_max": cum_st["max"],
+                "累计分数_mean": cum_st["mean"],
+            }
+        )
+        prev_cum_n = cum_n
+    return rows
+
+
 def score_percentile_band_table(
     y_score: np.ndarray,
-    y_true: np.ndarray | None = None,
     step: int = 5,
     percentiles: list[int] | None = None,
 ) -> pd.DataFrame:
     """
-    与同事 TGI 验收表同结构的分位带（按分数从高到低切片）。
-    p99=最高 1% 那一档，p98=次高 1%，…，p95 后每 5% 一档至 p00。
-    无标签时种子相关列为 0，recall/precision 为 NaN。
+    无标签预测分布：按分数从高到低分层。
+    p99=最高 1% 互斥层，p98=次高 1%，…，p95 后每 5% 一档至 p00。
+    每层输出本层与累计的样本数及分数 min/max/mean。
     """
     y_score = np.asarray(y_score).astype(float)
-    finite = np.isfinite(y_score)
-    y_score = y_score[finite]
-    if y_true is None:
-        y_true = np.zeros(len(y_score), dtype=int)
-    else:
-        y_true = np.asarray(y_true).astype(int)[finite]
-
+    y_score = y_score[np.isfinite(y_score)]
     order = np.argsort(-y_score, kind="mergesort")
-    y_sorted = y_true[order]
-    n = len(y_score)
-    n_pos_total = int(y_sorted.sum())
+    scores_sorted = y_score[order]
+    n = len(scores_sorted)
     pct_list = _resolve_tgi_percentiles(step, percentiles)
-    rows = _tgi_rows_for_percentiles(y_sorted, n, n_pos_total, pct_list)
-
-    for row in rows:
-        row["score百分位"] = row.pop("tgi百分位")
-        slice_n = int(row["总数"])
-        slice_pos = int(row["种子用户数"])
-        row["种子浓度"] = slice_pos / slice_n if slice_n else float("nan")
-
-    df = pd.DataFrame(rows)[
-        [
-            "score百分位",
-            "总数",
-            "种子用户数",
-            "种子浓度",
-            "累计总数",
-            "累计种子用户数",
-            "recall",
-            "precision",
-        ]
-    ]
+    rows = _score_percentile_band_rows(scores_sorted, n, pct_list)
+    df = pd.DataFrame(rows)
+    all_st = _score_stats(scores_sorted)
     total_row = {
         "score百分位": "总计",
         "总数": n,
-        "种子用户数": n_pos_total,
-        "种子浓度": n_pos_total / n if n else float("nan"),
+        "分数_min": all_st["min"],
+        "分数_max": all_st["max"],
+        "分数_mean": all_st["mean"],
         "累计总数": n,
-        "累计种子用户数": n_pos_total,
-        "recall": float("nan"),
-        "precision": float("nan"),
+        "累计分数_min": all_st["min"],
+        "累计分数_max": all_st["max"],
+        "累计分数_mean": all_st["mean"],
     }
     return pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
 
 
 def format_score_percentile_band_table(df: pd.DataFrame) -> str:
-    """格式化为与同事验收表一致的文本表。"""
-    lines = [
-        "score百分位\t总数\t种子用户数\t种子浓度\t累计总数\t累计种子用户数\trecall\tprecision"
+    cols = [
+        "score百分位",
+        "总数",
+        "分数_min",
+        "分数_max",
+        "分数_mean",
+        "累计总数",
+        "累计分数_min",
+        "累计分数_max",
+        "累计分数_mean",
     ]
+    lines = ["\t".join(cols)]
     for _, row in df.iterrows():
-        pct = row["score百分位"]
-        if pct == "总计":
-            recall_s = ""
-            precision_s = ""
-            conc_s = f"{row['种子浓度'] * 100:.2f}%" if pd.notna(row["种子浓度"]) else ""
-        else:
-            recall_s = f"{row['recall'] * 100:.2f}%" if pd.notna(row["recall"]) else ""
-            precision_s = f"{row['precision'] * 100:.2f}%" if pd.notna(row["precision"]) else ""
-            conc_s = f"{row['种子浓度'] * 100:.2f}%" if pd.notna(row["种子浓度"]) else ""
-        lines.append(
-            f"{pct}\t{int(row['总数']):,}\t{int(row['种子用户数']):,}\t{conc_s}\t"
-            f"{int(row['累计总数']):,}\t{int(row['累计种子用户数']):,}\t{recall_s}\t{precision_s}"
-        )
+        vals = []
+        for c in cols:
+            v = row[c]
+            if c == "score百分位":
+                vals.append(str(v))
+            elif c in ("总数", "累计总数"):
+                vals.append(f"{int(v):,}")
+            else:
+                vals.append(f"{float(v):.6f}")
+        lines.append("\t".join(vals))
     return "\n".join(lines)
 
 
