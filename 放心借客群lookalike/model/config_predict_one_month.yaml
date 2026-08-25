@@ -1,9 +1,10 @@
 # 同事七月真实用户特征表：仅打分 + 分布统计（无 ground truth，label 全为 -1）
 #
-# 数据默认路径（分析机）：
+# 数据路径（团队分析机，相对 model/ 目录）：
 #   data/predict_one_month.parquet
-# 或绝对路径：
-#   /home/finance/IDE/work/user_data/jiangchengrun/fxj_lookalike/model/data/predict_one_month.parquet
+#   data/predict_one_month_part1.parquet … part5
+# 绝对路径示例：
+#   /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchengrun/fxj_lookalike/model/data/
 #
 # 示例（train_window 全量特征模型）：
 #   python scripts/score_distribution.py \
@@ -14,10 +15,9 @@
 #
 # TGI 召回后模型：换 --config config_train_tgi_recall.yaml 与对应 model 路径
 #
-# 多分片（part1~5）一键打分 + 合并：
+# 多分片（part1~5）一键打分 + 合并（数据在 model/data/ 时可省略 --data-template）：
 #   python scripts/batch_predict_merge.py \
 #     --config config_predict_one_month.yaml \
-#     --data-template /home/finance/IDE/work/user_data/jiangchengrun/fxj_lookalike/model/data/predict_one_month_part{part}.parquet \
 #     --parts 1 2 3 4 5 \
 #     --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
 #     --out-dir artifacts/predict_one_month_scores \

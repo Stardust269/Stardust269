@@ -335,7 +335,7 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 | --- | --- |
 | `python scripts/predict.py --config config_train_window.yaml --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --data data/test_window.parquet --out data/test_window_scores.parquet --chunk-size 30000` | 对 test 集分块打分（`--config` 做列裁剪，省内存） |
 | `python scripts/score_distribution.py --config config_predict_one_month.yaml --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --chunk-size 30000 --out-dir artifacts/predict_one_month --save-scores` | **无标签真实用户**：打分 + 分布统计（`label=-1` 可保留） |
-| `python scripts/batch_predict_merge.py --config config_predict_one_month.yaml --data-template /path/predict_one_month_part{part}.parquet --parts 1 2 3 4 5 --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --out-dir artifacts/predict_one_month_scores --chunk-size 30000` | **多分片无标签**：逐批打分 → 合并全量分数 + 全局排名/分布 |
+| `python scripts/batch_predict_merge.py --config config_predict_one_month.yaml --parts 1 2 3 4 5 --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --out-dir artifacts/predict_one_month_scores --chunk-size 30000` | **多分片无标签**：逐批打分 → 合并（默认读 `data/predict_one_month_part{part}.parquet`） |
 | `python scripts/predict.py --config config_train_tgi_recall.yaml --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_*.txt --data data/test_tgi_recall.parquet --out data/test_tgi_recall_scores.parquet --chunk-size 30000` | TGI test 打分 |
 | `python scripts/predict.py --model artifacts/lgbm_fxj_lookalike_pu_*.joblib --data data/background_scoring.parquet --out data/lookalike_top.parquet --top-k 500000 --chunk-size 30000` | 背景人群 TopK 扩量名单（elkanoto joblib 或任意模型） |
 
@@ -422,6 +422,8 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 | --- | --- |
 | `train.py` | **训练主入口**：读 config → 加载 parquet → PU + LightGBM → 保存模型与指标 |
 | `predict.py` | 对背景人群**分块打分**，输出 lookalike 分数 parquet（支持 `--config` 列裁剪） |
+| `score_distribution.py` | 无标签数据打分 + **分数分布**统计（`label=-1` 可保留；`--save-scores` 输出逐人分数） |
+| `batch_predict_merge.py` | **多分片**无标签数据：逐批打分 → 合并全量分数 + 全局排名/分布 |
 | `report_eval.py` | 生成 **train/val/test** 完整评估报告（AUC + TGI 百分位表，低内存串行） |
 | `evaluate.py` | 在带标签 test 上计算 AUC / precision / recall 等（支持 `--scores` 预打分 join） |
 | `tgi_top_percentiles.py` | 仅补算 TGI 顶部百分位（p99~p96），无需重跑完整 report_eval |

@@ -29,13 +29,25 @@ from score_distribution import (  # noqa: E402
 )
 
 DEFAULT_ID_COLS = ["unique_id", "dt_zx", "days_dt_zx"]
+DEFAULT_DATA_TEMPLATE = "data/predict_one_month_part{part}.parquet"
+
+
+def _resolve_data_path(template: str, part: int) -> Path:
+    path = Path(template.format(part=part))
+    if not path.is_absolute():
+        path = (MODEL_ROOT / path).resolve()
+    return path
 
 
 def resolve_part_paths(template: str, parts: list[int]) -> list[Path]:
-    paths = [Path(template.format(part=p)) for p in parts]
+    paths = [_resolve_data_path(template, p) for p in parts]
     missing = [str(p) for p in paths if not p.exists()]
     if missing:
-        raise FileNotFoundError(f"以下分片数据不存在:\n  " + "\n  ".join(missing))
+        hint = (
+            f"默认数据目录: {(MODEL_ROOT / 'data').resolve()}\n"
+            f"若数据在 model/data/ 下，可用: --data-template data/predict_one_month_part{{part}}.parquet"
+        )
+        raise FileNotFoundError(f"以下分片数据不存在:\n  " + "\n  ".join(missing) + f"\n\n{hint}")
     return paths
 
 
@@ -172,8 +184,8 @@ def main() -> None:
     parser.add_argument(
         "--data-template",
         type=str,
-        required=True,
-        help="分片路径模板，用 {part} 占位，如 data/predict_one_month_part{part}.parquet",
+        default=DEFAULT_DATA_TEMPLATE,
+        help="分片路径模板（相对路径以 model/ 为根），{part} 占位，默认 data/predict_one_month_part{part}.parquet",
     )
     parser.add_argument(
         "--parts",
