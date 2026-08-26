@@ -13,7 +13,7 @@
 
 ## 目录
 
-完整文件说明见文末 **[附录：model/ 文件说明](#附录model-文件说明)**；**全部运行命令**见 **[§7 命令速查](#7-命令速查对话中使用的全部命令)**。
+完整文件说明见文末 **[附录：model/ 文件说明](#附录model-文件说明)**；**全部运行命令**见 **[§7 命令速查](#7-命令速查对话中使用的全部命令)**；**决策树探查**见 **[§1.4](#14-决策树探查top-特征浅层规则)**。
 
 ```
 model/
@@ -166,10 +166,12 @@ python scripts/report_eval.py \
 #   --artifact artifacts/dt_probe/dt_probe_top10_*.joblib \
 #   --split test --test-data data/test_window.parquet
 # 已有 .joblib，仅在 test 上评估并出图：
-# python scripts/decision_tree_probe.py \
+# python scripts/plot_decision_tree.py \
 #   --artifact artifacts/dt_probe/dt_probe_top10_*.joblib \
-#   --test-data data/test_window.parquet
+#   --split test --test-data data/test_window.parquet
 ```
+
+**决策树探查（Top 特征浅层规则，检验是否少量规则即可强区分种子）** — 完整命令见 [§1.4](#14-决策树探查top-特征浅层规则) 与 [§7.7](#77-决策树探查与可视化)。
 
 **TGI 回归后样本**（训练参数与 `config_train_window.yaml` 完全一致；test TGI 表用固定绝对人数分档）：
 
@@ -221,6 +223,78 @@ python scripts/report_eval.py \
 ```
 
 内存差异要点：`weighted_naive` 走原生 `lgb.train`，可用 `free_raw_data`、仅 val early stopping、训练后释放 `x_train`；`elkanoto` 走 `pulearn` + sklearn `LGBMClassifier`，且从未标注中再 hold-out 估计类先验，峰值通常更高。OOM 时优先降 `unlabeled_subsample_ratio` 或先用 `config_half.yaml` 半量数据试跑。
+
+### 1.4 决策树探查（Top 特征浅层规则）
+
+用 LightGBM **Top N 重要特征**（默认 Top10）训练浅层 `DecisionTreeClassifier`，回答同事关心的问题：**是否几条简单规则就能把种子和背景几乎分开**（若可以，需排查强特征或标签泄漏）。
+
+**前置**：已有全量模型及 `*_feature_importance.csv`；出图需系统安装 graphviz（`conda install -c conda-forge graphviz`）。
+
+**在 train 上拟合 + val 指标 + 导出树图与 joblib**：
+
+```bash
+cd model
+
+python scripts/decision_tree_probe.py \
+  --config config_train_window.yaml \
+  --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv \
+  --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
+  --data data/training_pu_train_window.parquet \
+  --top 10 \
+  --max-depth 4 \
+  --min-samples-leaf 200 \
+  --out-dir artifacts/dt_probe
+```
+
+**时间外：用 train 拟合的树在 test 上评估，并导出 test 节点统计图**：
+
+```bash
+python scripts/decision_tree_probe.py \
+  --config config_train_window.yaml \
+  --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv \
+  --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
+  --data data/training_pu_train_window.parquet \
+  --test-data data/test_window.parquet \
+  --max-depth 4 \
+  --plot-test
+```
+
+**已有 `dt_probe_*.joblib`，跳过训练、仅在 test 上评估**：
+
+```bash
+python scripts/decision_tree_probe.py \
+  --config config_train_window.yaml \
+  --artifact artifacts/dt_probe/dt_probe_top10_*.joblib \
+  --test-data data/test_window.parquet
+```
+
+**从 joblib 单独出图**（默认用缓存的 train 节点统计；`--split test` 可从 test 重算）：
+
+```bash
+# train 节点统计（joblib 内缓存）
+python scripts/plot_decision_tree.py \
+  --artifact artifacts/dt_probe/dt_probe_top10_*.joblib
+
+# 基于 test 样本重算节点统计并出图
+python scripts/plot_decision_tree.py \
+  --artifact artifacts/dt_probe/dt_probe_top10_*.joblib \
+  --split test \
+  --test-data data/test_window.parquet \
+  --out artifacts/dt_probe/dt_probe_top10_tree_test.png
+```
+
+**典型产出**（`artifacts/dt_probe/`）：
+
+| 文件 | 说明 |
+| --- | --- |
+| `dt_probe_top10_*.joblib` | 决策树 + 特征名 + train 节点统计（供复用评估/出图） |
+| `dt_probe_top10_*_tree.png` | 带种子数、seed%、seed recall 标注的树图 |
+| `dt_probe_top10_*_tree.csv` | 节点明细 |
+| `dt_probe_top10_*_tree.dot` | Graphviz 源文件 |
+| `dt_probe_top10_*.json` / `*.txt` | 规则文本与指标摘要 |
+| `dt_probe_top10_*_report.md` | 可读报告 |
+
+**核心代码**：`scripts/decision_tree_probe.py`、`scripts/plot_decision_tree.py`、`src/tree_viz.py`。
 
 ## 2. 本地训练
 
@@ -334,6 +408,8 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 | 命令 | 说明 |
 | --- | --- |
 | `python scripts/predict.py --config config_train_window.yaml --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --data data/test_window.parquet --out data/test_window_scores.parquet --chunk-size 30000` | 对 test 集分块打分（`--config` 做列裁剪，省内存） |
+| `python scripts/score_distribution.py --config config_predict_one_month.yaml --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --chunk-size 30000 --out-dir artifacts/predict_one_month --save-scores` | **无标签真实用户**：打分 + 分布统计（`label=-1` 可保留） |
+| `python scripts/batch_predict_merge.py --config config_predict_one_month.yaml --parts 1 2 3 4 5 --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --out-dir artifacts/predict_one_month_scores --chunk-size 30000` | **多分片无标签**：逐批打分 → 合并（默认读 `data/predict_one_month_part{part}.parquet`） |
 | `python scripts/predict.py --config config_train_tgi_recall.yaml --model artifacts/lgbm_fxj_lookalike_pu_tgi_recall_*.txt --data data/test_tgi_recall.parquet --out data/test_tgi_recall_scores.parquet --chunk-size 30000` | TGI test 打分 |
 | `python scripts/predict.py --model artifacts/lgbm_fxj_lookalike_pu_*.joblib --data data/background_scoring.parquet --out data/lookalike_top.parquet --top-k 500000 --chunk-size 30000` | 背景人群 TopK 扩量名单（elkanoto joblib 或任意模型） |
 
@@ -347,13 +423,15 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 
 ### 7.7 决策树探查与可视化
 
+> 业务目的：用 Top 特征浅层决策树检验「是否少量规则即可极高精度区分种子」；详见正文 [§1.4](#14-决策树探查top-特征浅层规则)。
+
 | 命令 | 说明 |
 | --- | --- |
-| `python scripts/decision_tree_probe.py --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --data data/training_pu_train_window.parquet --max-depth 4` | Top 特征浅层决策树，检验是否少量规则即可区分种子 |
-| `python scripts/decision_tree_probe.py ... --test-data data/test_window.parquet --plot-test` | 在 test 上时间外评估并导出 test 节点统计图 |
-| `python scripts/decision_tree_probe.py --artifact artifacts/dt_probe/dt_probe_top10_*.joblib --test-data data/test_window.parquet` | 已有探查 joblib，**跳过训练**仅在 test 上评估 |
-| `python scripts/plot_decision_tree.py --artifact artifacts/dt_probe/dt_probe_top10_*.joblib` | 用 joblib 内缓存的 **train** 节点统计出树图 |
-| `python scripts/plot_decision_tree.py --artifact artifacts/dt_probe/dt_probe_top10_*.joblib --split test --test-data data/test_window.parquet` | 基于 **test** 样本重算节点统计并出图 |
+| `python scripts/decision_tree_probe.py --config config_train_window.yaml --importance artifacts/lgbm_fxj_lookalike_pu_train_window_*_feature_importance.csv --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt --data data/training_pu_train_window.parquet --top 10 --max-depth 4 --out-dir artifacts/dt_probe` | **训练探查树**：train 拟合 + val 指标 + 树图/joblib |
+| `python scripts/decision_tree_probe.py ... --test-data data/test_window.parquet --plot-test` | train 拟合树 → **test 时间外评估** + test 节点图 |
+| `python scripts/decision_tree_probe.py --artifact artifacts/dt_probe/dt_probe_top10_*.joblib --test-data data/test_window.parquet` | 已有 joblib，**跳过训练**仅 test 评估 |
+| `python scripts/plot_decision_tree.py --artifact artifacts/dt_probe/dt_probe_top10_*.joblib` | 用 joblib 缓存的 **train** 节点统计出图 |
+| `python scripts/plot_decision_tree.py --artifact artifacts/dt_probe/dt_probe_top10_*.joblib --split test --test-data data/test_window.parquet` | 基于 **test** 重算节点统计并出图 |
 
 ### 7.8 常用参数说明
 
@@ -420,6 +498,8 @@ cd /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchen
 | --- | --- |
 | `train.py` | **训练主入口**：读 config → 加载 parquet → PU + LightGBM → 保存模型与指标 |
 | `predict.py` | 对背景人群**分块打分**，输出 lookalike 分数 parquet（支持 `--config` 列裁剪） |
+| `score_distribution.py` | 无标签数据打分 + **分数分布**统计（`label=-1` 可保留；`--save-scores` 输出逐人分数） |
+| `batch_predict_merge.py` | **多分片**无标签数据：逐批打分 → 合并全量分数 + 全局排名/分布 |
 | `report_eval.py` | 生成 **train/val/test** 完整评估报告（AUC + TGI 百分位表，低内存串行） |
 | `evaluate.py` | 在带标签 test 上计算 AUC / precision / recall 等（支持 `--scores` 预打分 join） |
 | `tgi_top_percentiles.py` | 仅补算 TGI 顶部百分位（p99~p96），无需重跑完整 report_eval |

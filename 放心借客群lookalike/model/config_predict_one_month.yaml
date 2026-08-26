@@ -1,0 +1,38 @@
+# 同事七月真实用户特征表：仅打分 + 分布统计（无 ground truth，label 全为 -1）
+#
+# 数据路径（团队分析机，相对 model/ 目录）：
+#   data/predict_one_month.parquet
+#   data/predict_one_month_part1.parquet … part5
+# 绝对路径示例：
+#   /home/finance/App/jupyter-ide-bigdata.msxf.lo/.IDE/work/ai_decision/jiangchengrun/fxj_lookalike/model/data/
+#
+# 示例（train_window 全量特征模型）：
+#   python scripts/score_distribution.py \
+#     --config config_predict_one_month.yaml \
+#     --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
+#     --chunk-size 30000 \
+#     --out-dir artifacts/predict_one_month_train_window
+#
+# TGI 召回后模型：换 --config config_train_tgi_recall.yaml 与对应 model 路径
+#
+# 多分片（part1~5）一键打分 + 合并（数据在 model/data/ 时可省略 --data-template）：
+#   python scripts/batch_predict_merge.py \
+#     --config config_predict_one_month.yaml \
+#     --parts 1 2 3 4 5 \
+#     --model artifacts/lgbm_fxj_lookalike_pu_train_window_*.txt \
+#     --out-dir artifacts/predict_one_month_scores \
+#     --chunk-size 30000
+
+data:
+  input_path: data/predict_one_month.parquet
+  feature_list_path: features/colleague_selected_features.txt
+  id_col: unique_id
+  label_col: label
+  split_col: dataset_split
+  train_split_value: train
+  val_split_value: val
+  filter:
+    require_zx_report: true
+    zx_report_col: zx_has_report_flg
+    unlabeled_ms13_min: 0
+    ms13_col: ms13_score

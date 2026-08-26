@@ -42,8 +42,34 @@ def booster_uses_generic_names(feature_names: list[str]) -> bool:
     return bool(feature_names) and all(_COLUMN_RE.match(n) for n in feature_names)
 
 
-def resolve_model_features(model_path: Path, booster: lgb.Booster | None = None) -> list[str]:
+def repair_feature_sidecar(
+    model_path: Path,
+    feature_columns: list[str],
+    booster: lgb.Booster | None = None,
+) -> Path:
+    model_path = Path(model_path)
+    if booster is None:
+        booster = lgb.Booster(model_file=str(model_path))
+    names = booster.feature_name()
+    if not booster_uses_generic_names(names):
+        raise ValueError(f"模型已是真实特征名，无需修复: {model_path}")
+    if len(names) != len(feature_columns):
+        raise ValueError(
+            f"特征数不一致: 模型 {len(names)} vs 配置 {len(feature_columns)}"
+        )
+    return save_feature_list(model_path, feature_columns)
+
+
+def resolve_model_features(
+    model_path: Path,
+    booster: lgb.Booster | None = None,
+    *,
+    config_path: Path | None = None,
+    data_path: Path | None = None,
+    auto_repair: bool = False,
+) -> list[str]:
     """解析入模特征名；兼容旧版 Column_0 命名（需同目录 *_features.json）。"""
+    model_path = Path(model_path)
     sidecar = load_feature_list(model_path)
     if sidecar is not None:
         return sidecar
@@ -54,9 +80,20 @@ def resolve_model_features(model_path: Path, booster: lgb.Booster | None = None)
     if not booster_uses_generic_names(names):
         return names
 
+    if auto_repair and config_path is not None:
+        from config_loader import load_config, resolve_path
+        from dataset import resolve_training_schema
+
+        cfg = load_config(config_path)
+        train_data = data_path or resolve_path(cfg["data"]["input_path"], config_path)
+        feature_columns, _ = resolve_training_schema(train_data, cfg, config_path)
+        sidecar_path = repair_feature_sidecar(model_path, feature_columns, booster)
+        print(f"已自动补写特征 sidecar: {sidecar_path}（{len(feature_columns)} 列）")
+        return feature_columns
+
     raise ValueError(
         f"模型 {model_path} 使用 Column_0 等占位特征名，且缺少 {features_sidecar_path(model_path)}。"
-        "请用修复后的 train.py 重新训练，或手动生成特征列表 sidecar。"
+        "请运行 repair_lgb_features.py 补写 sidecar，或传入 config_path 自动修复。"
     )
 
 
@@ -85,7 +122,14 @@ def load_joblib_model(model_path: Path):
 class ScoringModel:
     """加载一次模型，支持分块打分（降低峰值内存）。"""
 
-    def __init__(self, model_path: Path):
+    def __init__(
+        self,
+        model_path: Path,
+        *,
+        config_path: Path | None = None,
+        data_path: Path | None = None,
+        auto_repair_features: bool = True,
+    ):
         self.model_path = Path(model_path)
         self.is_joblib = self.model_path.suffix == ".joblib"
         if self.is_joblib:
@@ -93,7 +137,13 @@ class ScoringModel:
             self.booster = None
         else:
             self.booster = lgb.Booster(model_file=str(self.model_path))
-            self.features = resolve_model_features(self.model_path, self.booster)
+            self.features = resolve_model_features(
+                self.model_path,
+                self.booster,
+                config_path=config_path,
+                data_path=data_path,
+                auto_repair=auto_repair_features,
+            )
             self.clf = None
 
     def predict_chunked(self, df: pd.DataFrame, chunk_size: int = 40_000) -> np.ndarray:
